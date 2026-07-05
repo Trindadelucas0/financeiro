@@ -1279,13 +1279,35 @@ async function exportPDF() {
     return parts.filter(Boolean).join(' · ');
   }
 
+  var ENTITY_RAIL = [
+    { value: 'receita', label: 'Receita', icon: '↑', desc: 'Entrada de dinheiro no mês', iconClass: 'in' },
+    { value: 'despesa', label: 'Despesa', icon: '↓', desc: 'Conta, compra ou gasto', iconClass: 'out' },
+    { value: 'emprestimo', label: 'Empréstimo', icon: '%', desc: 'Parcelas com juros', iconClass: 'loan' },
+  ];
+
+  function entityRailItem(item, c, locked) {
+    const active = c.entidade === item.value;
+    const itemLocked = locked && !active;
+    const cls = 'modal-rail-item' + (active ? ' active' : '') + (itemLocked ? ' locked' : '');
+    const clickAttr = itemLocked ? '' : ' onclick="setEntidade(\'' + item.value + '\')"';
+    const ariaCurrent = active ? ' aria-current="true"' : '';
+    const disabled = itemLocked ? ' disabled' : '';
+    return (
+      '<button type="button" class="' + cls + '" data-value="' + esc(item.value) + '"' + clickAttr + ariaCurrent + disabled + '>' +
+      '<span class="modal-rail-icon ' + item.iconClass + '" aria-hidden="true">' + item.icon + '</span>' +
+      '<span class="modal-rail-copy">' +
+      '<span class="modal-rail-label">' + esc(item.label) + '</span>' +
+      '<span class="modal-rail-desc">' + esc(item.desc) + '</span>' +
+      '</span></button>'
+    );
+  }
+
+  function buildEntityRailHtml(c, locked) {
+    return ENTITY_RAIL.map(function (item) { return entityRailItem(item, c, locked); }).join('');
+  }
+
   function buildPickersHtml(c, locked) {
     let html = '';
-    html += '<p class="picker-label">O que é</p><div class="type-picker modal-type-picker modal-type-picker-entity">';
-    html += tipoOptBtn('receita', c.entidade === 'receita', 'Receita', locked, "setEntidade('receita')");
-    html += tipoOptBtn('despesa', c.entidade === 'despesa', 'Despesa', locked, "setEntidade('despesa')");
-    html += tipoOptBtn('emprestimo', c.entidade === 'emprestimo', 'Empréstimo', locked, "setEntidade('emprestimo')");
-    html += '</div>';
 
     if (c.entidade === 'receita' || c.entidade === 'despesa') {
       html += '<p class="picker-label">Fixa ou variável</p><div class="type-picker modal-type-picker">';
@@ -1304,13 +1326,30 @@ async function exportPDF() {
     return html;
   }
 
+  function buildMainPanelHtml(c, locked) {
+    let html = '';
+    if (!c.entidade) {
+      html +=
+        '<p class="modal-panel-empty">' +
+        '<span class="empty-desktop">Escolha um tipo na barra ao lado para continuar.</span>' +
+        '<span class="empty-mobile">Escolha um tipo na barra acima para continuar.</span>' +
+        '</p>';
+      return html;
+    }
+    html += buildPickersHtml(c, locked);
+    if (modalIsReady(c)) {
+      html += '<form id="modalForm" class="modal-form">' + buildCamposHtml(c) + '</form>';
+    }
+    return html;
+  }
+
   function toggleModalPickers(show) {
     modalCtx.showPickers = typeof show === 'boolean' ? show : !modalCtx.showPickers;
     renderModal();
   }
 
   function openModal() {
-    modalCtx = { entidade: null, tipo: null, forma: null, duracaoTipo: 'indeterminado', editing: null, showPickers: true };
+    modalCtx = { entidade: null, tipo: null, forma: null, duracaoTipo: 'indeterminado', editing: null };
     modalDraft = {};
     modalSnapshot = null;
     renderModal();
@@ -1327,7 +1366,6 @@ async function exportPDF() {
       forma: item.formaPagamento || null,
       duracaoTipo: item.duracaoMeses ? 'definida' : 'indeterminado',
       editing: item,
-      showPickers: false,
     };
     modalDraft = {};
     modalSnapshot = null;
@@ -1339,18 +1377,15 @@ async function exportPDF() {
     modalCtx.entidade = v;
     modalCtx.tipo = null;
     modalCtx.forma = null;
-    if (modalIsReady(modalCtx) && isMobileModal()) modalCtx.showPickers = false;
     renderModal();
   }
   function setTipo(v) {
     modalCtx.tipo = v;
     modalCtx.forma = null;
-    if (modalIsReady(modalCtx) && isMobileModal()) modalCtx.showPickers = false;
     renderModal();
   }
   function setForma(v) {
     modalCtx.forma = v;
-    if (modalIsReady(modalCtx) && isMobileModal()) modalCtx.showPickers = false;
     renderModal();
   }
   function setDuracaoTipo(v) {
@@ -1431,7 +1466,7 @@ async function exportPDF() {
     const dialog = document.getElementById('modalDialog');
     if (!dialog) return;
     const field = dialog.querySelector(
-      'input:not([type="hidden"]):not([readonly]), select, textarea, button.type-opt:not(.locked):not([disabled])',
+      'input:not([type="hidden"]):not([readonly]), select, textarea, button.modal-rail-item:not(.locked):not([disabled]), button.type-opt:not(.locked):not([disabled])',
     );
     if (field) field.focus();
   }
@@ -1617,29 +1652,20 @@ async function exportPDF() {
     const c = modalCtx;
     const locked = !!c.editing;
     const pronto = modalIsReady(c);
-    const collapsePickers = pronto && isMobileModal() && !c.showPickers && !locked;
-    let scroll = '';
-
-    if (collapsePickers) {
-      scroll +=
-        '<div class="modal-type-chip">' +
-        '<span class="modal-type-chip-label">' + esc(modalTypeSummaryLabel(c)) + '</span>' +
-        '<button type="button" class="modal-type-chip-btn" onclick="toggleModalPickers(true)">Alterar tipo</button>' +
-        '</div>';
-    } else {
-      scroll += buildPickersHtml(c, locked);
-    }
-
-    if (pronto) {
-      scroll += '<form id="modalForm" class="modal-form">' + buildCamposHtml(c) + '</form>';
-    }
+    const panelHtml = buildMainPanelHtml(c, locked);
+    const subCopy = c.editing
+      ? 'Tipo bloqueado na edição — altere valores e datas.'
+      : 'Selecione o tipo e preencha os dados.';
 
     let html =
       '<div class="modal-grab" aria-hidden="true"></div>' +
       '<div class="modal-header"><h3 id="modalTitle">' + (c.editing ? 'Editar lançamento' : 'Novo lançamento') + '</h3>' +
       '<button type="button" class="modal-close" aria-label="Fechar" onclick="requestCloseModal()">×</button></div>' +
-      '<p class="modal-sub">' + (c.editing ? 'Tipo bloqueado na edição — altere valores e datas.' : (collapsePickers ? 'Preencha os dados do lançamento.' : 'Escolha o tipo e preencha os dados.')) + '</p>' +
-      '<div class="modal-scroll">' + scroll + '</div>';
+      '<p class="modal-sub">' + subCopy + '</p>' +
+      '<div class="modal-shell">' +
+      '<nav class="modal-type-rail" aria-label="Tipo de lançamento">' + buildEntityRailHtml(c, locked) + '</nav>' +
+      '<div class="modal-panel"><div class="modal-scroll">' + panelHtml + '</div></div>' +
+      '</div>';
 
     if (pronto) {
       html +=

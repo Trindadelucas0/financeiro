@@ -353,11 +353,28 @@
 
   .layout-mobile-bank dialog.modal .modal-sub {
     padding: 0 16px;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
+  }
+
+  .layout-mobile-bank dialog.modal .modal-shell {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .layout-mobile-bank dialog.modal .modal-type-rail {
+    padding: 0 16px 10px;
   }
 
   .layout-mobile-bank dialog.modal .modal-scroll {
     padding: 0 16px 16px;
+  }
+
+  .layout-mobile-bank dialog.modal .modal-rail-item {
+    min-height: 48px;
+  }
+
+  .layout-mobile-bank dialog.modal .modal-panel-empty {
+    padding: 24px 0;
   }
 
   .layout-mobile-bank dialog.modal .modal-footer {
