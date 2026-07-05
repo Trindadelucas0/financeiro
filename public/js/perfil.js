@@ -83,6 +83,114 @@
     }, 400);
   }
 
+  function renderAdminUsersSection() {
+    return (
+      '<section class="panel profile-section profile-section-admin">' +
+        '<div class="panel-head"><h3>Adicionar usuário</h3><span class="panel-hint-pill">admin</span></div>' +
+        '<p class="profile-hint">Cadastre login com nome de usuário, e-mail e senha. A pessoa entra no app com @username ou e-mail.</p>' +
+        '<form id="adminCreateUserForm" class="profile-form">' +
+          '<div class="field"><label for="au_nome">Nome</label>' +
+          '<input id="au_nome" type="text" required maxlength="255" autocomplete="name"></div>' +
+          '<div class="field field-username">' +
+            '<label for="au_username">Nome de usuário</label>' +
+            '<div class="username-input-wrap">' +
+              '<span class="username-prefix" aria-hidden="true">@</span>' +
+              '<input id="au_username" type="text" maxlength="30" pattern="[a-zA-Z0-9_]{3,30}" placeholder="opcional" autocapitalize="off" autocomplete="off">' +
+            '</div>' +
+            '<span class="field-hint">Opcional — se vazio, gera do e-mail</span>' +
+          '</div>' +
+          '<div class="field"><label for="au_email">E-mail</label>' +
+          '<input id="au_email" type="email" required autocomplete="email"></div>' +
+          '<div class="field"><label for="au_password">Senha</label>' +
+          '<input id="au_password" type="password" required minlength="6" autocomplete="new-password"></div>' +
+          '<div class="field"><label for="au_role">Papel</label>' +
+          '<select id="au_role"><option value="user">Usuário</option><option value="admin">Admin</option></select></div>' +
+          '<button type="submit" class="btn btn-primary btn-sm" id="adminCreateBtn">Criar usuário</button>' +
+        '</form>' +
+        '<div class="admin-users-list-wrap">' +
+          '<h4 class="admin-users-title">Usuários cadastrados</h4>' +
+          '<div id="adminUsersList" class="admin-users-list"><p class="profile-hint">Carregando…</p></div>' +
+        '</div>' +
+      '</section>'
+    );
+  }
+
+  async function loadAdminUsersList() {
+    const el = document.getElementById('adminUsersList');
+    if (!el) return;
+    try {
+      const data = await apiFetch('/api/admin/users');
+      const users = data.users || [];
+      if (users.length === 0) {
+        el.innerHTML = '<p class="profile-hint">Nenhum usuário cadastrado.</p>';
+        return;
+      }
+      el.innerHTML =
+        '<ul class="admin-users-ul">' +
+        users.map(function (u) {
+          return (
+            '<li class="admin-user-row">' +
+              '<div class="admin-user-main">' +
+                '<strong>' + esc(u.nome) + '</strong>' +
+                '<span class="mono admin-user-handle">@' + esc(u.username) + '</span>' +
+              '</div>' +
+              '<div class="admin-user-meta">' +
+                '<span>' + esc(u.email) + '</span>' +
+                '<span class="status-pill ' + (u.ativo !== false ? 'active' : 'inactive') + '">' +
+                  (u.ativo !== false ? 'Ativo' : 'Inativo') +
+                '</span>' +
+              '</div>' +
+            '</li>'
+          );
+        }).join('') +
+        '</ul>';
+    } catch (err) {
+      el.innerHTML = '<p class="username-status err">' + esc(err.message) + '</p>';
+    }
+  }
+
+  function bindAdminEvents() {
+    const form = document.getElementById('adminCreateUserForm');
+    if (!form) return;
+
+    const usernameInput = document.getElementById('au_username');
+    if (usernameInput) {
+      usernameInput.addEventListener('input', function () {
+        const cleaned = normalizeUsernameInput(usernameInput.value);
+        if (usernameInput.value !== cleaned) usernameInput.value = cleaned;
+      });
+    }
+
+    form.addEventListener('submit', async function (e) {
+      e.preventDefault();
+      const btn = document.getElementById('adminCreateBtn');
+      btn.disabled = true;
+      btn.textContent = 'Criando…';
+      try {
+        const body = {
+          nome: document.getElementById('au_nome').value.trim(),
+          email: document.getElementById('au_email').value.trim(),
+          password: document.getElementById('au_password').value,
+          role: document.getElementById('au_role').value,
+        };
+        const usernameVal = normalizeUsernameInput(document.getElementById('au_username').value);
+        if (usernameVal) body.username = usernameVal;
+
+        await apiFetch('/api/admin/users', { method: 'POST', body: body });
+        form.reset();
+        toast('Usuário criado');
+        loadAdminUsersList();
+      } catch (err) {
+        toast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Criar usuário';
+      }
+    });
+
+    loadAdminUsersList();
+  }
+
   function renderProfile(user) {
     const view = document.getElementById('view');
     if (!view || !user) return;
@@ -117,6 +225,8 @@
             '<button type="submit" class="btn btn-primary btn-sm" id="profileSaveBtn">Salvar conta</button>' +
           '</form>' +
         '</section>' +
+
+        (user.role === 'admin' ? renderAdminUsersSection() : '') +
 
         '<section class="panel profile-section">' +
           '<div class="panel-head"><h3>Alterar senha</h3></div>' +
@@ -159,6 +269,7 @@
 
     view.setAttribute('aria-busy', 'false');
     bindProfileEvents(user);
+    if (user.role === 'admin') bindAdminEvents();
     updatePwaUi();
   }
 

@@ -21,6 +21,7 @@
   let state = defaultState();
   let listFilters = { busca: '', categoria: '', status: 'todos' };
   let modalCtx = { entidade: null, tipo: null, forma: null, duracaoTipo: 'indeterminado', editing: null };
+  let modalDraft = {};
   let modalSnapshot = null;
   let modalSubmitting = false;
   let loading = true;
@@ -1256,6 +1257,7 @@
 
   function openModal() {
     modalCtx = { entidade: null, tipo: null, forma: null, duracaoTipo: 'indeterminado', editing: null };
+    modalDraft = {};
     modalSnapshot = null;
     renderModal();
     openModalDialog();
@@ -1272,6 +1274,7 @@
       duracaoTipo: item.duracaoMeses ? 'definida' : 'indeterminado',
       editing: item,
     };
+    modalDraft = {};
     modalSnapshot = null;
     renderModal();
     openModalDialog();
@@ -1352,8 +1355,30 @@
   function closeModal() {
     modalSubmitting = false;
     modalSnapshot = null;
+    modalDraft = {};
     const dialog = document.getElementById('modalDialog');
     if (dialog) dialog.close();
+  }
+
+  function captureFormDraft() {
+    const form = document.getElementById('modalForm');
+    if (!form) return;
+    form.querySelectorAll('input, select, textarea').forEach(function (el) {
+      if (el.type === 'radio') {
+        if (el.checked) modalDraft[el.name || el.id] = el.value;
+        return;
+      }
+      if (!el.id) return;
+      modalDraft[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+  }
+
+  function draftVal(id, fallback) {
+    if (Object.prototype.hasOwnProperty.call(modalDraft, id)) {
+      const v = modalDraft[id];
+      if (v !== null && v !== undefined && !(typeof v === 'string' && v.trim() === '')) return v;
+    }
+    return fallback ?? '';
   }
 
   function tipoOptBtn(value, active, label, locked, onclick, desc) {
@@ -1363,23 +1388,40 @@
   }
 
   function duracaoCampo(c, it) {
-    return '<div class="field"><span class="picker-label" style="display:block;margin-bottom:8px;">Duração</span><div class="radio-row"><label><input type="radio" name="f_duracaoTipo" value="indeterminado" ' + (c.duracaoTipo === 'indeterminado' ? 'checked' : '') + ' onchange="setDuracaoTipo(\'indeterminado\')"> Indeterminado</label><label><input type="radio" name="f_duracaoTipo" value="definida" ' + (c.duracaoTipo === 'definida' ? 'checked' : '') + ' onchange="setDuracaoTipo(\'definida\')"> Definir meses</label></div></div>' + (c.duracaoTipo === 'definida' ? '<div class="field"><label for="f_duracaoMeses">Quantos meses</label><input id="f_duracaoMeses" type="number" min="1" value="' + (it.duracaoMeses || '') + '" required></div>' : '');
+    const mesesVal = draftVal('f_duracaoMeses', it.duracaoMeses || '');
+    return (
+      '<p class="picker-label">Duração</p>' +
+      '<div class="type-picker duracao-picker">' +
+      tipoOptBtn('indeterminado', c.duracaoTipo === 'indeterminado', 'Indeterminado', false, "setDuracaoTipo('indeterminado')", 'Repete sem prazo') +
+      tipoOptBtn('definida', c.duracaoTipo === 'definida', 'Definir meses', false, "setDuracaoTipo('definida')", 'Nº limitado de meses') +
+      '</div>' +
+      (c.duracaoTipo === 'definida'
+        ? '<div class="field"><label for="f_duracaoMeses">Quantos meses</label><input id="f_duracaoMeses" type="number" min="1" value="' + esc(String(mesesVal)) + '" required></div>'
+        : '')
+    );
   }
 
   function buildCamposHtml(c) {
     const it = c.editing || {};
     let html = '';
-    const nome = function (label, ph) { return '<div class="field"><label for="f_nome">' + label + '</label><input id="f_nome" type="text" value="' + esc(it.nome || '') + '" placeholder="' + ph + '" required></div>'; };
-    const catField = function (opts, val) { return '<div class="field"><label for="f_categoria">Categoria</label><select id="f_categoria">' + opts.map(function (o) { return '<option value="' + esc(o) + '" ' + (val === o ? 'selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select></div>'; };
-    const mesField = function (label, val) { return '<div class="field"><label for="f_mes">' + label + '</label><input id="f_mes" type="month" value="' + (val || state.currentMonth) + '" required></div>'; };
+    const nome = function (label, ph) {
+      return '<div class="field"><label for="f_nome">' + label + '</label><input id="f_nome" type="text" value="' + esc(draftVal('f_nome', it.nome || '')) + '" placeholder="' + ph + '" required></div>';
+    };
+    const catField = function (opts, val) {
+      const selected = draftVal('f_categoria', val);
+      return '<div class="field"><label for="f_categoria">Categoria</label><select id="f_categoria">' + opts.map(function (o) { return '<option value="' + esc(o) + '" ' + (selected === o ? 'selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select></div>';
+    };
+    const mesField = function (label, val) {
+      return '<div class="field"><label for="f_mes">' + label + '</label><input id="f_mes" type="month" value="' + esc(draftVal('f_mes', val || state.currentMonth)) + '" required></div>';
+    };
     const vencField = function () {
       if (c.entidade !== 'despesa') return '';
-      return '<div class="field"><label for="f_diaVenc">Dia do vencimento (opcional)</label><input id="f_diaVenc" type="number" min="1" max="31" placeholder="Ex: 10" value="' + (it.diaVencimento || '') + '"></div>';
+      return '<div class="field"><label for="f_diaVenc">Dia do vencimento (opcional)</label><input id="f_diaVenc" type="number" min="1" max="31" placeholder="Ex: 10" value="' + esc(draftVal('f_diaVenc', it.diaVencimento || '')) + '"></div>';
     };
 
     if (c.entidade === 'receita') {
       html += nome('Descrição', 'Ex: Salário');
-      html += '<div class="field"><label for="f_valor">Valor (R$)</label><input id="f_valor" type="number" step="0.01" min="0" value="' + (it.valor || '') + '" required></div>';
+      html += '<div class="field"><label for="f_valor">Valor (R$)</label><input id="f_valor" type="number" step="0.01" min="0" value="' + esc(draftVal('f_valor', it.valor || '')) + '" required></div>';
       html += mesField(c.tipo === 'fixa' ? 'Mês de início' : 'Mês', it.mesInicio);
       html += catField(CATEGORIAS_RECEITA, it.categoria);
       if (c.tipo === 'fixa') html += duracaoCampo(c, it);
@@ -1388,18 +1430,18 @@
     if (c.entidade === 'despesa') {
       html += nome('Descrição', 'Ex: Aluguel');
       if (c.tipo === 'fixa') {
-        html += '<div class="field"><label for="f_valor">Valor mensal (R$)</label><input id="f_valor" type="number" step="0.01" min="0" value="' + (it.valor || '') + '" required></div>';
+        html += '<div class="field"><label for="f_valor">Valor mensal (R$)</label><input id="f_valor" type="number" step="0.01" min="0" value="' + esc(draftVal('f_valor', it.valor || '')) + '" required></div>';
         html += mesField('Mês de início', it.mesInicio);
         html += catField(CATEGORIAS_DESPESA, it.categoria);
         html += vencField();
         html += duracaoCampo(c, it);
       } else if (c.forma === 'avista') {
-        html += '<div class="field"><label for="f_valor">Valor (R$)</label><input id="f_valor" type="number" step="0.01" min="0" value="' + (it.valor || '') + '" required></div>';
+        html += '<div class="field"><label for="f_valor">Valor (R$)</label><input id="f_valor" type="number" step="0.01" min="0" value="' + esc(draftVal('f_valor', it.valor || '')) + '" required></div>';
         html += mesField('Mês', it.mesInicio);
         html += catField(CATEGORIAS_DESPESA, it.categoria);
         html += vencField();
       } else if (c.forma === 'parcelado') {
-        html += '<div class="field-row"><div class="field"><label for="f_valorTotal">Valor total (R$)</label><input id="f_valorTotal" type="number" step="0.01" min="0" value="' + (it.valorTotal || '') + '" required></div><div class="field"><label for="f_numParcelas">Nº parcelas</label><input id="f_numParcelas" type="number" min="1" value="' + (it.numParcelas || '') + '" required></div></div>';
+        html += '<div class="field-row"><div class="field"><label for="f_valorTotal">Valor total (R$)</label><input id="f_valorTotal" type="number" step="0.01" min="0" value="' + esc(draftVal('f_valorTotal', it.valorTotal || '')) + '" required></div><div class="field"><label for="f_numParcelas">Nº parcelas</label><input id="f_numParcelas" type="number" min="1" value="' + esc(draftVal('f_numParcelas', it.numParcelas || '')) + '" required></div></div>';
         html += mesField('Mês da 1ª parcela', it.mesInicio);
         html += catField(CATEGORIAS_DESPESA, it.categoria);
         html += vencField();
@@ -1408,8 +1450,8 @@
 
     if (c.entidade === 'emprestimo') {
       html += nome('Descrição', 'Ex: Empréstimo banco X');
-      html += '<div class="field"><label for="f_valorTotal">Valor principal (R$)</label><input id="f_valorTotal" type="number" step="0.01" min="0" value="' + (it.valorTotal || '') + '" required></div>';
-      html += '<div class="field-row"><div class="field"><label for="f_juros">Juros total (%)</label><input id="f_juros" type="number" step="0.01" min="0" value="' + (it.juros || 0) + '"></div><div class="field"><label for="f_numParcelas">Nº parcelas</label><input id="f_numParcelas" type="number" min="1" value="' + (it.numParcelas || '') + '" required></div></div>';
+      html += '<div class="field"><label for="f_valorTotal">Valor principal (R$)</label><input id="f_valorTotal" type="number" step="0.01" min="0" value="' + esc(draftVal('f_valorTotal', it.valorTotal || '')) + '" required></div>';
+      html += '<div class="field-row"><div class="field"><label for="f_juros">Juros total (%)</label><input id="f_juros" type="number" step="0.01" min="0" value="' + esc(draftVal('f_juros', it.juros || 0)) + '"></div><div class="field"><label for="f_numParcelas">Nº parcelas</label><input id="f_numParcelas" type="number" min="1" value="' + esc(draftVal('f_numParcelas', it.numParcelas || '')) + '" required></div></div>';
       html += mesField('Mês da 1ª parcela', it.mesInicio);
     }
 
@@ -1417,6 +1459,7 @@
   }
 
   function renderModal() {
+    captureFormDraft();
     const c = modalCtx;
     const locked = !!c.editing;
     let html = '<div class="modal-header"><h3 id="modalTitle">' + (c.editing ? 'Editar lançamento' : 'Novo lançamento') + '</h3><button type="button" class="modal-close" aria-label="Fechar" onclick="requestCloseModal()">×</button></div><p class="modal-sub">' + (c.editing ? 'Tipo bloqueado na edição — altere valores e datas.' : 'Escolha o tipo e preencha os dados.') + '</p>';
