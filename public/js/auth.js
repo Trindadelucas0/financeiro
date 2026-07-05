@@ -3,6 +3,10 @@
 
   if (!window.FinanceAPI) {
     console.error('[auth] FinanceAPI não carregou — verifique /js/api.js');
+    window.FinanceAuth = {
+      bootLoginPage: function () {},
+      initLoginPage: function () {},
+    };
     return;
   }
 
