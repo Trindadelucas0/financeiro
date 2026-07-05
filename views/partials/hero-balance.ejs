@@ -1,0 +1,22 @@
+<section class="hero-balance" aria-label="Saldo do mês">
+  <div class="hero-balance-inner">
+    <p class="hero-greeting">Olá, <span id="userName">—</span></p>
+    <p class="hero-label">Saldo do mês</p>
+    <p class="hero-value mono" id="heroSaldo">—</p>
+    <p class="hero-meta mono" id="heroMonthMeta">—</p>
+    <div class="quick-actions" role="group" aria-label="Ações rápidas">
+      <button type="button" class="qa-btn" onclick="openModal()">
+        <span class="qa-icon" aria-hidden="true">+</span>
+        <span>Novo</span>
+      </button>
+      <button type="button" class="qa-btn" onclick="exportCSV()">
+        <span class="qa-icon" aria-hidden="true">↓</span>
+        <span>CSV</span>
+      </button>
+      <a href="/app/previsao" class="qa-btn">
+        <span class="qa-icon" aria-hidden="true">↗</span>
+        <span>Previsão</span>
+      </a>
+    </div>
+  </div>
+</section>

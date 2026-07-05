@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <%- include('../partials/head') %>
+  <title>Usuários · Admin</title>
+</head>
+<body class="layout-desktop admin-page" data-page="admin-users">
+  <div class="app">
+    <header class="topbar">
+      <a href="/app/dashboard" class="brand" aria-label="Home Finanças — ir ao dashboard">
+        <%- include('../partials/brand-logo') %>
+        <span class="brand-greeting">Gerenciar usuários</span>
+      </a>
+      <div class="actions-row">
+        <a href="/app/dashboard" class="btn btn-ghost btn-sm">Voltar ao app</a>
+        <button type="button" class="btn btn-ghost btn-sm" id="logoutBtn">Sair</button>
+      </div>
+    </header>
+
+    <main id="adminView" role="main" aria-busy="true">
+      <div class="loading-state">Carregando usuários…</div>
+    </main>
+  </div>
+
+  <dialog class="modal" id="userModal" aria-labelledby="userModalTitle">
+    <div class="modal-inner" id="userModalBody"></div>
+  </dialog>
+
+  <dialog class="modal modal-confirm" id="confirmDialog" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+    <div class="modal-inner">
+      <h3 id="confirmTitle">Confirmar</h3>
+      <p class="modal-confirm-msg" id="confirmMessage"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="confirmCancel">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="confirmOk">Confirmar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/admin.js"></script>
+  <%- include('../partials/sw-register') %>
+</body>
+</html>

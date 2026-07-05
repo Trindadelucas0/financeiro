@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <%- include('../partials/head') %>
+  <title><%= typeof title !== 'undefined' ? title + ' · ' : '' %>Home Finanças</title>
+</head>
+<body class="layout-desktop" data-page="<%= page %>">
+  <div class="app">
+    <header class="topbar">
+      <a href="/app/dashboard" class="brand" aria-label="Home Finanças — ir ao dashboard">
+        <%- include('../partials/brand-logo') %>
+        <span class="brand-greeting" id="userGreeting">controle pessoal</span>
+      </a>
+      <div class="month-switcher" role="group" aria-label="Navegação por mês">
+        <button type="button" onclick="changeMonth(-1)" aria-label="Mês anterior">‹</button>
+        <span class="label mono" id="monthLabel" aria-live="polite">—</span>
+        <button type="button" onclick="changeMonth(1)" aria-label="Próximo mês">›</button>
+      </div>
+      <div class="actions-row">
+        <button type="button" class="btn btn-primary btn-sm" onclick="openModal()">+ Novo lançamento</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="exportCSV()">Exportar CSV</button>
+        <a href="/app/previsao" class="btn btn-ghost btn-sm">Previsão</a>
+        <a href="/admin/users" class="btn btn-ghost btn-sm" id="adminLink" hidden>Admin</a>
+        <button type="button" class="btn btn-ghost btn-sm" id="logoutBtn">Sair</button>
+      </div>
+    </header>
+
+    <nav class="tabs desktop-tabs" role="tablist" aria-label="Seções do painel">
+      <a href="/app/dashboard" class="tab<%= page === 'dashboard' ? ' active' : '' %>" role="tab"<%= page === 'dashboard' ? ' aria-current="page"' : '' %>>Dashboard</a>
+      <a href="/app/receitas" class="tab<%= page === 'receitas' ? ' active' : '' %>" role="tab"<%= page === 'receitas' ? ' aria-current="page"' : '' %>>Receitas</a>
+      <a href="/app/despesas" class="tab<%= page === 'despesas' ? ' active' : '' %>" role="tab"<%= page === 'despesas' ? ' aria-current="page"' : '' %>>Despesas</a>
+      <a href="/app/compromissos" class="tab<%= page === 'compromissos' ? ' active' : '' %>" role="tab"<%= page === 'compromissos' ? ' aria-current="page"' : '' %>>Parcelas &amp; Empréstimos</a>
+      <a href="/app/orcamentos" class="tab<%= page === 'orcamentos' ? ' active' : '' %>" role="tab"<%= page === 'orcamentos' ? ' aria-current="page"' : '' %>>Orçamentos</a>
+      <a href="/app/previsao" class="tab<%= page === 'previsao' ? ' active' : '' %>" role="tab"<%= page === 'previsao' ? ' aria-current="page"' : '' %>>Previsão</a>
+    </nav>
+
+    <div class="mobile-only">
+      <%- include('../partials/hero-balance') %>
+    </div>
+
+    <main id="view" role="main" aria-busy="true">
+      <div class="loading-state">Carregando…</div>
+    </main>
+
+    <footer class="footer-note desktop-only">
+      Dados sincronizados com sua conta. Comprovantes em base64 — evite arquivos grandes.
+      Empréstimos usam juros simplificado (não é Price/SAC).
+    </footer>
+  </div>
+
+  <%- include('../partials/bottom-nav', { page }) %>
+
+  <dialog class="modal" id="modalDialog" aria-labelledby="modalTitle">
+    <div class="modal-inner" id="modalBody"></div>
+  </dialog>
+
+  <dialog class="modal modal-confirm" id="confirmDialog" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+    <div class="modal-inner">
+      <h3 id="confirmTitle">Confirmar</h3>
+      <p class="modal-confirm-msg" id="confirmMessage"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="confirmCancel">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="confirmOk">Confirmar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/charts.js"></script>
+  <script src="/js/app.js"></script>
+  <%- include('../partials/sw-register') %>
+</body>
+</html>

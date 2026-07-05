@@ -1,0 +1,22 @@
+<nav class="bottom-nav" aria-label="Navegação principal">
+  <a href="/app/dashboard" class="bottom-nav-item<%= page === 'dashboard' ? ' active' : '' %>"<%= page === 'dashboard' ? ' aria-current="page"' : '' %>>
+    <span class="bn-icon" aria-hidden="true">◉</span>
+    <span class="bn-label">Início</span>
+  </a>
+  <a href="/app/receitas" class="bottom-nav-item<%= page === 'receitas' ? ' active' : '' %>"<%= page === 'receitas' ? ' aria-current="page"' : '' %>>
+    <span class="bn-icon" aria-hidden="true">↑</span>
+    <span class="bn-label">Receitas</span>
+  </a>
+  <a href="/app/despesas" class="bottom-nav-item<%= page === 'despesas' ? ' active' : '' %>"<%= page === 'despesas' ? ' aria-current="page"' : '' %>>
+    <span class="bn-icon" aria-hidden="true">↓</span>
+    <span class="bn-label">Despesas</span>
+  </a>
+  <a href="/app/compromissos" class="bottom-nav-item<%= page === 'compromissos' ? ' active' : '' %>"<%= page === 'compromissos' ? ' aria-current="page"' : '' %>>
+    <span class="bn-icon" aria-hidden="true">⧉</span>
+    <span class="bn-label">Parcelas</span>
+  </a>
+  <a href="/app/orcamentos" class="bottom-nav-item<%= page === 'orcamentos' ? ' active' : '' %>"<%= page === 'orcamentos' ? ' aria-current="page"' : '' %>>
+    <span class="bn-icon" aria-hidden="true">◎</span>
+    <span class="bn-label">Conta</span>
+  </a>
+</nav>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <%- include('../partials/head') %>
+  <title>Entrar · Home Finanças</title>
+</head>
+<body class="auth-page">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <%- include('../partials/brand-logo', { logoSize: 'lg' }) %>
+    </div>
+    <p class="auth-sub">Entre com sua conta para continuar</p>
+
+    <form id="loginForm" class="auth-form" novalidate>
+      <div class="field">
+        <label for="email">E-mail</label>
+        <input id="email" name="email" type="email" autocomplete="username" required placeholder="voce@email.com">
+      </div>
+      <div class="field">
+        <label for="password">Senha</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required placeholder="••••••••">
+      </div>
+      <p class="auth-error" id="loginError" hidden role="alert"></p>
+      <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+    </form>
+  </div>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>document.addEventListener('DOMContentLoaded', function () { FinanceAuth.initLoginPage(); });</script>
+  <%- include('../partials/sw-register') %>
+</body>
+</html>

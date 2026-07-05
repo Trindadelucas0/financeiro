@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <%- include('../partials/head') %>
+  <title><%= typeof title !== 'undefined' ? title + ' · ' : '' %>Home Finanças</title>
+</head>
+<body class="layout-mobile-bank" data-page="<%= page %>">
+  <div class="app app-mobile-shell">
+    <header class="mobile-header">
+      <div class="mobile-header-top">
+        <a href="/app/dashboard" class="mobile-brand" aria-label="Home Finanças — ir ao dashboard">
+          <%- include('../partials/brand-logo', { logoSize: 'sm' }) %>
+        </a>
+        <div class="month-switcher month-switcher-compact" role="group" aria-label="Navegação por mês">
+          <button type="button" onclick="changeMonth(-1)" aria-label="Mês anterior">‹</button>
+          <span class="label mono" id="monthLabel" aria-live="polite">—</span>
+          <button type="button" onclick="changeMonth(1)" aria-label="Próximo mês">›</button>
+        </div>
+        <button type="button" class="icon-btn mobile-logout" id="logoutBtn" aria-label="Sair">⎋</button>
+      </div>
+      <%- include('../partials/hero-balance') %>
+    </header>
+
+    <main id="view" class="mobile-main" role="main" aria-busy="true">
+      <div class="loading-state">Carregando…</div>
+    </main>
+  </div>
+
+  <%- include('../partials/bottom-nav', { page }) %>
+
+  <dialog class="modal" id="modalDialog" aria-labelledby="modalTitle">
+    <div class="modal-inner" id="modalBody"></div>
+  </dialog>
+
+  <dialog class="modal modal-confirm" id="confirmDialog" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+    <div class="modal-inner">
+      <h3 id="confirmTitle">Confirmar</h3>
+      <p class="modal-confirm-msg" id="confirmMessage"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="confirmCancel">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="confirmOk">Confirmar</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="toast-container toast-container-mobile" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/auth.js"></script>
+  <script src="/js/ui.js"></script>
+  <script src="/js/charts.js"></script>
+  <script src="/js/app.js"></script>
+  <%- include('../partials/sw-register') %>
+</body>
+</html>

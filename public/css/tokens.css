@@ -1,0 +1,57 @@
+:root {
+  /* Surfaces — chroma 0, pure neutral black stack */
+  --bg:           oklch(0.09 0 0);
+  --surface:      oklch(0.13 0 0);
+  --surface-2:    oklch(0.17 0 0);
+  --surface-3:    oklch(0.21 0 0);
+  --border:       oklch(0.24 0 0);
+
+  /* Ink */
+  --text:         oklch(0.93 0 0);
+  --muted:        oklch(0.62 0.008 240);
+  --muted-2:      oklch(0.52 0.01 240);
+
+  /* Brand */
+  --green:        oklch(0.78 0.16 155);
+  --green-hover:  oklch(0.82 0.16 155);
+  --green-dim:    oklch(0.28 0.06 155);
+  --green-ink:    oklch(0.12 0.02 155);
+  --green-glow:   oklch(0.78 0.16 155 / 0.15);
+
+  /* Brand accent — branco gelo */
+  --ice:          oklch(0.94 0.008 240);
+  --ice-hover:    oklch(0.97 0.006 240);
+  --ice-dim:      oklch(0.24 0.015 240);
+  --ice-glow:     oklch(0.94 0.008 240 / 0.14);
+  --ice-ink:      oklch(0.12 0.02 240);
+  --accent:       var(--ice);
+  --accent-hover: var(--ice-hover);
+  --accent-dim:   var(--ice-dim);
+  --accent-glow:  var(--ice-glow);
+  --accent-ink:   var(--ice-ink);
+
+  /* Semantic — vermelho só para negativo/alerta */
+  --red:          oklch(0.72 0.14 25);
+  --red-hover:    oklch(0.76 0.14 25);
+  --red-dim:      oklch(0.28 0.06 25);
+  --red-glow:     oklch(0.72 0.14 25 / 0.12);
+  --red-ink:      oklch(0.95 0.02 25);
+
+  --amber:        oklch(0.82 0.14 85);
+  --amber-dim:    oklch(0.30 0.06 85);
+  --indigo:       oklch(0.72 0.10 275);
+  --indigo-dim:   oklch(0.26 0.04 275);
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-modal-backdrop: 40;
+  --z-modal: 50;
+  --z-toast: 60;
+  --z-bottom-nav: 30;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
