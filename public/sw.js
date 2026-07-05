@@ -1,4 +1,4 @@
-const CACHE_NAME = 'financeiro-pwa-v4';
+const CACHE_NAME = 'financeiro-pwa-v9';
 const OFFLINE_URL = '/offline.html';
 const STATIC_ASSETS = [
   '/css/tokens.css',

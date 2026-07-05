@@ -28,8 +28,10 @@
 
   <%- include('../partials/bottom-nav', { page }) %>
 
-  <dialog class="modal" id="modalDialog" aria-labelledby="modalTitle">
-    <div class="modal-inner" id="modalBody"></div>
+  <dialog class="modal modal-launch" id="modalDialog" aria-labelledby="modalTitle">
+    <div class="modal-inner">
+      <div id="modalBody" class="modal-body"></div>
+    </div>
   </dialog>
 
   <dialog class="modal modal-confirm" id="confirmDialog" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">

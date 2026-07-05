@@ -175,24 +175,24 @@
     if (s.saldoContaAtualizadoEm !== undefined) state.saldoContaAtualizadoEm = s.saldoContaAtualizadoEm;
   }
 
-  async function exportCSV() {
-    try {
-      const token = window.FinanceAPI.getToken();
-      const res = await fetch('/api/finance/export/csv?mes=' + encodeURIComponent(state.currentMonth), {
-        headers: token ? { Authorization: 'Bearer ' + token } : {},
-      });
-      if (!res.ok) throw new Error('Falha ao exportar CSV');
-      const blob = await res.blob();
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'financeiro-' + state.currentMonth + '.csv';
-      a.click();
-      URL.revokeObjectURL(a.href);
-      toast('CSV exportado');
-    } catch (err) {
-      toast(err.message || 'Erro ao exportar', 'error');
-    }
+async function exportPDF() {
+  try {
+    const token = window.FinanceAPI.getToken();
+    const res = await fetch('/api/finance/export/pdf?mes=' + encodeURIComponent(state.currentMonth), {
+      headers: token ? { Authorization: 'Bearer ' + token } : {},
+    });
+    if (!res.ok) throw new Error('Falha ao gerar relatório PDF');
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'relatorio-financeiro-' + state.currentMonth + '.pdf';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('Relatório PDF baixado');
+  } catch (err) {
+    toast(err.message || 'Erro ao exportar PDF', 'error');
   }
+}
 
   function toast(msg, type) {
     type = type || 'success';
@@ -1255,8 +1255,62 @@
     render();
   }
 
+  function isMobileModal() {
+    return window.matchMedia('(max-width: 768px)').matches;
+  }
+
+  function modalIsReady(c) {
+    return c.entidade === 'emprestimo' || (c.entidade && c.tipo && (c.entidade === 'receita' || c.tipo === 'fixa' || c.forma));
+  }
+
+  function modalTypeSummaryLabel(c) {
+    const map = {
+      receita: 'Receita',
+      despesa: 'Despesa',
+      emprestimo: 'Empréstimo',
+      fixa: 'Fixa',
+      variavel: 'Variável',
+      avista: 'À vista',
+      parcelado: 'Parcelado',
+    };
+    const parts = [map[c.entidade]];
+    if (c.entidade === 'receita' || c.entidade === 'despesa') parts.push(map[c.tipo]);
+    if (c.entidade === 'despesa' && c.tipo === 'variavel') parts.push(map[c.forma]);
+    return parts.filter(Boolean).join(' · ');
+  }
+
+  function buildPickersHtml(c, locked) {
+    let html = '';
+    html += '<p class="picker-label">O que é</p><div class="type-picker modal-type-picker modal-type-picker-entity">';
+    html += tipoOptBtn('receita', c.entidade === 'receita', 'Receita', locked, "setEntidade('receita')");
+    html += tipoOptBtn('despesa', c.entidade === 'despesa', 'Despesa', locked, "setEntidade('despesa')");
+    html += tipoOptBtn('emprestimo', c.entidade === 'emprestimo', 'Empréstimo', locked, "setEntidade('emprestimo')");
+    html += '</div>';
+
+    if (c.entidade === 'receita' || c.entidade === 'despesa') {
+      html += '<p class="picker-label">Fixa ou variável</p><div class="type-picker modal-type-picker">';
+      html += tipoOptBtn('fixa', c.tipo === 'fixa', 'Fixa (repete)', locked, "setTipo('fixa')", 'Repete todo mês');
+      html += tipoOptBtn('variavel', c.tipo === 'variavel', 'Variável', locked, "setTipo('variavel')", c.entidade === 'despesa' ? 'À vista ou parcelada' : 'Lançamento pontual');
+      html += '</div>';
+    }
+
+    if (c.entidade === 'despesa' && c.tipo === 'variavel') {
+      html += '<p class="picker-label">Forma de pagamento</p><div class="type-picker modal-type-picker">';
+      html += tipoOptBtn('avista', c.forma === 'avista', 'À vista', locked, "setForma('avista')", 'Um pagamento');
+      html += tipoOptBtn('parcelado', c.forma === 'parcelado', 'Parcelado', locked, "setForma('parcelado')", 'Divide em N meses');
+      html += '</div>';
+    }
+
+    return html;
+  }
+
+  function toggleModalPickers(show) {
+    modalCtx.showPickers = typeof show === 'boolean' ? show : !modalCtx.showPickers;
+    renderModal();
+  }
+
   function openModal() {
-    modalCtx = { entidade: null, tipo: null, forma: null, duracaoTipo: 'indeterminado', editing: null };
+    modalCtx = { entidade: null, tipo: null, forma: null, duracaoTipo: 'indeterminado', editing: null, showPickers: true };
     modalDraft = {};
     modalSnapshot = null;
     renderModal();
@@ -1273,6 +1327,7 @@
       forma: item.formaPagamento || null,
       duracaoTipo: item.duracaoMeses ? 'definida' : 'indeterminado',
       editing: item,
+      showPickers: false,
     };
     modalDraft = {};
     modalSnapshot = null;
@@ -1280,10 +1335,57 @@
     openModalDialog();
   }
 
-  function setEntidade(v) { modalCtx.entidade = v; modalCtx.tipo = null; modalCtx.forma = null; renderModal(); }
-  function setTipo(v) { modalCtx.tipo = v; modalCtx.forma = null; renderModal(); }
-  function setForma(v) { modalCtx.forma = v; renderModal(); }
-  function setDuracaoTipo(v) { modalCtx.duracaoTipo = v; renderModal(); }
+  function setEntidade(v) {
+    modalCtx.entidade = v;
+    modalCtx.tipo = null;
+    modalCtx.forma = null;
+    if (modalIsReady(modalCtx) && isMobileModal()) modalCtx.showPickers = false;
+    renderModal();
+  }
+  function setTipo(v) {
+    modalCtx.tipo = v;
+    modalCtx.forma = null;
+    if (modalIsReady(modalCtx) && isMobileModal()) modalCtx.showPickers = false;
+    renderModal();
+  }
+  function setForma(v) {
+    modalCtx.forma = v;
+    if (modalIsReady(modalCtx) && isMobileModal()) modalCtx.showPickers = false;
+    renderModal();
+  }
+  function setDuracaoTipo(v) {
+    captureFormDraft();
+    if (modalCtx.duracaoTipo === v) return;
+    modalCtx.duracaoTipo = v;
+
+    const form = document.getElementById('modalForm');
+    const picker = document.querySelector('.duracao-picker');
+    if (!form || !picker) {
+      renderModal();
+      return;
+    }
+
+    picker.querySelectorAll('.type-opt').forEach(function (btn) {
+      const btnVal = btn.getAttribute('data-value');
+      btn.classList.toggle('active', btnVal === v);
+    });
+
+    let wrap = document.getElementById('f_duracaoMesesWrap');
+    if (v === 'definida') {
+      if (!wrap) {
+        const mesesVal = draftVal('f_duracaoMeses', '');
+        form.insertAdjacentHTML(
+          'beforeend',
+          '<div class="field" id="f_duracaoMesesWrap"><label for="f_duracaoMeses">Quantos meses</label>' +
+          '<input id="f_duracaoMeses" type="number" min="1" inputmode="numeric" value="' + esc(String(mesesVal)) + '" required></div>',
+        );
+      }
+    } else if (wrap) {
+      wrap.remove();
+    }
+
+    refreshModalSnapshot();
+  }
   function confirmAction(opts) {
     if (window.FinanceUI && window.FinanceUI.showConfirm) {
       return window.FinanceUI.showConfirm(opts);
@@ -1332,9 +1434,13 @@
   function openModalDialog() {
     const dialog = document.getElementById('modalDialog');
     if (!dialog) return;
+    document.body.classList.add('modal-open');
     dialog.showModal();
+    applyModalViewport();
     refreshModalSnapshot();
-    focusFirstModalField();
+    const scrollEl = dialog.querySelector('.modal-scroll');
+    if (scrollEl) scrollEl.scrollTop = 0;
+    if (!modalIsReady(modalCtx)) focusFirstModalField();
   }
 
   async function requestCloseModal() {
@@ -1356,21 +1462,89 @@
     modalSubmitting = false;
     modalSnapshot = null;
     modalDraft = {};
+    document.body.classList.remove('modal-open');
     const dialog = document.getElementById('modalDialog');
     if (dialog) dialog.close();
+  }
+
+  let modalTouchStartX = 0;
+  let modalTouchStartY = 0;
+  let modalTouchMoved = false;
+
+  function syncFieldToDraft(el) {
+    if (!el || !el.id) return;
+    modalDraft[el.id] = el.type === 'checkbox' ? el.checked : el.value;
   }
 
   function captureFormDraft() {
     const form = document.getElementById('modalForm');
     if (!form) return;
+    const active = document.activeElement;
+    if (active && active.id && form.contains(active)) {
+      syncFieldToDraft(active);
+    }
     form.querySelectorAll('input, select, textarea').forEach(function (el) {
       if (el.type === 'radio') {
         if (el.checked) modalDraft[el.name || el.id] = el.value;
         return;
       }
       if (!el.id) return;
-      modalDraft[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+      syncFieldToDraft(el);
     });
+  }
+
+  function bindModalDraftSync() {
+    const dialog = document.getElementById('modalDialog');
+    if (!dialog || dialog._draftSyncBound) return;
+    dialog._draftSyncBound = true;
+    dialog.addEventListener('input', function (e) {
+      if (e.target && e.target.id && e.target.closest('#modalForm')) syncFieldToDraft(e.target);
+    }, true);
+    dialog.addEventListener('change', function (e) {
+      if (e.target && e.target.id && e.target.closest('#modalForm')) syncFieldToDraft(e.target);
+    }, true);
+  }
+
+  function bindModalTouchGuard() {
+    if (document._modalTouchGuardBound) return;
+    document._modalTouchGuardBound = true;
+
+    document.addEventListener('touchstart', function (e) {
+      if (!e.target.closest('#modalDialog')) return;
+      modalTouchMoved = false;
+      modalTouchStartX = e.touches[0].clientX;
+      modalTouchStartY = e.touches[0].clientY;
+    }, { passive: true, capture: true });
+
+    document.addEventListener('touchmove', function (e) {
+      if (!e.target.closest('#modalDialog')) return;
+      const t = e.touches[0];
+      if (Math.abs(t.clientX - modalTouchStartX) > 12 || Math.abs(t.clientY - modalTouchStartY) > 12) {
+        modalTouchMoved = true;
+      }
+    }, { passive: true, capture: true });
+
+    document.addEventListener('click', function (e) {
+      const btn = e.target.closest('#modalDialog .type-opt, #modalDialog .modal-type-chip-btn');
+      if (!btn || !modalTouchMoved) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      modalTouchMoved = false;
+    }, true);
+  }
+
+  function applyModalViewport() {
+    const dialog = document.getElementById('modalDialog');
+    if (!dialog || !dialog.open) return;
+    const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    document.documentElement.style.setProperty('--modal-vvh', Math.round(h) + 'px');
+  }
+
+  function bindModalViewportSync() {
+    if (!window.visualViewport || window._modalVvBound) return;
+    window._modalVvBound = true;
+    window.visualViewport.addEventListener('resize', applyModalViewport);
+    window.visualViewport.addEventListener('scroll', applyModalViewport);
   }
 
   function draftVal(id, fallback) {
@@ -1384,19 +1558,19 @@
   function tipoOptBtn(value, active, label, locked, onclick, desc) {
     const cls = 'type-opt' + (active ? ' active' : '') + (locked && !active ? ' locked' : '');
     const clickAttr = locked ? '' : ' onclick="' + onclick + '"';
-    return '<button type="button" class="' + cls + '"' + clickAttr + (locked ? ' disabled' : '') + '><div class="t-title">' + label + '</div>' + (desc ? '<div class="t-desc">' + desc + '</div>' : '') + '</button>';
+    return '<button type="button" class="' + cls + '" data-value="' + esc(value) + '"' + clickAttr + (locked ? ' disabled' : '') + '><div class="t-title">' + label + '</div>' + (desc ? '<div class="t-desc">' + desc + '</div>' : '') + '</button>';
   }
 
   function duracaoCampo(c, it) {
     const mesesVal = draftVal('f_duracaoMeses', it.duracaoMeses || '');
     return (
       '<p class="picker-label">Duração</p>' +
-      '<div class="type-picker duracao-picker">' +
-      tipoOptBtn('indeterminado', c.duracaoTipo === 'indeterminado', 'Indeterminado', false, "setDuracaoTipo('indeterminado')", 'Repete sem prazo') +
-      tipoOptBtn('definida', c.duracaoTipo === 'definida', 'Definir meses', false, "setDuracaoTipo('definida')", 'Nº limitado de meses') +
+      '<div class="type-picker duracao-picker modal-type-picker">' +
+      tipoOptBtn('indeterminado', c.duracaoTipo === 'indeterminado', 'Sem prazo', false, "setDuracaoTipo('indeterminado')", 'Repete todo mês') +
+      tipoOptBtn('definida', c.duracaoTipo === 'definida', 'Com prazo', false, "setDuracaoTipo('definida')", 'Informar nº de meses') +
       '</div>' +
       (c.duracaoTipo === 'definida'
-        ? '<div class="field"><label for="f_duracaoMeses">Quantos meses</label><input id="f_duracaoMeses" type="number" min="1" value="' + esc(String(mesesVal)) + '" required></div>'
+        ? '<div class="field" id="f_duracaoMesesWrap"><label for="f_duracaoMeses">Quantos meses</label><input id="f_duracaoMeses" type="number" min="1" inputmode="numeric" value="' + esc(String(mesesVal)) + '" required></div>'
         : '')
     );
   }
@@ -1459,38 +1633,61 @@
   }
 
   function renderModal() {
+    const dialog = document.getElementById('modalDialog');
+    const scrollEl = dialog && dialog.querySelector('.modal-scroll');
+    const prevScroll = scrollEl ? scrollEl.scrollTop : 0;
+    const activeId = document.activeElement && document.activeElement.id ? document.activeElement.id : null;
+
     captureFormDraft();
     const c = modalCtx;
     const locked = !!c.editing;
-    let html = '<div class="modal-header"><h3 id="modalTitle">' + (c.editing ? 'Editar lançamento' : 'Novo lançamento') + '</h3><button type="button" class="modal-close" aria-label="Fechar" onclick="requestCloseModal()">×</button></div><p class="modal-sub">' + (c.editing ? 'Tipo bloqueado na edição — altere valores e datas.' : 'Escolha o tipo e preencha os dados.') + '</p>';
-    html += '<p class="picker-label">O que é</p><div class="type-picker three">';
-    html += tipoOptBtn('receita', c.entidade === 'receita', 'Receita', locked, "setEntidade('receita')");
-    html += tipoOptBtn('despesa', c.entidade === 'despesa', 'Despesa', locked, "setEntidade('despesa')");
-    html += tipoOptBtn('emprestimo', c.entidade === 'emprestimo', 'Empréstimo', locked, "setEntidade('emprestimo')");
-    html += '</div>';
+    const pronto = modalIsReady(c);
+    const collapsePickers = pronto && isMobileModal() && !c.showPickers && !locked;
+    let scroll = '';
 
-    if (c.entidade === 'receita' || c.entidade === 'despesa') {
-      html += '<p class="picker-label">Fixa ou variável</p><div class="type-picker">';
-      html += tipoOptBtn('fixa', c.tipo === 'fixa', 'Fixa (repete)', locked, "setTipo('fixa')", 'Repete todo mês');
-      html += tipoOptBtn('variavel', c.tipo === 'variavel', 'Variável', locked, "setTipo('variavel')", c.entidade === 'despesa' ? 'À vista ou parcelada' : 'Lançamento pontual');
-      html += '</div>';
+    if (collapsePickers) {
+      scroll +=
+        '<div class="modal-type-chip">' +
+        '<span class="modal-type-chip-label">' + esc(modalTypeSummaryLabel(c)) + '</span>' +
+        '<button type="button" class="modal-type-chip-btn" onclick="toggleModalPickers(true)">Alterar tipo</button>' +
+        '</div>';
+    } else {
+      scroll += buildPickersHtml(c, locked);
     }
 
-    if (c.entidade === 'despesa' && c.tipo === 'variavel') {
-      html += '<p class="picker-label">Forma de pagamento</p><div class="type-picker">';
-      html += tipoOptBtn('avista', c.forma === 'avista', 'À vista', locked, "setForma('avista')", 'Um pagamento');
-      html += tipoOptBtn('parcelado', c.forma === 'parcelado', 'Parcelado', locked, "setForma('parcelado')", 'Divide em N meses');
-      html += '</div>';
-    }
-
-    const pronto = c.entidade === 'emprestimo' || (c.entidade && c.tipo && (c.entidade === 'receita' || c.tipo === 'fixa' || c.forma));
     if (pronto) {
-      html += '<form id="modalForm">' + buildCamposHtml(c) + '<div class="modal-actions"><button type="button" class="btn btn-ghost" onclick="requestCloseModal()">Cancelar</button><button type="submit" class="btn btn-primary" id="modalSubmitBtn">' + (c.editing ? 'Salvar' : 'Adicionar') + '</button></div></form>';
+      scroll += '<form id="modalForm" class="modal-form">' + buildCamposHtml(c) + '</form>';
+    }
+
+    let html =
+      '<div class="modal-grab" aria-hidden="true"></div>' +
+      '<div class="modal-header"><h3 id="modalTitle">' + (c.editing ? 'Editar lançamento' : 'Novo lançamento') + '</h3>' +
+      '<button type="button" class="modal-close" aria-label="Fechar" onclick="requestCloseModal()">×</button></div>' +
+      '<p class="modal-sub">' + (c.editing ? 'Tipo bloqueado na edição — altere valores e datas.' : (collapsePickers ? 'Preencha os dados do lançamento.' : 'Escolha o tipo e preencha os dados.')) + '</p>' +
+      '<div class="modal-scroll">' + scroll + '</div>';
+
+    if (pronto) {
+      html +=
+        '<div class="modal-footer">' +
+        '<button type="button" class="btn btn-ghost btn-modal-action" onclick="requestCloseModal()">Cancelar</button>' +
+        '<button type="submit" class="btn btn-primary btn-modal-action" id="modalSubmitBtn" form="modalForm">' + (c.editing ? 'Salvar' : 'Adicionar') + '</button>' +
+        '</div>';
     }
 
     document.getElementById('modalBody').innerHTML = html;
     const form = document.getElementById('modalForm');
     if (form) form.onsubmit = handleSubmit;
+
+    const newScrollEl = dialog && dialog.querySelector('.modal-scroll');
+    if (newScrollEl && prevScroll > 0) newScrollEl.scrollTop = prevScroll;
+
+    if (activeId) {
+      const restore = document.getElementById(activeId);
+      if (restore && restore.focus) {
+        try { restore.focus({ preventScroll: true }); } catch (err) { restore.focus(); }
+      }
+    }
+
     refreshModalSnapshot();
   }
 
@@ -1566,6 +1763,9 @@
     if (modal && window.FinanceUI) {
       FinanceUI.bindModal(modal, function () { requestCloseModal(); });
     }
+    bindModalDraftSync();
+    bindModalTouchGuard();
+    bindModalViewportSync();
 
     loadState();
   }
@@ -1580,13 +1780,14 @@
   window.togglePago = togglePago;
   window.anexarComprovante = anexarComprovante;
   window.verComprovante = verComprovante;
-  window.exportCSV = exportCSV;
+  window.exportPDF = exportPDF;
   window.salvarSaldoConta = salvarSaldoConta;
   window.salvarOrcamentos = salvarOrcamentos;
   window.setEntidade = setEntidade;
   window.setTipo = setTipo;
   window.setForma = setForma;
   window.setDuracaoTipo = setDuracaoTipo;
+  window.toggleModalPickers = toggleModalPickers;
 
   document.addEventListener('DOMContentLoaded', initApp);
 })();

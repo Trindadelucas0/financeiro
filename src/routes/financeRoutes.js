@@ -32,6 +32,6 @@ router.put('/orcamentos', financeController.putOrcamentos);
 
 router.get('/dashboard', financeController.getDashboard);
 router.get('/previsao', financeController.getPrevisao);
-router.get('/export/csv', financeController.exportCsv);
+router.get('/export/pdf', financeController.exportPdf);
 
 module.exports = router;

@@ -83,6 +83,21 @@
     }, 400);
   }
 
+  function feedbackTipoLabel(tipo) {
+    const map = { sugestao: 'Sugestão', bug: 'Bug', outro: 'Outro' };
+    return map[tipo] || tipo;
+  }
+
+  function renderAdminFeedbackSection() {
+    return (
+      '<section class="panel profile-section profile-section-admin profile-section-feedback">' +
+        '<div class="panel-head"><h3>Sugestões de melhoria</h3><span class="panel-hint-pill">admin</span></div>' +
+        '<p class="profile-hint">Mensagens enviadas pelos usuários na aba Conta.</p>' +
+        '<div id="adminFeedbackList" class="admin-feedback-list"><p class="profile-hint">Carregando…</p></div>' +
+      '</section>'
+    );
+  }
+
   function renderAdminUsersSection() {
     return (
       '<section class="panel profile-section profile-section-admin">' +
@@ -113,6 +128,57 @@
         '</div>' +
       '</section>'
     );
+  }
+
+  async function loadAdminFeedbackList() {
+    const el = document.getElementById('adminFeedbackList');
+    if (!el) return;
+    try {
+      const data = await apiFetch('/api/admin/feedback');
+      const items = data.feedback || [];
+      if (items.length === 0) {
+        el.innerHTML = '<p class="profile-hint">Nenhuma sugestão recebida ainda.</p>';
+        return;
+      }
+      el.innerHTML =
+        '<ul class="admin-feedback-ul">' +
+        items.map(function (f) {
+          const date = f.createdAt ? new Date(f.createdAt).toLocaleString('pt-BR') : '—';
+          const isNew = f.status === 'novo';
+          return (
+            '<li class="admin-feedback-row' + (isNew ? ' is-new' : '') + '">' +
+              '<div class="admin-feedback-head">' +
+                '<div class="admin-feedback-user">' +
+                  '<strong>' + esc(f.userNome) + '</strong>' +
+                  '<span class="mono admin-user-handle">@' + esc(f.userUsername) + '</span>' +
+                '</div>' +
+                '<span class="feedback-status-' + esc(f.status) + '">' + esc(isNew ? 'Novo' : 'Lido') + '</span>' +
+              '</div>' +
+              '<div class="admin-feedback-meta">' +
+                '<span class="admin-feedback-tipo">' + esc(feedbackTipoLabel(f.tipo)) + '</span>' +
+                '<span class="admin-feedback-date mono">' + esc(date) + '</span>' +
+              '</div>' +
+              '<p class="admin-feedback-msg">' + esc(f.mensagem) + '</p>' +
+              (isNew
+                ? '<button type="button" class="btn btn-ghost btn-sm admin-feedback-read-btn" onclick="markAdminFeedbackRead(\'' + f.id + '\')">Marcar como lido</button>'
+                : '') +
+            '</li>'
+          );
+        }).join('') +
+        '</ul>';
+    } catch (err) {
+      el.innerHTML = '<p class="username-status err">' + esc(err.message) + '</p>';
+    }
+  }
+
+  async function markAdminFeedbackRead(id) {
+    try {
+      await apiFetch('/api/admin/feedback/' + id, { method: 'PATCH' });
+      toast('Sugestão marcada como lida');
+      loadAdminFeedbackList();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
   }
 
   async function loadAdminUsersList() {
@@ -189,6 +255,7 @@
     });
 
     loadAdminUsersList();
+    loadAdminFeedbackList();
   }
 
   function renderProfile(user) {
@@ -226,7 +293,7 @@
           '</form>' +
         '</section>' +
 
-        (user.role === 'admin' ? renderAdminUsersSection() : '') +
+        (user.role === 'admin' ? renderAdminUsersSection() + renderAdminFeedbackSection() : '') +
 
         '<section class="panel profile-section">' +
           '<div class="panel-head"><h3>Alterar senha</h3></div>' +
@@ -426,6 +493,7 @@
   }
 
   window.FinancePerfil = { init: initPerfil };
+  window.markAdminFeedbackRead = markAdminFeedbackRead;
 
   document.addEventListener('DOMContentLoaded', initPerfil);
 })();

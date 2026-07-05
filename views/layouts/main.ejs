@@ -26,7 +26,7 @@
       <div class="actions-row">
         <% if (page !== 'perfil') { %>
         <button type="button" class="btn btn-primary btn-sm" onclick="openModal()">+ Novo lançamento</button>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="exportCSV()">Exportar CSV</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="exportPDF()">Relatório PDF</button>
         <a href="/app/previsao" class="btn btn-ghost btn-sm">Previsão</a>
         <% } %>
         <a href="/app/perfil" class="btn btn-ghost btn-sm profile-link-btn" id="profileLink" hidden>
@@ -68,8 +68,10 @@
   <%- include('../partials/bottom-nav', { page }) %>
 
   <% if (page !== 'perfil') { %>
-  <dialog class="modal" id="modalDialog" aria-labelledby="modalTitle">
-    <div class="modal-inner" id="modalBody"></div>
+  <dialog class="modal modal-launch" id="modalDialog" aria-labelledby="modalTitle">
+    <div class="modal-inner">
+      <div id="modalBody" class="modal-body"></div>
+    </div>
   </dialog>
   <% } %>
 

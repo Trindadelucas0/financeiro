@@ -1,4 +1,5 @@
 const financeService = require('../services/financeService');
+const reportPdfService = require('../services/reportPdfService');
 
 function userId(req) {
   return req.user.id;
@@ -187,13 +188,13 @@ async function getPrevisao(req, res, next) {
   }
 }
 
-async function exportCsv(req, res, next) {
+async function exportPdf(req, res, next) {
   try {
-    const csv = await financeService.exportCsv(userId(req), req.query.mes);
+    const pdf = await reportPdfService.generateMonthlyReportPdf(userId(req), req.query.mes);
     const mes = req.query.mes || financeService.monthKeyOf(new Date());
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="financeiro-${mes}.csv"`);
-    return res.send(csv);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="relatorio-financeiro-${mes}.pdf"`);
+    return res.send(pdf);
   } catch (err) {
     return next(err);
   }
@@ -220,5 +221,5 @@ module.exports = {
   putOrcamentos,
   getDashboard,
   getPrevisao,
-  exportCsv,
+  exportPdf,
 };

@@ -752,7 +752,7 @@ async function updateOrcamentos(userId, orcamentosMap) {
   return getOrcamentos(userId);
 }
 
-/* ============ DASHBOARD / PREVISAO / CSV ============ */
+/* ============ DASHBOARD / PREVISAO / RELATORIO ============ */
 
 async function getDashboard(userId, mes) {
   const data = await loadUserFinanceData(userId);
@@ -867,44 +867,31 @@ async function getPrevisao(userId, { mes, meses = 12 } = {}) {
   };
 }
 
-async function exportCsv(userId, mes) {
+async function getMesItemsForReport(userId, mes) {
   const data = await loadUserFinanceData(userId);
   const currentMonth = mes || data.settings.currentMonth;
   const receitas = getReceitasMes(data.receitas, currentMonth);
   const despesas = getDespesasMes(data.despesas, data.emprestimos, currentMonth);
 
-  const rows = [['Tipo', 'Nome', 'Categoria', 'Valor', 'Status', 'Vencimento']];
+  const receitasItens = receitas.itens.map((r) => ({
+    nome: r.nome,
+    categoria: r.categoria,
+    valor: r.valorEfetivo,
+    status: getPg(data.pagamentos, 'receita', r.id, currentMonth).pago ? 'Recebido' : 'Pendente',
+  }));
 
-  receitas.itens.forEach((r) => {
-    const pg = getPg(data.pagamentos, 'receita', r.id, currentMonth);
-    rows.push([
-      'Receita',
-      r.nome,
-      r.categoria,
-      r.valorEfetivo,
-      pg.pago ? 'Recebido' : 'Pendente',
-      '',
-    ]);
-  });
-
-  despesas.itens.forEach((d) => {
+  const despesasItens = despesas.itens.map((d) => {
     const ent = entidadeDoItemDespesa(d);
-    const pg = getPg(data.pagamentos, ent, d.id, currentMonth);
-    rows.push([
-      'Despesa',
-      d.nome,
-      d.categoria,
-      d.valorEfetivo,
-      pg.pago ? 'Pago' : 'Pendente',
-      d.diaVencimento ? `dia ${d.diaVencimento}` : '',
-    ]);
+    return {
+      nome: d.nome,
+      categoria: d.categoria,
+      valor: d.valorEfetivo,
+      status: getPg(data.pagamentos, ent, d.id, currentMonth).pago ? 'Pago' : 'Pendente',
+      vencimento: d.diaVencimento ? `dia ${d.diaVencimento}` : '',
+    };
   });
 
-  const csv = rows
-    .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
-    .join('\n');
-
-  return `\ufeff${csv}`;
+  return { currentMonth, receitasItens, despesasItens, settings: data.settings };
 }
 
 module.exports = {
@@ -930,7 +917,7 @@ module.exports = {
   updateOrcamentos,
   getDashboard,
   getPrevisao,
-  exportCsv,
+  getMesItemsForReport,
   parcelasRestantes,
   valorParcelaSimples,
   valorParcelaEmprestimo,
