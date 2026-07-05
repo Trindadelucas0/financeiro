@@ -283,6 +283,19 @@
     document.addEventListener('pwa-installed', updatePwaUi);
   }
 
+  async function loadCurrentUser() {
+    if (window.FinanceAuth && typeof FinanceAuth.refreshSession === 'function') {
+      return FinanceAuth.refreshSession();
+    }
+    const data = await apiFetch('/api/auth/me');
+    if (data && data.user) {
+      setSession(getToken(), data.user);
+      if (window.FinanceAuth && FinanceAuth.updateUserUi) FinanceAuth.updateUserUi(data.user);
+      return data.user;
+    }
+    return getUser();
+  }
+
   async function initPerfil() {
     if (!window.FinanceAuth || !FinanceAuth.requireAuth()) return;
     FinanceAuth.initAppAuth();
@@ -291,7 +304,7 @@
     if (view) view.setAttribute('aria-busy', 'true');
 
     try {
-      const user = await FinanceAuth.refreshSession();
+      const user = await loadCurrentUser();
       renderProfile(user || getUser());
     } catch (err) {
       if (view) {
