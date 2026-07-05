@@ -1,15 +1,13 @@
 const express = require('express');
-const rateLimit = require('express-rate-limit');
 const authController = require('../controllers/authController');
 const { authJwt } = require('../middleware/authJwt');
+const { createRateLimit } = require('../utils/rateLimit');
 
 const router = express.Router();
 
-const loginLimiter = rateLimit({
+const loginLimiter = createRateLimit({
   windowMs: 15 * 60 * 1000,
   max: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
   message: { error: 'Muitas tentativas de login. Tente novamente em alguns minutos.' },
 });
 
