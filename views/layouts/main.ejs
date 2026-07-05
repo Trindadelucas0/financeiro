@@ -11,18 +11,14 @@
         <a href="/app/dashboard" class="brand-logo-link" aria-label="Home Finanças — ir ao dashboard">
           <%- include('../partials/brand-logo') %>
         </a>
-        <a href="/app/perfil" class="brand-greeting brand-greeting-link" id="userGreeting">controle pessoal</a>
+        <div class="brand-meta">
+          <a href="/app/perfil" class="brand-user brand-greeting-link" id="userGreeting">controle pessoal</a>
+          <span class="brand-sync" id="userSyncStatus">
+            <span class="sync-dot" aria-hidden="true"></span>
+            sincronizado
+          </span>
+        </div>
       </div>
-      <% if (page !== 'perfil') { %>
-      <div class="month-switcher" role="group" aria-label="Navegação por mês">
-        <button type="button" onclick="changeMonth(-1)" aria-label="Mês anterior">‹</button>
-        <span class="label mono" id="monthLabel" aria-live="polite">—</span>
-        <button type="button" onclick="changeMonth(1)" aria-label="Próximo mês">›</button>
-      </div>
-      <% } %>
-      <a href="/app/perfil" class="topbar-mobile-profile" id="topbarMobileProfile" aria-label="Minha conta">
-        <span class="profile-link-avatar" id="topbarMobileAvatar">•</span>
-      </a>
       <div class="actions-row">
         <% if (page !== 'perfil') { %>
         <button type="button" class="btn btn-primary btn-sm" onclick="openModal()">+ Novo lançamento</button>
@@ -36,6 +32,16 @@
         <a href="/admin/users" class="btn btn-ghost btn-sm" id="adminLink" hidden>Admin</a>
         <button type="button" class="btn btn-ghost btn-sm" id="logoutBtn">Sair</button>
       </div>
+      <a href="/app/perfil" class="topbar-mobile-profile" id="topbarMobileProfile" aria-label="Minha conta">
+        <span class="profile-link-avatar" id="topbarMobileAvatar">•</span>
+      </a>
+      <% if (page !== 'perfil') { %>
+      <div class="month-switcher" role="group" aria-label="Navegação por mês">
+        <button type="button" onclick="changeMonth(-1)" aria-label="Mês anterior">‹</button>
+        <span class="label mono" id="monthLabel" aria-live="polite">—</span>
+        <button type="button" onclick="changeMonth(1)" aria-label="Próximo mês">›</button>
+      </div>
+      <% } %>
     </header>
 
     <% if (page !== 'perfil') { %>

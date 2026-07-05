@@ -34,8 +34,8 @@ function adminUsers(req, res) {
   res.render('admin/users', { title: 'Usuários — Admin' });
 }
 
-function redirectHome(req, res) {
-  res.redirect('/login');
+function landingPage(req, res) {
+  res.render('landing/index', { title: 'Home Finanças' });
 }
 
 function redirectApp(req, res) {
@@ -56,7 +56,7 @@ module.exports = {
   appPrevisao,
   appPerfil,
   adminUsers,
-  redirectHome,
+  landingPage,
   redirectApp,
   notFoundPage,
 };

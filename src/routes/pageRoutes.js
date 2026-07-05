@@ -3,7 +3,7 @@ const pageController = require('../controllers/pageController');
 
 const router = express.Router();
 
-router.get('/', pageController.redirectHome);
+router.get('/', pageController.landingPage);
 router.get('/login', pageController.loginPage);
 
 router.get('/app', pageController.redirectApp);

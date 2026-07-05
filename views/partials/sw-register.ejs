@@ -20,6 +20,7 @@
 
     navigator.serviceWorker.addEventListener('controllerchange', function () {
       if (swRefreshing) return;
+      if (window.location.pathname === '/login') return;
       swRefreshing = true;
       window.location.reload();
     });

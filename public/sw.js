@@ -1,4 +1,4 @@
-const CACHE_NAME = 'financeiro-pwa-v9';
+const CACHE_NAME = 'financeiro-pwa-v10';
 const OFFLINE_URL = '/offline.html';
 const STATIC_ASSETS = [
   '/css/tokens.css',
@@ -62,6 +62,27 @@ self.addEventListener('fetch', (event) => {
 
   if (event.request.method !== 'GET') return;
 
+  if (isNavigationRequest(event.request)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((res) => {
+          if (res.ok && url.origin === self.location.origin) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return res;
+        })
+        .catch(async () => {
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          const offline = await caches.match(OFFLINE_URL);
+          if (offline) return offline;
+          return Response.error();
+        })
+    );
+    return;
+  }
+
   if (url.pathname.startsWith('/js/') || url.pathname.startsWith('/css/')) {
     event.respondWith(
       fetch(event.request)
@@ -78,25 +99,14 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const network = fetch(event.request)
-        .then((res) => {
-          if (res.ok && url.origin === self.location.origin) {
-            const clone = res.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-          }
-          return res;
-        })
-        .catch(async () => {
-          if (cached) return cached;
-          if (isNavigationRequest(event.request)) {
-            const offline = await caches.match(OFFLINE_URL);
-            if (offline) return offline;
-          }
-          return Response.error();
-        });
-
-      return cached || network;
-    })
+    fetch(event.request)
+      .then((res) => {
+        if (res.ok && url.origin === self.location.origin) {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        }
+        return res;
+      })
+      .catch(() => caches.match(event.request).then((cached) => cached || Response.error()))
   );
 });

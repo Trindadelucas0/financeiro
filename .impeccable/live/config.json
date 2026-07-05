@@ -1,5 +1,5 @@
 {
-  "files": ["index.html"],
+  "files": ["views/landing/index.ejs"],
   "insertBefore": "</body>",
   "commentSyntax": "html",
   "cspChecked": true

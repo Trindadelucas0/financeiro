@@ -1,6 +1,11 @@
 (function () {
   'use strict';
 
+  if (!window.FinanceAPI) {
+    console.error('[auth] FinanceAPI não carregou — verifique /js/api.js');
+    return;
+  }
+
   const { apiFetch, setSession, clearSession, getToken, getUser } = window.FinanceAPI;
 
   function displayName(user) {
@@ -18,7 +23,7 @@
 
     if (nameEl && user) nameEl.textContent = displayName(user);
     if (greetingEl && user) {
-      greetingEl.textContent = (user.username ? '@' + user.username : displayName(user)) + ' · sincronizado';
+      greetingEl.textContent = user.username ? '@' + user.username : displayName(user);
     }
     if (profileLabel && user) {
       profileLabel.textContent = user.username ? '@' + user.username : displayName(user);
@@ -98,19 +103,37 @@
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      errEl.hidden = true;
-      const identifier = form.identifier.value.trim();
-      const password = form.password.value;
+      if (errEl) errEl.hidden = true;
+      const identifierInput = form.querySelector('#identifier');
+      const passwordInput = form.querySelector('#password');
+      const identifier = identifierInput ? identifierInput.value.trim() : '';
+      const password = passwordInput ? passwordInput.value : '';
       const btn = form.querySelector('[type="submit"]');
-      btn.disabled = true;
+
+      if (!identifier || !password) {
+        if (errEl) {
+          errEl.textContent = 'Preencha usuário e senha.';
+          errEl.hidden = false;
+        }
+        return;
+      }
+
+      if (btn) btn.disabled = true;
       try {
         await login(identifier, password);
       } catch (err) {
-        errEl.textContent = err.message || 'Falha no login';
-        errEl.hidden = false;
-        btn.disabled = false;
+        if (errEl) {
+          errEl.textContent = err.message || 'Falha no login';
+          errEl.hidden = false;
+        }
+        if (btn) btn.disabled = false;
       }
     });
+  }
+
+  function bootLoginPage() {
+    if (!window.FinanceAuth) return;
+    initLoginPage();
   }
 
   function initAppAuth() {
@@ -136,6 +159,7 @@
     requireAdmin,
     refreshSession,
     initLoginPage,
+    bootLoginPage,
     initAppAuth,
     displayName,
     updateUserUi,

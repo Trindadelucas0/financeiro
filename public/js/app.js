@@ -645,7 +645,7 @@ async function exportPDF() {
     const displayLabel = user ? (FinanceAuth.displayName ? FinanceAuth.displayName(user) : (user.nome || user.username || user.email)) : '—';
     if (userName && user) userName.textContent = displayLabel;
     if (userGreeting && user) {
-      userGreeting.textContent = (user.username ? '@' + user.username : displayLabel) + ' · sincronizado';
+      userGreeting.textContent = user.username ? '@' + user.username : displayLabel;
     }
     const avatarText = user ? (function () {
       const parts = String(user.nome || user.username || '').trim().split(/\s+/).filter(Boolean);

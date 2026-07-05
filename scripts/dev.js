@@ -1,4 +1,5 @@
 const { spawn, execSync } = require('child_process');
+const path = require('path');
 const { loadEnv } = require('../src/config/env');
 
 function freePort(port) {
@@ -26,16 +27,49 @@ function freePort(port) {
   }
 }
 
+const root = path.join(__dirname, '..');
+const tailwindCli = path.join(root, 'node_modules', '@tailwindcss', 'cli', 'dist', 'index.mjs');
 const { port } = loadEnv();
 freePort(port);
 
-const child = spawn(process.execPath, ['--watch', 'server.js'], {
-  stdio: 'inherit',
-  cwd: require('path').join(__dirname, '..'),
-  env: process.env,
-});
+const children = [];
 
-child.on('exit', (code) => process.exit(code ?? 0));
+function spawnChild(label, command, args) {
+  const child = spawn(command, args, {
+    stdio: 'inherit',
+    cwd: root,
+    env: process.env,
+  });
 
-process.on('SIGINT', () => child.kill('SIGINT'));
-process.on('SIGTERM', () => child.kill('SIGTERM'));
+  child.on('exit', (code) => {
+    if (code && code !== 0) {
+      console.error(`[dev] ${label} encerrou com código ${code}`);
+    }
+    shutdown(code ?? 0);
+  });
+
+  children.push(child);
+  return child;
+}
+
+let shuttingDown = false;
+
+function shutdown(code) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  children.forEach((child) => {
+    if (!child.killed) child.kill('SIGINT');
+  });
+  process.exit(code);
+}
+
+spawnChild('css', process.execPath, [
+  tailwindCli,
+  '-i', './src/styles/landing.css',
+  '-o', './public/css/landing.css',
+  '--watch',
+]);
+spawnChild('server', process.execPath, ['--watch', 'server.js']);
+
+process.on('SIGINT', () => shutdown(0));
+process.on('SIGTERM', () => shutdown(0));
