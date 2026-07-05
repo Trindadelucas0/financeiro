@@ -14,6 +14,7 @@
     const profileLink = document.getElementById('profileLink');
     const profileLabel = document.getElementById('profileLinkLabel');
     const profileAvatar = document.getElementById('profileLinkAvatar');
+    const mobileAvatar = document.getElementById('topbarMobileAvatar');
 
     if (nameEl && user) nameEl.textContent = displayName(user);
     if (greetingEl && user) {
@@ -25,6 +26,12 @@
     if (profileAvatar && user) {
       const parts = String(user.nome || '').trim().split(/\s+/).filter(Boolean);
       profileAvatar.textContent = parts.length >= 2
+        ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+        : String(user.username || user.nome || '?').slice(0, 2).toUpperCase();
+    }
+    if (mobileAvatar && user) {
+      const parts = String(user.nome || '').trim().split(/\s+/).filter(Boolean);
+      mobileAvatar.textContent = parts.length >= 2
         ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
         : String(user.username || user.nome || '?').slice(0, 2).toUpperCase();
     }

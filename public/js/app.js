@@ -632,24 +632,28 @@
     const saldo = receitas.total - despesas.total;
 
     document.querySelectorAll('#monthLabel').forEach(function (el) {
-      el.textContent = monthLabel(mes);
+      const short = window.matchMedia('(max-width: 768px)').matches;
+      el.textContent = short ? monthLabelShort(mes) : monthLabel(mes);
     });
 
     const user = getUser();
     const userName = document.getElementById('userName');
     const userGreeting = document.getElementById('userGreeting');
     const profileAvatar = document.getElementById('profileLinkAvatar');
+    const mobileAvatar = document.getElementById('topbarMobileAvatar');
     const displayLabel = user ? (FinanceAuth.displayName ? FinanceAuth.displayName(user) : (user.nome || user.username || user.email)) : '—';
     if (userName && user) userName.textContent = displayLabel;
     if (userGreeting && user) {
       userGreeting.textContent = (user.username ? '@' + user.username : displayLabel) + ' · sincronizado';
     }
-    if (profileAvatar && user) {
+    const avatarText = user ? (function () {
       const parts = String(user.nome || user.username || '').trim().split(/\s+/).filter(Boolean);
-      profileAvatar.textContent = parts.length >= 2
+      return parts.length >= 2
         ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
         : String(user.username || user.nome || '?').slice(0, 2).toUpperCase();
-    }
+    }()) : '?';
+    if (profileAvatar && user) profileAvatar.textContent = avatarText;
+    if (mobileAvatar && user) mobileAvatar.textContent = avatarText;
 
     const heroSaldo = document.getElementById('heroSaldo');
     const heroMonthMeta = document.getElementById('heroMonthMeta');

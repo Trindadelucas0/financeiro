@@ -20,6 +20,9 @@
         <button type="button" onclick="changeMonth(1)" aria-label="Próximo mês">›</button>
       </div>
       <% } %>
+      <a href="/app/perfil" class="topbar-mobile-profile" id="topbarMobileProfile" aria-label="Minha conta">
+        <span class="profile-link-avatar" id="topbarMobileAvatar">•</span>
+      </a>
       <div class="actions-row">
         <% if (page !== 'perfil') { %>
         <button type="button" class="btn btn-primary btn-sm" onclick="openModal()">+ Novo lançamento</button>
