@@ -4,23 +4,42 @@
   const TOKEN_KEY = 'financeiro_token';
   const USER_KEY = 'financeiro_user';
 
+  function migrateLegacySession() {
+    const legacyToken = sessionStorage.getItem(TOKEN_KEY);
+    const legacyUser = sessionStorage.getItem(USER_KEY);
+    if (legacyToken && !localStorage.getItem(TOKEN_KEY)) {
+      localStorage.setItem(TOKEN_KEY, legacyToken);
+    }
+    if (legacyUser && !localStorage.getItem(USER_KEY)) {
+      localStorage.setItem(USER_KEY, legacyUser);
+    }
+    if (legacyToken) sessionStorage.removeItem(TOKEN_KEY);
+    if (legacyUser) sessionStorage.removeItem(USER_KEY);
+  }
+
+  migrateLegacySession();
+
   function getToken() {
-    return sessionStorage.getItem(TOKEN_KEY);
+    return localStorage.getItem(TOKEN_KEY);
   }
 
   function setSession(token, user) {
-    sessionStorage.setItem(TOKEN_KEY, token);
-    sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    sessionStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(USER_KEY);
   }
 
   function clearSession() {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
   }
 
   function getUser() {
     try {
-      const raw = sessionStorage.getItem(USER_KEY);
+      const raw = localStorage.getItem(USER_KEY);
       return raw ? JSON.parse(raw) : null;
     } catch {
       return null;

@@ -10,5 +10,7 @@ router.use(authJwt, requireAdmin);
 router.post('/users', adminController.createUser);
 router.get('/users', adminController.listUsers);
 router.patch('/users/:id', adminController.patchUser);
+router.get('/feedback', adminController.listFeedback);
+router.patch('/feedback/:id', adminController.patchFeedback);
 
 module.exports = router;

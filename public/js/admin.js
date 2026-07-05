@@ -19,29 +19,45 @@
   }
 
   let users = [];
+  let feedback = [];
   let userModalSnapshot = null;
   let userModalSubmitting = false;
 
   async function loadUsers() {
     const view = document.getElementById('adminView');
-    view.innerHTML = '<div class="loading-state">Carregando usuários…</div>';
+    view.innerHTML = '<div class="loading-state">Carregando…</div>';
     try {
-      const data = await apiFetch('/api/admin/users');
-      users = data.users || data.items || data || [];
-      renderUsers();
+      const [usersData, feedbackData] = await Promise.all([
+        apiFetch('/api/admin/users'),
+        apiFetch('/api/admin/feedback'),
+      ]);
+      users = usersData.users || usersData.items || usersData || [];
+      feedback = feedbackData.feedback || feedbackData || [];
+      renderAdmin();
     } catch (err) {
       view.innerHTML = '<div class="empty-state">' + esc(err.message) + '</div>';
     }
   }
 
-  function renderUsers() {
+  function renderAdmin() {
     const view = document.getElementById('adminView');
     view.innerHTML =
       '<div class="section-title-row"><h2>Usuários</h2><button type="button" class="btn btn-primary btn-sm" onclick="openUserModal()">+ Novo usuário</button></div>' +
-      '<div class="panel"><div class="table-wrap"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Status</th><th></th></tr></thead><tbody>' +
-      (users.length === 0 ? '<tr><td colspan="5"><div class="empty-state">Nenhum usuário cadastrado.</div></td></tr>' :
+      '<div class="panel"><div class="table-wrap"><table><thead><tr><th>Nome</th><th>Username</th><th>E-mail</th><th>Papel</th><th>Status</th><th></th></tr></thead><tbody>' +
+      (users.length === 0 ? '<tr><td colspan="6"><div class="empty-state">Nenhum usuário cadastrado.</div></td></tr>' :
         users.map(function (u) {
-          return '<tr><td>' + esc(u.nome) + '</td><td>' + esc(u.email) + '</td><td>' + esc(u.role) + '</td><td><span class="status-pill ' + (u.ativo !== false ? 'active' : 'inactive') + '">' + (u.ativo !== false ? 'Ativo' : 'Inativo') + '</span></td><td class="row-actions"><button type="button" class="btn btn-ghost btn-sm" onclick="editUser(\'' + u.id + '\')">Editar</button></td></tr>';
+          return '<tr><td>' + esc(u.nome) + '</td><td class="mono">@' + esc(u.username) + '</td><td>' + esc(u.email) + '</td><td>' + esc(u.role) + '</td><td><span class="status-pill ' + (u.ativo !== false ? 'active' : 'inactive') + '">' + (u.ativo !== false ? 'Ativo' : 'Inativo') + '</span></td><td class="row-actions"><button type="button" class="btn btn-ghost btn-sm" onclick="editUser(\'' + u.id + '\')">Editar</button></td></tr>';
+        }).join('')) +
+      '</tbody></table></div></div>' +
+
+      '<div class="section-title-row admin-feedback-panel"><h2>Sugestões</h2></div>' +
+      '<div class="panel"><div class="table-wrap"><table><thead><tr><th>Data</th><th>Usuário</th><th>Tipo</th><th>Mensagem</th><th>Status</th><th></th></tr></thead><tbody>' +
+      (feedback.length === 0 ? '<tr><td colspan="6"><div class="empty-state">Nenhuma sugestão recebida.</div></td></tr>' :
+        feedback.map(function (f) {
+          const date = f.createdAt ? new Date(f.createdAt).toLocaleString('pt-BR') : '—';
+          return '<tr><td class="mono">' + esc(date) + '</td><td>' + esc(f.userNome) + ' <span class="mono">@' + esc(f.userUsername) + '</span></td><td>' + esc(f.tipo) + '</td><td>' + esc(f.mensagem) + '</td><td><span class="feedback-status-' + esc(f.status) + '">' + esc(f.status) + '</span></td><td class="row-actions">' +
+            (f.status === 'novo' ? '<button type="button" class="btn btn-ghost btn-sm" onclick="markFeedbackRead(\'' + f.id + '\')">Marcar lido</button>' : '—') +
+            '</td></tr>';
         }).join('')) +
       '</tbody></table></div></div>';
   }
@@ -109,6 +125,7 @@
       '<div class="modal-header"><h3 id="userModalTitle">' + (editing ? 'Editar usuário' : 'Novo usuário') + '</h3><button type="button" class="modal-close" aria-label="Fechar" onclick="requestCloseUserModal()">×</button></div>' +
       '<form id="userForm">' +
         '<div class="field"><label for="u_nome">Nome</label><input id="u_nome" type="text" value="' + esc(user && user.nome) + '" required></div>' +
+        '<div class="field"><label for="u_username">Username</label><input id="u_username" type="text" value="' + esc(user && user.username) + '" ' + (editing ? '' : 'placeholder="opcional — gerado do e-mail"') + ' pattern="[a-zA-Z0-9_]{3,30}" autocapitalize="off"></div>' +
         '<div class="field"><label for="u_email">E-mail</label><input id="u_email" type="email" value="' + esc(user && user.email) + '" ' + (editing ? 'readonly' : '') + ' required></div>' +
         (!editing ? '<div class="field"><label for="u_password">Senha</label><input id="u_password" type="password" minlength="6" required autocomplete="new-password"></div>' : '') +
         '<div class="field"><label for="u_role">Papel</label><select id="u_role"><option value="user"' + (user && user.role === 'user' ? ' selected' : '') + '>Usuário</option><option value="admin"' + (user && user.role === 'admin' ? ' selected' : '') + '>Admin</option></select></div>' +
@@ -127,26 +144,25 @@
         submitBtn.textContent = 'Salvando…';
       }
       try {
+        const usernameVal = document.getElementById('u_username').value.trim();
         if (editing) {
-          await apiFetch('/api/admin/users/' + user.id, {
-            method: 'PATCH',
-            body: {
-              nome: document.getElementById('u_nome').value.trim(),
-              role: document.getElementById('u_role').value,
-              ativo: document.getElementById('u_ativo').checked,
-            },
-          });
+          const body = {
+            nome: document.getElementById('u_nome').value.trim(),
+            role: document.getElementById('u_role').value,
+            ativo: document.getElementById('u_ativo').checked,
+          };
+          if (usernameVal) body.username = usernameVal;
+          await apiFetch('/api/admin/users/' + user.id, { method: 'PATCH', body });
           toast('Usuário atualizado');
         } else {
-          await apiFetch('/api/admin/users', {
-            method: 'POST',
-            body: {
-              nome: document.getElementById('u_nome').value.trim(),
-              email: document.getElementById('u_email').value.trim(),
-              password: document.getElementById('u_password').value,
-              role: document.getElementById('u_role').value,
-            },
-          });
+          const body = {
+            nome: document.getElementById('u_nome').value.trim(),
+            email: document.getElementById('u_email').value.trim(),
+            password: document.getElementById('u_password').value,
+            role: document.getElementById('u_role').value,
+          };
+          if (usernameVal) body.username = usernameVal;
+          await apiFetch('/api/admin/users', { method: 'POST', body });
           toast('Usuário criado');
         }
         closeUserModal();
@@ -172,6 +188,16 @@
     if (user) openUserModal(user);
   }
 
+  async function markFeedbackRead(id) {
+    try {
+      await apiFetch('/api/admin/feedback/' + id, { method: 'PATCH' });
+      toast('Marcado como lido');
+      loadUsers();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
+
   function initAdmin() {
     if (!FinanceAuth.requireAdmin()) return;
     FinanceAuth.initAppAuth();
@@ -190,6 +216,7 @@
   window.editUser = editUser;
   window.closeUserModal = closeUserModal;
   window.requestCloseUserModal = requestCloseUserModal;
+  window.markFeedbackRead = markFeedbackRead;
 
   document.addEventListener('DOMContentLoaded', initAdmin);
 })();

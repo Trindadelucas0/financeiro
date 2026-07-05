@@ -13,6 +13,7 @@ router.get('/app/despesas', pageController.appDespesas);
 router.get('/app/compromissos', pageController.appCompromissos);
 router.get('/app/orcamentos', pageController.appOrcamentos);
 router.get('/app/previsao', pageController.appPrevisao);
+router.get('/app/perfil', pageController.appPerfil);
 
 router.get('/admin/users', pageController.adminUsers);
 

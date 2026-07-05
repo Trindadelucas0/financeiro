@@ -1,4 +1,5 @@
 const userService = require('../services/userService');
+const profileController = require('./profileController');
 
 async function createUser(req, res, next) {
   try {
@@ -27,4 +28,10 @@ async function patchUser(req, res, next) {
   }
 }
 
-module.exports = { createUser, listUsers, patchUser };
+module.exports = {
+  createUser,
+  listUsers,
+  patchUser,
+  listFeedback: profileController.listFeedback,
+  patchFeedback: profileController.patchFeedback,
+};

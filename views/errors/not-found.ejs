@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <%- include('../partials/head') %>
+  <title>Página não encontrada · Home Finanças</title>
+</head>
+<body class="auth-page status-page">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <%- include('../partials/brand-logo', { logoSize: 'lg' }) %>
+    </div>
+    <h1 class="status-title">Página não encontrada</h1>
+    <p class="auth-sub">O endereço que você acessou não existe ou foi movido.</p>
+    <div class="status-actions">
+      <a href="/app/dashboard" class="btn btn-primary btn-block">Voltar ao painel</a>
+      <a href="/login" class="btn btn-ghost btn-block">Ir para o login</a>
+    </div>
+  </div>
+  <%- include('../partials/sw-register') %>
+</body>
+</html>

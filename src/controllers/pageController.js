@@ -26,6 +26,10 @@ function appPrevisao(req, res) {
   res.render('app/previsao', { title: 'Previsão', activeTab: 'previsao' });
 }
 
+function appPerfil(req, res) {
+  res.render('app/perfil', { title: 'Meu perfil', activeTab: 'perfil' });
+}
+
 function adminUsers(req, res) {
   res.render('admin/users', { title: 'Usuários — Admin' });
 }
@@ -38,6 +42,10 @@ function redirectApp(req, res) {
   res.redirect('/app/dashboard');
 }
 
+function notFoundPage(req, res) {
+  res.status(404).render('errors/not-found', { title: 'Página não encontrada' });
+}
+
 module.exports = {
   loginPage,
   appDashboard,
@@ -46,7 +54,9 @@ module.exports = {
   appCompromissos,
   appOrcamentos,
   appPrevisao,
+  appPerfil,
   adminUsers,
   redirectHome,
   redirectApp,
+  notFoundPage,
 };

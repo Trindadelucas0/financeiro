@@ -1,6 +1,7 @@
 const { Client } = require('pg');
 const bcrypt = require('bcryptjs');
 const { loadEnv } = require('../config/env');
+const { usernameFromEmail, ensureUniqueUsername } = require('../utils/username');
 
 const SCHEMA_SQL = `
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
@@ -8,6 +9,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   nome VARCHAR(255) NOT NULL,
+  username VARCHAR(30) NOT NULL UNIQUE,
   email VARCHAR(255) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   role VARCHAR(20) NOT NULL DEFAULT 'user' CHECK (role IN ('admin', 'user')),
@@ -90,7 +92,51 @@ CREATE INDEX IF NOT EXISTS idx_emprestimos_user ON emprestimos(user_id);
 CREATE INDEX IF NOT EXISTS idx_emprestimos_user_mes ON emprestimos(user_id, mes_inicio);
 CREATE INDEX IF NOT EXISTS idx_pagamentos_user ON pagamentos(user_id);
 CREATE INDEX IF NOT EXISTS idx_pagamentos_user_mes ON pagamentos(user_id, mes);
+
+CREATE TABLE IF NOT EXISTS user_feedback (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('sugestao', 'bug', 'outro')),
+  mensagem TEXT NOT NULL,
+  status VARCHAR(10) NOT NULL DEFAULT 'novo' CHECK (status IN ('novo', 'lido')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_feedback_user ON user_feedback(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_feedback_status ON user_feedback(status);
 `;
+
+const MIGRATION_SQL = `
+ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(30);
+
+CREATE TABLE IF NOT EXISTS user_feedback (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('sugestao', 'bug', 'outro')),
+  mensagem TEXT NOT NULL,
+  status VARCHAR(10) NOT NULL DEFAULT 'novo' CHECK (status IN ('novo', 'lido')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_feedback_user ON user_feedback(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_feedback_status ON user_feedback(status);
+`;
+
+async function backfillUsernames(client) {
+  const { rows } = await client.query(
+    'SELECT id, email FROM users WHERE username IS NULL OR username = \'\'',
+  );
+
+  for (const row of rows) {
+    const base = usernameFromEmail(row.email);
+    const username = await ensureUniqueUsername(client, base, row.id);
+    await client.query('UPDATE users SET username = $1 WHERE id = $2', [username, row.id]);
+  }
+
+  if (rows.length > 0) {
+    console.log(`[migrate] Usernames gerados para ${rows.length} usuário(s).`);
+  }
+}
 
 async function ensureDatabase() {
   const { pg } = loadEnv();
@@ -136,15 +182,25 @@ async function runMigrations() {
 
   try {
     await client.query(SCHEMA_SQL);
+    await client.query(MIGRATION_SQL);
+    await backfillUsernames(client);
+
+    await client.query(`
+      DO $$ BEGIN
+        ALTER TABLE users ALTER COLUMN username SET NOT NULL;
+      EXCEPTION WHEN others THEN NULL;
+      END $$;
+    `);
 
     const { rows } = await client.query('SELECT COUNT(*)::int AS total FROM users');
     if (rows[0].total === 0) {
       const passwordHash = await bcrypt.hash(admin.password, 10);
+      const adminUsername = await ensureUniqueUsername(client, usernameFromEmail(admin.email));
       const insert = await client.query(
-        `INSERT INTO users (nome, email, password_hash, role, ativo)
-         VALUES ($1, $2, $3, 'admin', TRUE)
+        `INSERT INTO users (nome, username, email, password_hash, role, ativo)
+         VALUES ($1, $2, $3, $4, 'admin', TRUE)
          RETURNING id`,
-        ['Administrador', admin.email, passwordHash],
+        ['Administrador', adminUsername, admin.email, passwordHash],
       );
       await client.query(
         `INSERT INTO user_settings (user_id, current_month, saldo_conta)

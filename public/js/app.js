@@ -638,8 +638,18 @@
     const user = getUser();
     const userName = document.getElementById('userName');
     const userGreeting = document.getElementById('userGreeting');
-    if (userName && user) userName.textContent = user.nome || user.email;
-    if (userGreeting && user) userGreeting.textContent = (user.nome || user.email) + ' · sincronizado';
+    const profileAvatar = document.getElementById('profileLinkAvatar');
+    const displayLabel = user ? (FinanceAuth.displayName ? FinanceAuth.displayName(user) : (user.nome || user.username || user.email)) : '—';
+    if (userName && user) userName.textContent = displayLabel;
+    if (userGreeting && user) {
+      userGreeting.textContent = (user.username ? '@' + user.username : displayLabel) + ' · sincronizado';
+    }
+    if (profileAvatar && user) {
+      const parts = String(user.nome || user.username || '').trim().split(/\s+/).filter(Boolean);
+      profileAvatar.textContent = parts.length >= 2
+        ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+        : String(user.username || user.nome || '?').slice(0, 2).toUpperCase();
+    }
 
     const heroSaldo = document.getElementById('heroSaldo');
     const heroMonthMeta = document.getElementById('heroMonthMeta');
@@ -1499,6 +1509,9 @@
   function initApp() {
     if (!window.FinanceAuth || !FinanceAuth.requireAuth()) return;
     FinanceAuth.initAppAuth();
+
+    const page = document.body.dataset.page;
+    if (page === 'perfil') return;
 
     if (window.FinanceUI) FinanceUI.init();
 

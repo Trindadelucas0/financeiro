@@ -130,3 +130,21 @@ Mobile: hero full width → mini KPIs 2 col → stack painéis.
 4. **Categorias** — donut + legenda grid 2 col
 5. **Timeline / projeção** — painéis wide com empty state acionável
 6. **Mobile** — bento stack + pending cards
+
+## Profile page
+
+Rota `/app/perfil` — identidade do usuário, sessão e PWA.
+
+| Componente | Spec |
+|------------|------|
+| `.profile-avatar` | Iniciais do nome · 64px · fundo `--ice-dim` |
+| `.profile-form` | Nome + username editáveis · e-mail read-only |
+| `.pwa-install-banner` | Botão instalar quando `beforeinstallprompt` disponível |
+| Feedback form | Tipo (sugestão/bug/outro) + textarea 10–2000 chars |
+
+Login aceita **username ou e-mail**. Sessão em `localStorage` + refresh via `GET /api/auth/me`.
+
+Navegação: link no header (avatar + @username), greeting desktop e “Olá, {nome}” mobile → `/app/perfil`.
+
+PWA: shortcuts “Dashboard” e “Meu perfil” no manifest.
+

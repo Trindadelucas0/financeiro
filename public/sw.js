@@ -1,16 +1,29 @@
-const CACHE_NAME = 'financeiro-pwa-v1';
+const CACHE_NAME = 'financeiro-pwa-v3';
+const OFFLINE_URL = '/offline.html';
 const STATIC_ASSETS = [
   '/css/tokens.css',
   '/css/app.css',
   '/css/mobile-bank.css',
   '/js/api.js',
   '/js/auth.js',
+  '/js/pwa.js',
   '/js/app.js',
+  '/js/perfil.js',
   '/js/admin.js',
   '/icons/icon-192.svg',
   '/icons/icon-512.svg',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
   '/manifest.webmanifest',
+  OFFLINE_URL,
+  '/images/logo-home-financas.png',
 ];
+
+function isNavigationRequest(request) {
+  if (request.mode === 'navigate') return true;
+  const accept = request.headers.get('accept') || '';
+  return request.method === 'GET' && accept.includes('text/html');
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -45,13 +58,23 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      const network = fetch(event.request).then((res) => {
-        if (res.ok && url.origin === self.location.origin) {
-          const clone = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-        }
-        return res;
-      });
+      const network = fetch(event.request)
+        .then((res) => {
+          if (res.ok && url.origin === self.location.origin) {
+            const clone = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return res;
+        })
+        .catch(async () => {
+          if (cached) return cached;
+          if (isNavigationRequest(event.request)) {
+            const offline = await caches.match(OFFLINE_URL);
+            if (offline) return offline;
+          }
+          return Response.error();
+        });
+
       return cached || network;
     })
   );

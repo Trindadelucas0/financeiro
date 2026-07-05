@@ -1,25 +1,27 @@
 const bcrypt = require('bcryptjs');
 const { getPool } = require('../db/pool');
 const { signToken } = require('../utils/jwt');
+const { mapUser } = require('../services/profileService');
 
-function mapUser(row) {
-  return {
-    id: row.id,
-    nome: row.nome,
-    email: row.email,
-    role: row.role,
-    ativo: row.ativo,
-    createdAt: row.created_at,
-  };
+function isEmailIdentifier(value) {
+  return String(value || '').includes('@');
 }
 
-async function login(email, password) {
+async function login(identifier, password) {
   const pool = getPool();
-  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const raw = String(identifier || '').trim();
+  const normalized = isEmailIdentifier(raw) ? raw.toLowerCase() : raw.toLowerCase().replace(/^@/, '');
 
+  if (!normalized || !password) {
+    const err = new Error('Credenciais inválidas');
+    err.status = 401;
+    throw err;
+  }
+
+  const column = isEmailIdentifier(normalized) ? 'email' : 'username';
   const { rows } = await pool.query(
-    'SELECT * FROM users WHERE email = $1 LIMIT 1',
-    [normalizedEmail],
+    `SELECT * FROM users WHERE ${column} = $1 LIMIT 1`,
+    [normalized],
   );
 
   if (rows.length === 0) {
@@ -46,6 +48,7 @@ async function login(email, password) {
   const payload = {
     id: user.id,
     email: user.email,
+    username: user.username,
     role: user.role,
     nome: user.nome,
   };
@@ -58,7 +61,7 @@ async function login(email, password) {
 async function getMe(userId) {
   const pool = getPool();
   const { rows } = await pool.query(
-    'SELECT id, nome, email, role, ativo, created_at FROM users WHERE id = $1 LIMIT 1',
+    'SELECT id, nome, username, email, role, ativo, created_at FROM users WHERE id = $1 LIMIT 1',
     [userId],
   );
 

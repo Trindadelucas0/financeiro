@@ -35,6 +35,13 @@ Preciso, confiante, silencioso. Três palavras: **controle**, **clareza**, **dis
 4. **Densidade inteligente** — dashboard denso no desktop; cards empilhados no mobile.
 5. **Previsibilidade** — mesma linguagem visual em todas as abas.
 
+## Perfil e feedback (MVP)
+
+- Cada usuário tem **username** único (`@usuario`) além do e-mail de login.
+- Página **Meu perfil**: editar nome/username, alterar senha, instalar PWA, enviar sugestão.
+- Sessão persistente no dispositivo (`localStorage`); dados atualizados ao abrir o app.
+- Sugestões ficam no banco; admin visualiza e marca como lido — sem e-mail externo no MVP.
+
 ## Accessibility & Inclusion
 
 - WCAG AA mínimo (contraste body ≥ 4.5:1, large text ≥ 3:1)

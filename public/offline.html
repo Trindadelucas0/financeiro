@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Home Finanças — sem conexão">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>Sem conexão · Home Finanças</title>
+  <link rel="icon" href="/icons/icon-192.png" type="image/png">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body class="auth-page status-page">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <img
+        src="/images/logo-home-financas.png"
+        alt="Home Finanças"
+        class="brand-logo brand-logo-lg"
+        decoding="async"
+      >
+    </div>
+    <h1 class="status-title">Sem conexão</h1>
+    <p class="auth-sub">Não foi possível carregar esta página. Verifique sua internet e tente novamente.</p>
+    <div class="status-actions">
+      <button type="button" class="btn btn-primary btn-block" id="retryBtn">Tentar novamente</button>
+      <a href="/login" class="btn btn-ghost btn-block">Ir para o login</a>
+    </div>
+  </div>
+  <script>
+    document.getElementById('retryBtn').addEventListener('click', function () {
+      window.location.reload();
+    });
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('/sw.js').catch(function () {});
+      });
+    }
+  </script>
+</body>
+</html>
