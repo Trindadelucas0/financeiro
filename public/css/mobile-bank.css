@@ -335,6 +335,17 @@
 
   .layout-mobile-bank dialog.modal .modal-inner {
     max-height: var(--modal-vvh, min(92dvh, 100%));
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .layout-mobile-bank dialog.modal .modal-body {
+    min-height: min(320px, 72dvh);
+  }
+
+  .layout-mobile-bank dialog.modal .modal-shell {
+    flex: 1 1 auto;
+    min-height: 160px;
   }
 
   .layout-mobile-bank dialog.modal .modal-grab {
@@ -353,7 +364,11 @@
 
   .layout-mobile-bank dialog.modal .modal-sub {
     padding: 0 16px;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
+  }
+
+  .layout-mobile-bank dialog.modal .modal-body--has-entity:not(.modal-body--editing) .modal-sub {
+    display: none;
   }
 
   .layout-mobile-bank dialog.modal .modal-shell {
@@ -362,19 +377,19 @@
   }
 
   .layout-mobile-bank dialog.modal .modal-type-rail {
-    padding: 0 16px 10px;
+    padding: 0 12px 12px;
   }
 
   .layout-mobile-bank dialog.modal .modal-scroll {
-    padding: 0 16px 16px;
+    padding: 12px 16px 16px;
   }
 
   .layout-mobile-bank dialog.modal .modal-rail-item {
-    min-height: 48px;
+    min-height: 56px;
   }
 
   .layout-mobile-bank dialog.modal .modal-panel-empty {
-    padding: 24px 0;
+    padding: 20px 8px;
   }
 
   .layout-mobile-bank dialog.modal .modal-footer {

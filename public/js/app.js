@@ -1280,9 +1280,9 @@ async function exportPDF() {
   }
 
   var ENTITY_RAIL = [
-    { value: 'receita', label: 'Receita', icon: '↑', desc: 'Entrada de dinheiro no mês', iconClass: 'in' },
-    { value: 'despesa', label: 'Despesa', icon: '↓', desc: 'Conta, compra ou gasto', iconClass: 'out' },
-    { value: 'emprestimo', label: 'Empréstimo', icon: '%', desc: 'Parcelas com juros', iconClass: 'loan' },
+    { value: 'receita', label: 'Receita', shortLabel: 'Receita', icon: '↑', desc: 'Entrada de dinheiro no mês', iconClass: 'in' },
+    { value: 'despesa', label: 'Despesa', shortLabel: 'Despesa', icon: '↓', desc: 'Conta, compra ou gasto', iconClass: 'out' },
+    { value: 'emprestimo', label: 'Empréstimo', shortLabel: 'Emprést.', icon: '%', desc: 'Parcelas com juros', iconClass: 'loan' },
   ];
 
   function entityRailItem(item, c, locked) {
@@ -1297,6 +1297,7 @@ async function exportPDF() {
       '<span class="modal-rail-icon ' + item.iconClass + '" aria-hidden="true">' + item.icon + '</span>' +
       '<span class="modal-rail-copy">' +
       '<span class="modal-rail-label">' + esc(item.label) + '</span>' +
+      '<span class="modal-rail-label-short">' + esc(item.shortLabel || item.label) + '</span>' +
       '<span class="modal-rail-desc">' + esc(item.desc) + '</span>' +
       '</span></button>'
     );
@@ -1676,6 +1677,11 @@ async function exportPDF() {
     }
 
     document.getElementById('modalBody').innerHTML = html;
+    const modalBody = document.getElementById('modalBody');
+    modalBody.className = 'modal-body' +
+      (c.entidade ? ' modal-body--has-entity' : ' modal-body--no-entity') +
+      (pronto ? ' modal-body--ready' : '') +
+      (locked ? ' modal-body--editing' : '');
     const form = document.getElementById('modalForm');
     if (form) form.onsubmit = handleSubmit;
 
