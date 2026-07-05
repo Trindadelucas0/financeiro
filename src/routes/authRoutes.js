@@ -15,6 +15,7 @@ const loginLimiter = rateLimit({
 
 router.post('/login', loginLimiter, authController.login);
 router.get('/me', authJwt, authController.me);
+router.get('/username-available', authJwt, authController.checkUsername);
 router.patch('/me', authJwt, authController.patchMe);
 router.patch('/me/password', authJwt, authController.patchPassword);
 

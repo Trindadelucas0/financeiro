@@ -27,7 +27,7 @@ function appPrevisao(req, res) {
 }
 
 function appPerfil(req, res) {
-  res.render('app/perfil', { title: 'Meu perfil', activeTab: 'perfil' });
+  res.render('app/perfil', { title: 'Conta', activeTab: 'perfil' });
 }
 
 function adminUsers(req, res) {

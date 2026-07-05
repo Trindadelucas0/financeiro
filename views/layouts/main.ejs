@@ -54,17 +54,15 @@
       <div class="loading-state">Carregando…</div>
     </main>
 
-    <% if (page !== 'perfil') { %>
-    <footer class="footer-note desktop-only">
-      Dados sincronizados com sua conta. Comprovantes em base64 — evite arquivos grandes.
-      Empréstimos usam juros simplificado (não é Price/SAC).
-    </footer>
-    <% } %>
+  <% if (page !== 'perfil') { %>
+  <footer class="footer-note desktop-only">
+    Dados sincronizados com sua conta. Comprovantes em base64 — evite arquivos grandes.
+    Empréstimos usam juros simplificado (não é Price/SAC).
+  </footer>
+  <% } %>
   </div>
 
-  <% if (page !== 'perfil') { %>
   <%- include('../partials/bottom-nav', { page }) %>
-  <% } %>
 
   <% if (page !== 'perfil') { %>
   <dialog class="modal" id="modalDialog" aria-labelledby="modalTitle">

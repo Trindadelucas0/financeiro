@@ -221,3 +221,12 @@ async function runMigrations() {
 }
 
 module.exports = { runMigrations };
+
+if (require.main === module) {
+  runMigrations()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error('[migrate] Falha:', err.message);
+      process.exit(1);
+    });
+}

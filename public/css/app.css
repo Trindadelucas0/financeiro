@@ -1310,3 +1310,51 @@ dialog.modal::backdrop {
 
 .admin-feedback-panel { margin-top: 24px; }
 
+.username-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.username-input-wrap:focus-within {
+  border-color: var(--ice);
+  box-shadow: 0 0 0 2px var(--ice-glow);
+}
+
+.username-prefix {
+  padding: 0 0 0 12px;
+  color: var(--muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
+  user-select: none;
+}
+
+.username-input-wrap input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding-left: 4px;
+}
+
+.username-input-wrap input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.username-status {
+  margin: 6px 0 0;
+  font-size: 12px;
+  min-height: 1.2em;
+}
+
+.username-status.ok { color: var(--green); }
+.username-status.same { color: var(--muted-2); }
+.username-status.err { color: var(--red); }
+.username-status.checking { color: var(--muted); }
+
+.profile-section-account .panel-head h3 { color: var(--ice); }
+

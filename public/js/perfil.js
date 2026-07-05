@@ -3,6 +3,10 @@
 
   const { apiFetch, getUser, setSession, getToken } = window.FinanceAPI;
 
+  let usernameOk = true;
+  let usernameCheckTimer = null;
+  let originalUsername = '';
+
   function esc(s) {
     return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
@@ -25,30 +29,92 @@
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   }
 
+  function normalizeUsernameInput(raw) {
+    return String(raw || '').trim().toLowerCase().replace(/^@/, '');
+  }
+
+  function setUsernameStatus(state, message) {
+    const el = document.getElementById('usernameStatus');
+    const btn = document.getElementById('profileSaveBtn');
+    if (!el) return;
+
+    el.className = 'username-status ' + (state || '');
+    el.textContent = message || '';
+    usernameOk = state === 'ok' || state === 'same';
+
+    if (btn) btn.disabled = !usernameOk;
+  }
+
+  async function checkUsernameAvailability(value) {
+    const normalized = normalizeUsernameInput(value);
+    const statusEl = document.getElementById('usernameStatus');
+
+    if (!normalized) {
+      setUsernameStatus('err', 'Informe um nome de usuário');
+      return;
+    }
+
+    if (normalized === originalUsername) {
+      setUsernameStatus('same', 'Seu nome de usuário atual');
+      return;
+    }
+
+    if (statusEl) {
+      statusEl.className = 'username-status checking';
+      statusEl.textContent = 'Verificando disponibilidade…';
+    }
+
+    try {
+      const data = await apiFetch('/api/auth/username-available?username=' + encodeURIComponent(normalized));
+      if (data.available) {
+        setUsernameStatus('ok', '@' + data.username + ' disponível — use para entrar no app');
+      } else {
+        setUsernameStatus('err', data.reason || 'Nome de usuário indisponível');
+      }
+    } catch (err) {
+      setUsernameStatus('err', err.message || 'Não foi possível verificar');
+    }
+  }
+
+  function scheduleUsernameCheck(value) {
+    clearTimeout(usernameCheckTimer);
+    usernameCheckTimer = setTimeout(function () {
+      checkUsernameAvailability(value);
+    }, 400);
+  }
+
   function renderProfile(user) {
     const view = document.getElementById('view');
     if (!view || !user) return;
+
+    originalUsername = user.username || '';
+    usernameOk = true;
 
     view.innerHTML =
       '<div class="profile-page">' +
         '<header class="profile-header">' +
           '<div class="profile-avatar" aria-hidden="true">' + esc(initials(user.nome)) + '</div>' +
           '<div class="profile-identity">' +
-            '<h1>' + esc(user.nome) + '</h1>' +
-            '<p class="profile-username mono">@' + esc(user.username) + '</p>' +
+            '<h1>Minha conta</h1>' +
             '<p class="profile-email">' + esc(user.email) + '</p>' +
           '</div>' +
         '</header>' +
 
-        '<section class="panel profile-section">' +
-          '<div class="panel-head"><h3>Editar perfil</h3></div>' +
+        '<section class="panel profile-section profile-section-account">' +
+          '<div class="panel-head"><h3>Nome de usuário</h3><span class="panel-hint-pill">login</span></div>' +
+          '<p class="profile-hint">Escolha um nome único para entrar no app (com ou sem @). Não pode repetir.</p>' +
           '<form id="profileForm" class="profile-form">' +
+            '<div class="field field-username">' +
+              '<label for="pf_username">Nome de usuário</label>' +
+              '<div class="username-input-wrap">' +
+                '<span class="username-prefix" aria-hidden="true">@</span>' +
+                '<input id="pf_username" type="text" required maxlength="30" pattern="[a-zA-Z0-9_]{3,30}" value="' + esc(user.username) + '" autocapitalize="off" autocomplete="username" aria-describedby="usernameStatus">' +
+              '</div>' +
+              '<p class="username-status same" id="usernameStatus">Seu nome de usuário atual</p>' +
+            '</div>' +
             '<div class="field"><label for="pf_nome">Nome de exibição</label>' +
             '<input id="pf_nome" type="text" required maxlength="255" value="' + esc(user.nome) + '"></div>' +
-            '<div class="field"><label for="pf_username">Username</label>' +
-            '<input id="pf_username" type="text" required maxlength="30" pattern="[a-zA-Z0-9_]{3,30}" value="' + esc(user.username) + '" autocapitalize="off" autocomplete="username">' +
-            '<span class="field-hint">3–30 caracteres: a-z, 0-9, _</span></div>' +
-            '<button type="submit" class="btn btn-primary btn-sm" id="profileSaveBtn">Salvar perfil</button>' +
+            '<button type="submit" class="btn btn-primary btn-sm" id="profileSaveBtn">Salvar conta</button>' +
           '</form>' +
         '</section>' +
 
@@ -106,8 +172,25 @@
   }
 
   function bindProfileEvents(user) {
+    const usernameInput = document.getElementById('pf_username');
+
+    usernameInput.addEventListener('input', function () {
+      const cleaned = normalizeUsernameInput(usernameInput.value);
+      if (usernameInput.value !== cleaned) usernameInput.value = cleaned;
+      scheduleUsernameCheck(cleaned);
+    });
+
+    usernameInput.addEventListener('blur', function () {
+      checkUsernameAvailability(usernameInput.value);
+    });
+
     document.getElementById('profileForm').addEventListener('submit', async function (e) {
       e.preventDefault();
+      if (!usernameOk) {
+        toast('Escolha um nome de usuário disponível', 'error');
+        return;
+      }
+
       const btn = document.getElementById('profileSaveBtn');
       btn.disabled = true;
       btn.textContent = 'Salvando…';
@@ -116,17 +199,17 @@
           method: 'PATCH',
           body: {
             nome: document.getElementById('pf_nome').value.trim(),
-            username: document.getElementById('pf_username').value.trim(),
+            username: normalizeUsernameInput(document.getElementById('pf_username').value),
           },
         });
         setSession(getToken(), data.user);
         if (window.FinanceAuth) FinanceAuth.updateUserUi(data.user);
         renderProfile(data.user);
-        toast('Perfil atualizado');
+        toast('Conta salva');
       } catch (err) {
         toast(err.message, 'error');
-        btn.disabled = false;
-        btn.textContent = 'Salvar perfil';
+        btn.disabled = !usernameOk;
+        btn.textContent = 'Salvar conta';
       }
     });
 

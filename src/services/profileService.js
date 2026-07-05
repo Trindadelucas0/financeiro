@@ -85,6 +85,27 @@ async function updateProfile(userId, { nome, username }) {
   }
 }
 
+async function checkUsernameAvailable(rawUsername, excludeUserId) {
+  let username;
+  try {
+    username = validateUsername(rawUsername);
+  } catch (err) {
+    return { available: false, username: null, reason: err.message };
+  }
+
+  const pool = getPool();
+  const { rows } = await pool.query(
+    'SELECT 1 FROM users WHERE username = $1 AND id <> $2 LIMIT 1',
+    [username, excludeUserId],
+  );
+
+  if (rows.length > 0) {
+    return { available: false, username, reason: 'Nome de usuário já está em uso' };
+  }
+
+  return { available: true, username, reason: null };
+}
+
 async function changePassword(userId, currentPassword, newPassword) {
   if (!currentPassword || !newPassword) {
     const err = new Error('Senha atual e nova senha são obrigatórias');
@@ -194,5 +215,6 @@ module.exports = {
   createFeedback,
   listFeedback,
   markFeedbackRead,
+  checkUsernameAvailable,
   mapUser,
 };

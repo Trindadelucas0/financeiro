@@ -46,10 +46,23 @@ async function patchFeedback(req, res, next) {
   }
 }
 
+async function checkUsername(req, res, next) {
+  try {
+    const result = await profileService.checkUsernameAvailable(
+      req.query.username,
+      req.user.id,
+    );
+    return res.json(result);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   patchMe,
   patchPassword,
   createFeedback,
   listFeedback,
   patchFeedback,
+  checkUsername,
 };
