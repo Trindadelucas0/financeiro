@@ -75,6 +75,14 @@
   background: linear-gradient(90deg, var(--ice-dim), var(--ice), var(--ice-dim));
 }
 
+.hero-balance-inner.positive::before {
+  background: linear-gradient(90deg, var(--green-dim), var(--green), var(--green-dim));
+}
+
+.hero-balance-inner.negative::before {
+  background: linear-gradient(90deg, var(--red-dim), var(--red), var(--red-dim));
+}
+
 .hero-greeting {
   font-size: 13px;
   color: var(--muted);
@@ -100,6 +108,9 @@
 }
 
 .hero-value.neg { color: var(--red); }
+
+.hero-meta .meta-in { color: var(--green); }
+.hero-meta .meta-out { color: var(--red); }
 
 .hero-meta {
   font-size: 12px;
@@ -288,4 +299,16 @@
 
 @media (prefers-reduced-motion: reduce) {
   .qa-btn, .bottom-nav-item { transition: none; }
+}
+
+/* Dashboard — mobile shell refinements */
+@media (max-width: 768px) {
+  .layout-mobile-bank .dash-bento { gap: 10px; margin-bottom: 16px; }
+  .layout-mobile-bank .kpi-hero { padding: 18px; }
+  .layout-mobile-bank .kpi-hero .value { font-size: 1.85rem; }
+  .layout-mobile-bank .kpi-mini .value { font-size: 1.125rem; }
+  .layout-mobile-bank .chart-wrap.chart-fluxo { height: 220px; }
+  .layout-mobile-bank .donut-legend { grid-template-columns: 1fr; }
+  .layout-mobile-bank .panel { padding: 16px; }
+  .layout-mobile-bank .panel-head h3 { font-size: 14px; }
 }

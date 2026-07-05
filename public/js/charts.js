@@ -164,7 +164,7 @@
           {
             label: 'Receitas',
             data: receitas,
-            backgroundColor: c.ice,
+            backgroundColor: 'oklch(0.94 0.008 240 / 0.55)',
             borderRadius: 4,
             barPercentage: 0.7,
           },
@@ -238,8 +238,8 @@
         datasets: [{
           data: [pagoVal, pendenteVal],
           backgroundColor: [c.surface3, c.red],
-          borderColor: c.bg,
-          borderWidth: 2,
+          borderColor: [c.ice, c.bg],
+          borderWidth: [2, 2],
           hoverOffset: 4,
         }],
       },

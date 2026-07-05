@@ -557,7 +557,7 @@
 
     return {
       sparklines: [
-        { id: 'sparkReceitas', labels: sparkLabels, data: recSeries, opts: { color: cssVar('--ice') } },
+        { id: 'sparkReceitas', labels: sparkLabels, data: recSeries, opts: { color: cssVar('--green') } },
         { id: 'sparkDespesas', labels: sparkLabels, data: despSeries, opts: { color: cssVar('--red') } },
         { id: 'sparkSaldo', labels: sparkLabels, data: saldoSeries, opts: { semantic: true } },
         { id: 'sparkDevedor', labels: devedorLabels, data: devedorSeries, opts: { color: cssVar('--red') } },
@@ -647,8 +647,15 @@
       heroSaldo.textContent = formatBRL(saldo);
       heroSaldo.classList.toggle('neg', saldo < 0);
     }
+    const heroInner = document.querySelector('.hero-balance-inner');
+    if (heroInner) {
+      heroInner.classList.toggle('positive', saldo >= 0);
+      heroInner.classList.toggle('negative', saldo < 0);
+    }
     if (heroMonthMeta) {
-      heroMonthMeta.textContent = 'Receitas ' + formatBRL(receitas.total) + ' · Despesas ' + formatBRL(despesas.total);
+      heroMonthMeta.innerHTML =
+        '<span class="meta-in">Receitas ' + formatBRL(receitas.total) + '</span>' +
+        ' · <span class="meta-out">Despesas ' + formatBRL(despesas.total) + '</span>';
     }
   }
 
@@ -690,13 +697,33 @@
     }
   }
 
+  function renderChartEmpty(message, withCta) {
+    let html = '<div class="chart-empty"><p>' + esc(message) + '</p>';
+    if (withCta) {
+      html += '<button type="button" class="btn btn-primary btn-sm chart-empty-cta" onclick="openModal()">+ Novo lançamento</button>';
+    }
+    return html + '</div>';
+  }
+
+  function renderPaidProgress(pct, label) {
+    const scale = Math.min(100, Math.max(0, pct)) / 100;
+    return (
+      '<div class="paid-progress">' +
+        '<div class="paid-progress-meta">' + label + '</div>' +
+        '<div class="paid-track" aria-hidden="true"><div class="paid-fill" style="--paid-scale:' + scale + '"></div></div>' +
+      '</div>'
+    );
+  }
+
   function renderDashboardSkeleton() {
     return (
       '<div class="dash-skeleton">' +
         '<div class="sk-block sk-pending"></div>' +
-        '<div class="sk-kpi-grid">' +
-          '<div class="sk-block sk-kpi"></div><div class="sk-block sk-kpi"></div>' +
-          '<div class="sk-block sk-kpi"></div><div class="sk-block sk-kpi"></div>' +
+        '<div class="sk-bento">' +
+          '<div class="sk-block sk-hero"></div>' +
+          '<div class="sk-block sk-mini"></div>' +
+          '<div class="sk-block sk-mini"></div>' +
+          '<div class="sk-block sk-mini"></div>' +
         '</div>' +
         '<div class="sk-block sk-chart-wide"></div>' +
         '<div class="sk-grid-3">' +
@@ -796,7 +823,7 @@
     const vencTxt = item.diaVencimento ? 'dia ' + item.diaVencimento : '—';
     if (mobile) {
       return (
-        '<div class="m-card"' + (item.overdue ? ' style="border-color:oklch(0.72 0.14 25 / 0.4)"' : '') + '>' +
+        '<div class="m-card' + (item.overdue ? ' m-card-overdue' : '') + '">' +
           '<div class="m-card-head"><strong>' + esc(item.nome) + '</strong><span class="mono val-neg">' + formatBRL(item.valor) + '</span></div>' +
           '<div class="m-card-row"><span class="tag">' + esc(item.categoria) + '</span><span>' + vencTxt + '</span></div>' +
           '<div class="m-card-row"><span class="pending-badge ' + item.badgeCls + '">' + esc(item.badge) + '</span></div>' +
@@ -818,18 +845,37 @@
   function renderPendingBills(mes) {
     const pendentes = getContasPendentes(mes);
     const totalPend = pendentes.reduce(function (s, p) { return s + p.valor; }, 0);
+    const despesas = getDespesasMes(mes);
+    let pagoVal = 0;
+    let paidCount = 0;
+    despesas.itens.forEach(function (d) {
+      const chave = chavePg(entidadeDoItemDespesa(d), d.id, mes);
+      if (getPg(chave).pago) {
+        pagoVal += d.valorEfetivo;
+        paidCount++;
+      }
+    });
+    const totalDesp = despesas.itens.length;
+    const pctPago = despesas.total > 0 ? (pagoVal / despesas.total * 100) : 0;
+    const progressHtml = totalDesp > 0
+      ? renderPaidProgress(pctPago, paidCount + ' de ' + totalDesp + ' pagas · ' + pctPago.toFixed(0) + '%')
+      : '';
     const listHtml = pendentes.length === 0
       ? '<div class="pending-empty">Nenhuma conta pendente este mês.</div>'
       : (
         '<div class="pending-list">' + pendentes.map(function (p) { return renderPendingBillRow(p, false); }).join('') + '</div>' +
         '<div class="pending-cards">' + pendentes.map(function (p) { return renderPendingBillRow(p, true); }).join('') + '</div>'
       );
+    const headMeta = pendentes.length
+      ? '<span class="panel-hint-pill pending-total">' + pendentes.length + ' · ' + formatBRL(totalPend) + '</span>'
+      : '<span class="panel-hint-pill pending-ok">em dia</span>';
     return (
       '<div class="panel pending-bills dash-reveal">' +
         '<div class="panel-head">' +
           '<h3>Contas a pagar</h3>' +
-          '<span class="pending-total">' + (pendentes.length ? formatBRL(totalPend) + ' pendente' : 'em dia') + '</span>' +
+          headMeta +
         '</div>' +
+        progressHtml +
         listHtml +
       '</div>'
     );
@@ -954,57 +1000,58 @@
     return (
       saldoContaHtml +
       renderPendingBills(mes) +
-      '<div class="kpi-grid dash-reveal">' +
-        '<div class="kpi accent-neutral">' +
-          '<span class="label">Receitas do mês</span>' +
-          '<div class="value mono">' + formatBRL(receitas.total) + '</div>' +
-          renderDelta(receitas.total, recAnt.total, false) +
-          '<div class="sub">' + receitas.itens.length + ' lançamento(s)</div>' +
-          '<div class="kpi-sparkline"><canvas id="sparkReceitas" aria-hidden="true"></canvas></div>' +
-        '</div>' +
-        '<div class="kpi accent-red-kpi">' +
-          '<span class="label">Despesas do mês</span>' +
-          '<div class="value mono">' + formatBRL(despesas.total) + '</div>' +
-          renderDelta(despesas.total, despAnt.total, true) +
-          '<div class="sub">' + despesas.itens.length + ' lançamento(s)</div>' +
-          '<div class="kpi-sparkline"><canvas id="sparkDespesas" aria-hidden="true"></canvas></div>' +
-        '</div>' +
-        '<div class="kpi kpi-saldo ' + (saldo >= 0 ? 'positive accent-green' : 'negative accent-red') + '">' +
+      '<div class="dash-bento dash-reveal">' +
+        '<div class="kpi kpi-hero kpi-saldo ' + (saldo >= 0 ? 'positive' : 'negative') + '">' +
           '<span class="label">Saldo do mês</span>' +
           '<div class="value mono">' + formatBRL(saldo) + '</div>' +
           renderDelta(saldo, saldoAnt, false) +
           '<div class="sub">' + saldoSub + '</div>' +
-          '<div class="kpi-sparkline"><canvas id="sparkSaldo" aria-hidden="true"></canvas></div>' +
+          '<div class="kpi-sparkline kpi-sparkline-hero"><canvas id="sparkSaldo" aria-hidden="true"></canvas></div>' +
         '</div>' +
-        '<div class="kpi accent-neutral">' +
-          '<span class="label">Saldo devedor total</span>' +
+        '<div class="kpi kpi-mini accent-income">' +
+          '<span class="label">Receitas</span>' +
+          '<div class="value mono">' + formatBRL(receitas.total) + '</div>' +
+          renderDelta(receitas.total, recAnt.total, false) +
+          '<div class="sub">' + receitas.itens.length + ' lanç.</div>' +
+          '<div class="kpi-sparkline"><canvas id="sparkReceitas" aria-hidden="true"></canvas></div>' +
+        '</div>' +
+        '<div class="kpi kpi-mini accent-expense">' +
+          '<span class="label">Despesas</span>' +
+          '<div class="value mono">' + formatBRL(despesas.total) + '</div>' +
+          renderDelta(despesas.total, despAnt.total, true) +
+          '<div class="sub">' + despesas.itens.length + ' lanç.</div>' +
+          '<div class="kpi-sparkline"><canvas id="sparkDespesas" aria-hidden="true"></canvas></div>' +
+        '</div>' +
+        '<div class="kpi kpi-mini accent-debt">' +
+          '<span class="label">Saldo devedor</span>' +
           '<div class="value mono">' + formatBRL(saldoDevedor) + '</div>' +
-          '<div class="sub">parcelas + empréstimos restantes</div>' +
+          '<div class="sub">parcelas + empréstimos</div>' +
           '<div class="kpi-sparkline"><canvas id="sparkDevedor" aria-hidden="true"></canvas></div>' +
         '</div>' +
       '</div>' +
-      '<div class="panel chart-panel dash-reveal">' +
-        '<div class="panel-head"><h3>Fluxo mensal</h3><span class="hint">últimos 7 meses · receitas vs despesas</span></div>' +
+      '<div class="panel chart-panel chart-panel-fluxo dash-reveal">' +
+        '<div class="panel-head"><h3>Fluxo mensal</h3><span class="panel-hint-pill">7 meses</span></div>' +
         (fluxoEmpty
-          ? '<div class="chart-empty">Cadastre receitas e despesas para ver o gráfico.</div>'
-          : '<div class="chart-wrap"><canvas id="chartFluxo" role="img" aria-label="Gráfico de receitas e despesas"></canvas></div>') +
+          ? renderChartEmpty('Cadastre receitas e despesas para ver o gráfico.', true)
+          : '<div class="chart-wrap chart-fluxo"><canvas id="chartFluxo" role="img" aria-label="Gráfico de receitas e despesas"></canvas></div>') +
       '</div>' +
       '<div class="grid-3 dash-reveal">' +
         '<div class="panel">' +
-          '<div class="panel-head"><h3>Pagamentos do mês</h3><span class="hint">' + pctPago.toFixed(0) + '% pago</span></div>' +
+          '<div class="panel-head"><h3>Pagamentos do mês</h3><span class="panel-hint-pill">' + pctPago.toFixed(0) + '% pago</span></div>' +
           (pagoVal === 0 && pendenteVal === 0
-            ? '<div class="chart-empty">Sem despesas neste mês.</div>'
-            : '<div class="chart-wrap chart-donut"><canvas id="chartPagamentos" role="img" aria-label="Gráfico de pagamentos"></canvas></div>' +
-              '<div style="text-align:center;font-size:12px;color:var(--muted);margin-top:8px;">Pendente: <b class="mono" style="color:var(--red)">' + formatBRL(pendenteVal) + '</b> · ' + pendCount + ' item(ns)</div>') +
+            ? renderChartEmpty('Sem despesas neste mês.', true)
+            : renderPaidProgress(pctPago, formatBRL(pagoVal) + ' pago · pendente ' + formatBRL(pendenteVal)) +
+              '<div class="chart-wrap chart-donut"><canvas id="chartPagamentos" role="img" aria-label="Gráfico de pagamentos"></canvas></div>' +
+              '<div class="chart-caption">Pendente: <b class="mono val-neg">' + formatBRL(pendenteVal) + '</b> · ' + pendCount + ' item(ns)</div>') +
         '</div>' +
         '<div class="panel">' +
-          '<div class="panel-head"><h3>Gastos por categoria</h3><span class="hint">' + monthLabelShort(mes) + '</span></div>' +
+          '<div class="panel-head"><h3>Gastos por categoria</h3><span class="panel-hint-pill">' + monthLabelShort(mes) + '</span></div>' +
           (catsDonut.length === 0
-            ? '<div class="chart-empty">Sem despesas neste mês.</div>'
+            ? renderChartEmpty('Sem despesas neste mês.', true)
             : '<div class="chart-wrap chart-donut"><canvas id="chartCategorias" role="img" aria-label="Gráfico de categorias"></canvas></div>' +
               renderDonutLegend(catsDonut)) +
         '</div>' +
-        '<div class="panel"><div class="panel-head"><h3>Alertas</h3><span class="hint">' + monthLabelShort(mes) + '</span></div>' +
+        '<div class="panel"><div class="panel-head"><h3>Alertas</h3><span class="panel-hint-pill">' + monthLabelShort(mes) + '</span></div>' +
           vencProx.map(function (v) {
             return '<div class="alert info"><span class="ic">📅</span><span>' + esc(v.nome) + ' vence ' + (v.diff === 0 ? 'hoje' : v.diff === 1 ? 'amanhã' : 'em ' + v.diff + ' dias') + ' — ' + formatBRL(v.valor) + '</span><button type="button" class="alert-action" onclick="togglePago(\'' + v.chave + '\')">marcar pago</button></div>';
           }).join('') +
@@ -1014,16 +1061,16 @@
         '</div>' +
       '</div>' +
       (atrasados.length > 0 ? (
-        '<div class="panel dash-reveal" style="margin-bottom:20px;border-color:oklch(0.72 0.14 25 / 0.3);"><div class="panel-head"><h3>Em atraso</h3><span class="hint">últimos 6 meses · não marcados como pago</span></div>' +
+        '<div class="panel panel-overdue dash-reveal"><div class="panel-head"><h3>Em atraso</h3><span class="panel-hint-pill">' + atrasados.length + ' item(ns)</span></div>' +
         atrasados.map(function (a) {
           return '<div class="alert danger"><span class="ic">⏰</span><span>' + esc(a.nome) + ' — ' + monthLabelShort(a.mes) + ' — ' + formatBRL(a.valor) + '</span><button type="button" class="alert-action" onclick="togglePago(\'' + a.chave + '\')">marcar pago</button></div>';
         }).join('') + '</div>'
       ) : '') +
-      '<div class="panel chart-panel dash-reveal">' +
-        '<div class="panel-head"><h3>Projeção — próximos 6 meses</h3><span class="hint">receitas fixas + compromissos</span></div>' +
+      '<div class="panel chart-panel chart-panel-proj dash-reveal">' +
+        '<div class="panel-head"><h3>Projeção — próximos 6 meses</h3><span class="panel-hint-pill">receitas fixas + compromissos</span></div>' +
         (chartPayload.forecast.every(function (f) { return f.receitas === 0 && f.despesas === 0; })
-          ? '<div class="chart-empty">Cadastre lançamentos para ver a projeção.</div>'
-          : '<div class="chart-wrap"><canvas id="chartProjecao" role="img" aria-label="Projeção de saldo"></canvas></div>') +
+          ? renderChartEmpty('Cadastre lançamentos para ver a projeção.', true)
+          : '<div class="chart-wrap chart-proj"><canvas id="chartProjecao" role="img" aria-label="Projeção de saldo"></canvas></div>') +
       '</div>'
     );
   }

@@ -80,7 +80,7 @@ Base 4px. Steps: 4 · 8 · 12 · 16 · 20 · 24 · 28 · 32 · 40 · 80 (footer)
 
 | Component | Spec |
 |-----------|------|
-| KPI card | surface + border; accent border-top gelo/verde/vermelho por tipo |
+| KPI card | surface + border; bento hero ou mini; indicador lateral fino por semântica |
 | Panel | surface, border, padding 20px; sem card dentro de card |
 | Tab | underline 2px gelo no active; sem eyebrow uppercase em toda seção |
 | Button primary | bg ice, texto escuro, hover +3% L |
@@ -105,10 +105,28 @@ Base 4px. Steps: 4 · 8 · 12 · 16 · 20 · 24 · 28 · 32 · 40 · 80 (footer)
 - Dashboard: KPI row → 3 panels → atrasados → forecast strip
 - Z-index scale: dropdown 10 · sticky 20 · modal-backdrop 40 · modal 50
 
+## Dashboard layout (bento)
+
+Hierarquia assimétrica — **não** usar grid de 4 KPIs idênticos.
+
+| Componente | Spec |
+|------------|------|
+| `.dash-bento` | Grid `1.4fr 1fr` · hero saldo à esquerda · 3 mini KPIs à direita |
+| `.kpi-hero` | Saldo do mês focal · valor 2.25rem · glow verde/vermelho semântico · indicador lateral 3px |
+| `.kpi-mini` | Receitas, despesas, devedor · densos · sparkline 28px · indicador lateral 2px |
+| `.panel-hint-pill` | Meta mono em pill (`--surface-2`) no header dos painéis |
+| `.paid-progress` | Barra ice para % pago (contas a pagar + pagamentos do mês) |
+| `.chart-empty` | Mensagem + CTA “+ Novo lançamento” |
+
+Ordem narrativa: pendências → saldo conta → bento KPIs → fluxo wide → grid 3 col → atrasados → projeção.
+
+Mobile: hero full width → mini KPIs 2 col → stack painéis.
+
 ## Dashboard targets (visual)
 
-1. **Hero KPI row** — 4 cards com sparkline ou delta vs mês anterior
-2. **Fluxo do mês** — barra pago/pendente mais larga + legenda
-3. **Categorias** — barras horizontais (manter, refinar contraste)
-4. **Timeline 6 meses** — nodes conectados (manter, animar entrada suave)
-5. **Mobile** — tabelas viram cards empilhados
+1. **Bento KPI row** — saldo hero + 3 métricas compactas (substitui 4 cards clones)
+2. **Fluxo do mês** — chart 280px, receitas ice / despesas vermelho
+3. **Pagamentos** — barra de progresso + donut antes do gráfico
+4. **Categorias** — donut + legenda grid 2 col
+5. **Timeline / projeção** — painéis wide com empty state acionável
+6. **Mobile** — bento stack + pending cards
