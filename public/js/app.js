@@ -1416,6 +1416,11 @@ async function exportPDF() {
     return captureModalSnapshot() !== modalSnapshot;
   }
 
+  function shouldConfirmClose() {
+    if (modalCtx.editing) return isModalDirty();
+    return !!(modalCtx.entidade || modalCtx.tipo || modalCtx.forma) || isModalDirty();
+  }
+
   function refreshModalSnapshot() {
     requestAnimationFrame(function () {
       modalSnapshot = captureModalSnapshot();
@@ -1445,11 +1450,12 @@ async function exportPDF() {
 
   async function requestCloseModal() {
     if (modalSubmitting) return;
-    if (isModalDirty()) {
+    if (window.FinanceUI && window.FinanceUI.init) FinanceUI.init();
+    if (shouldConfirmClose()) {
       const ok = await confirmAction({
-        title: 'Descartar alterações?',
-        message: 'Os dados preenchidos serão perdidos se você fechar agora.',
-        confirmLabel: 'Descartar',
+        title: 'Sair sem salvar?',
+        message: 'Você começou um lançamento. Se sair agora, o que foi preenchido será perdido.',
+        confirmLabel: 'Sair',
         cancelLabel: 'Continuar editando',
         danger: true,
       });
@@ -1463,13 +1469,10 @@ async function exportPDF() {
     modalSnapshot = null;
     modalDraft = {};
     document.body.classList.remove('modal-open');
+    document.documentElement.style.removeProperty('--modal-vvh');
     const dialog = document.getElementById('modalDialog');
     if (dialog) dialog.close();
   }
-
-  let modalTouchStartX = 0;
-  let modalTouchStartY = 0;
-  let modalTouchMoved = false;
 
   function syncFieldToDraft(el) {
     if (!el || !el.id) return;
@@ -1502,34 +1505,6 @@ async function exportPDF() {
     }, true);
     dialog.addEventListener('change', function (e) {
       if (e.target && e.target.id && e.target.closest('#modalForm')) syncFieldToDraft(e.target);
-    }, true);
-  }
-
-  function bindModalTouchGuard() {
-    if (document._modalTouchGuardBound) return;
-    document._modalTouchGuardBound = true;
-
-    document.addEventListener('touchstart', function (e) {
-      if (!e.target.closest('#modalDialog')) return;
-      modalTouchMoved = false;
-      modalTouchStartX = e.touches[0].clientX;
-      modalTouchStartY = e.touches[0].clientY;
-    }, { passive: true, capture: true });
-
-    document.addEventListener('touchmove', function (e) {
-      if (!e.target.closest('#modalDialog')) return;
-      const t = e.touches[0];
-      if (Math.abs(t.clientX - modalTouchStartX) > 12 || Math.abs(t.clientY - modalTouchStartY) > 12) {
-        modalTouchMoved = true;
-      }
-    }, { passive: true, capture: true });
-
-    document.addEventListener('click', function (e) {
-      const btn = e.target.closest('#modalDialog .type-opt, #modalDialog .modal-type-chip-btn');
-      if (!btn || !modalTouchMoved) return;
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      modalTouchMoved = false;
     }, true);
   }
 
@@ -1764,7 +1739,6 @@ async function exportPDF() {
       FinanceUI.bindModal(modal, function () { requestCloseModal(); });
     }
     bindModalDraftSync();
-    bindModalTouchGuard();
     bindModalViewportSync();
 
     loadState();

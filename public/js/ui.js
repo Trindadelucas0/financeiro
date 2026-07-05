@@ -29,6 +29,8 @@
       }
       if (cancelBtn) cancelBtn.textContent = options.cancelLabel || 'Cancelar';
 
+      document.body.appendChild(dialog);
+      dialog.classList.add('modal-confirm-open');
       dialog.showModal();
       if (cancelBtn) cancelBtn.focus();
     });
@@ -36,7 +38,10 @@
 
   function finishConfirm(result) {
     var dialog = document.getElementById('confirmDialog');
-    if (dialog) dialog.close();
+    if (dialog) {
+      dialog.classList.remove('modal-confirm-open');
+      dialog.close();
+    }
     if (confirmResolver) {
       var r = confirmResolver;
       confirmResolver = null;
