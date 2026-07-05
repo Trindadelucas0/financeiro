@@ -1696,6 +1696,14 @@ async function exportPDF() {
     }
 
     refreshModalSnapshot();
+
+    if (dialog && dialog.open) {
+      requestAnimationFrame(function () {
+        applyModalViewport();
+        const scrollElAfter = dialog.querySelector('.modal-scroll');
+        if (scrollElAfter && pronto) scrollElAfter.scrollTop = 0;
+      });
+    }
   }
 
   async function handleSubmit(e) {

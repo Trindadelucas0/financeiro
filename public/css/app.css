@@ -1213,21 +1213,15 @@ dialog.modal .type-picker.duracao-picker {
     max-width: 100%;
     margin: 0;
     border-radius: 20px 20px 0 0;
-    max-height: min(92dvh, var(--modal-vvh, 92dvh));
+    max-height: var(--modal-vvh, 92dvh);
   }
 
   dialog.modal.modal-launch .modal-grab {
-    display: block;
-    width: 32px;
-    height: 3px;
-    margin: 6px auto 0;
-    border-radius: 99px;
-    background: var(--border);
-    flex-shrink: 0;
+    display: none;
   }
 
   dialog.modal.modal-launch .modal-header {
-    padding: 4px 12px 0;
+    padding: 8px 12px 0;
   }
 
   dialog.modal.modal-launch .modal-header h3 {
@@ -1251,34 +1245,78 @@ dialog.modal .type-picker.duracao-picker {
   }
 
   dialog.modal.modal-launch[open] {
-    position: fixed;
-    inset: auto 0 0 0;
-    top: auto;
-    margin: 0;
+    position: fixed !important;
+    inset: auto 0 0 0 !important;
+    top: auto !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
     display: flex;
     flex-direction: column;
     height: auto;
-    max-height: var(--modal-vvh, min(92dvh, 100%));
+    max-height: var(--modal-vvh, 92dvh);
   }
 
   dialog.modal.modal-launch .modal-inner {
-    max-height: var(--modal-vvh, min(92dvh, 100%));
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: inherit;
+    width: 100%;
+    flex: 1 1 auto;
+  }
+
+  dialog.modal.modal-launch .modal-body {
+    display: flex;
+    flex-direction: column;
     flex: 1 1 auto;
     min-height: 0;
     width: 100%;
   }
 
-  dialog.modal.modal-launch .modal-body {
+  dialog.modal.modal-launch .modal-body:not(.modal-body--ready) {
+    min-height: 0;
+    max-height: none;
+  }
+
+  dialog.modal.modal-launch .modal-body:not(.modal-body--ready) .modal-shell {
+    min-height: 0;
+    flex: 0 0 auto;
+  }
+
+  dialog.modal.modal-launch .modal-body.modal-body--ready {
+    min-height: 0;
+    max-height: var(--modal-vvh, 92dvh);
+    overflow: hidden;
+  }
+
+  dialog.modal.modal-launch .modal-body.modal-body--ready .modal-header,
+  dialog.modal.modal-launch .modal-body.modal-body--ready .modal-footer {
+    flex-shrink: 0;
+  }
+
+  dialog.modal.modal-launch .modal-body.modal-body--ready .modal-shell {
     flex: 1 1 auto;
-    min-height: min(260px, 62dvh);
-    max-height: var(--modal-vvh, min(92dvh, 100%));
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  dialog.modal.modal-launch .modal-body.modal-body--ready .modal-panel {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  dialog.modal.modal-launch .modal-body.modal-body--ready .modal-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .modal-shell {
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr;
-    flex: 1 1 auto;
-    min-height: 120px;
+    min-height: 0;
   }
 
   .modal-type-rail {
