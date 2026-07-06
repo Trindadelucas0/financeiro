@@ -142,6 +142,34 @@
     @apply text-center text-sm font-medium text-muted underline-offset-4 hover:text-text hover:underline sm:text-left;
   }
 
+  .landing-footer-meta {
+    @apply mt-6 flex flex-col gap-4 text-sm text-muted sm:flex-row sm:items-center sm:justify-between;
+  }
+
+  .landing-footer-login {
+    @apply font-medium text-text underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ice focus-visible:ring-offset-2 focus-visible:ring-offset-bg;
+  }
+
+  .support-contact--landing {
+    @apply rounded-[12px] border border-border bg-surface-2/60 px-5 py-4 text-center;
+  }
+
+  .support-contact--landing .support-contact-title {
+    @apply text-sm font-semibold text-text;
+  }
+
+  .support-contact--landing .support-contact-text {
+    @apply mt-1 text-sm text-muted;
+  }
+
+  .support-contact--landing .support-contact-links {
+    @apply mt-3 flex flex-wrap items-center justify-center gap-3 sm:gap-5;
+  }
+
+  .support-contact--landing .support-contact-link {
+    @apply text-sm font-medium text-ice underline underline-offset-4 hover:text-text;
+  }
+
   .brand-logo {
     display: block;
     height: auto;

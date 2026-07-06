@@ -59,12 +59,15 @@
       <div class="loading-state">Carregando…</div>
     </main>
 
-  <% if (page !== 'perfil') { %>
-  <footer class="footer-note desktop-only">
-    Dados sincronizados com sua conta. Comprovantes em base64 — evite arquivos grandes.
-    Empréstimos usam juros simplificado (não é Price/SAC).
+  <footer class="app-footer">
+    <%- include('../partials/support-contact') %>
+    <% if (page !== 'perfil') { %>
+    <p class="footer-note footer-note--tech desktop-only">
+      Dados sincronizados com sua conta. Comprovantes em base64 — evite arquivos grandes.
+      Empréstimos usam juros simplificado (não é Price/SAC).
+    </p>
+    <% } %>
   </footer>
-  <% } %>
   </div>
 
   <%- include('../partials/bottom-nav', { page }) %>
