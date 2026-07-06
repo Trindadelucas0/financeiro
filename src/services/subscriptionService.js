@@ -23,27 +23,37 @@ function mapSubscription(row) {
       plan: 'free',
       status: null,
       isPro: false,
+      isLifetime: false,
+      accessGrantType: null,
       currentPeriodEnd: null,
       daysUntilExpiry: 0,
       renewalDueSoon: false,
     };
   }
 
-  const active = isPeriodActive(row.subscription_current_period_end);
   const isAdmin = row.role === 'admin';
-  const isPro = isAdmin || (row.plan === 'pro' && active);
-  const daysUntilExpiry = computeDaysUntilExpiry(row.subscription_current_period_end);
+  const isLifetime = isAdmin
+    || row.access_grant_type === 'lifetime'
+    || row.subscription_status === 'lifetime';
+  const active = isLifetime || isPeriodActive(row.subscription_current_period_end);
+  const isPro = isAdmin || isLifetime || (row.plan === 'pro' && active);
+  const daysUntilExpiry = isLifetime
+    ? null
+    : computeDaysUntilExpiry(row.subscription_current_period_end);
   const renewalDueSoon = isPro
     && !isAdmin
+    && !isLifetime
     && daysUntilExpiry > 0
     && daysUntilExpiry <= RENEWAL_REMINDER_DAYS;
 
   return {
     plan: isPro ? 'pro' : (row.plan || 'free'),
-    status: active ? 'active' : (row.subscription_status || null),
+    status: isLifetime ? 'lifetime' : (active ? 'active' : (row.subscription_status || null)),
     isPro,
+    isLifetime,
+    accessGrantType: row.access_grant_type || null,
     currentPeriodEnd: row.subscription_current_period_end || null,
-    daysUntilExpiry,
+    daysUntilExpiry: daysUntilExpiry ?? 0,
     renewalDueSoon,
   };
 }
@@ -56,6 +66,8 @@ async function expireIfNeeded(userId) {
      WHERE id = $1
        AND plan = 'pro'
        AND role != 'admin'
+       AND COALESCE(access_grant_type, '') != 'lifetime'
+       AND COALESCE(subscription_status, '') != 'lifetime'
        AND subscription_current_period_end IS NOT NULL
        AND subscription_current_period_end <= NOW()`,
     [userId],

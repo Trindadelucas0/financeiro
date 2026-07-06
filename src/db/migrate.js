@@ -205,6 +205,13 @@ EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_users_billing_source ON users(billing_source);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS access_grant_type VARCHAR(20);
+DO $$ BEGIN
+  ALTER TABLE users ADD CONSTRAINT users_access_grant_type_check
+    CHECK (access_grant_type IS NULL OR access_grant_type IN ('trial', 'lifetime', 'paid'));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 `;
 
 async function backfillUsernames(client) {
