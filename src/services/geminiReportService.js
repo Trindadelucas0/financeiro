@@ -90,10 +90,13 @@ async function callGemini(report) {
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(gemini.model)}:generateContent?key=${encodeURIComponent(gemini.apiKey)}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(gemini.model)}:generateContent`;
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': gemini.apiKey,
+      },
       signal: controller.signal,
       body: JSON.stringify({
         contents: [{ parts: [{ text: buildPrompt(report) }] }],
@@ -106,7 +109,8 @@ async function callGemini(report) {
     });
 
     if (!res.ok) {
-      console.warn('[geminiReport] API error:', res.status);
+      const errBody = await res.text().catch(() => '');
+      console.warn('[geminiReport] API error:', res.status, errBody.slice(0, 200));
       return null;
     }
 
