@@ -1,7 +1,13 @@
 const express = require('express');
 const pageController = require('../controllers/pageController');
+const { getSupportContact } = require('../config/support');
 
 const router = express.Router();
+
+router.use((req, res, next) => {
+  res.locals.support = getSupportContact();
+  next();
+});
 
 router.get('/', pageController.landingPage);
 router.get('/login', pageController.loginPage);
