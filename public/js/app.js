@@ -601,7 +601,7 @@ async function exportPDF() {
     const mm = parts[1];
     const out = [];
     getDespesasMes(mes).itens.forEach(function (d) {
-      if (!d.diaVencimento || d.tipo === 'emprestimo') return;
+      if (!d.diaVencimento) return;
       const venc = new Date(y, mm - 1, Math.min(d.diaVencimento, 28));
       const diff = Math.ceil((venc - hoje) / (1000 * 60 * 60 * 24));
       if (diff >= 0 && diff <= 5) {
@@ -656,14 +656,10 @@ async function exportPDF() {
 
     const user = getUser();
     const userName = document.getElementById('userName');
-    const userGreeting = document.getElementById('userGreeting');
     const profileAvatar = document.getElementById('profileLinkAvatar');
     const mobileAvatar = document.getElementById('topbarMobileAvatar');
     const displayLabel = user ? (FinanceAuth.displayName ? FinanceAuth.displayName(user) : (user.nome || user.username || user.email)) : '—';
     if (userName && user) userName.textContent = displayLabel;
-    if (userGreeting && user) {
-      userGreeting.textContent = user.username ? '@' + user.username : displayLabel;
-    }
     const avatarText = user ? (function () {
       const parts = String(user.nome || user.username || '').trim().split(/\s+/).filter(Boolean);
       return parts.length >= 2
@@ -1614,8 +1610,11 @@ async function exportPDF() {
       return '<div class="field"><label for="f_mes">' + label + '</label><input id="f_mes" type="month" value="' + esc(draftVal('f_mes', val || state.currentMonth)) + '" required></div>';
     };
     const vencField = function () {
-      if (c.entidade !== 'despesa') return '';
-      return '<div class="field"><label for="f_diaVenc">Dia do vencimento (opcional)</label><input id="f_diaVenc" type="number" min="1" max="31" placeholder="Ex: 10" value="' + esc(draftVal('f_diaVenc', it.diaVencimento || '')) + '"></div>';
+      if (c.entidade !== 'despesa' && c.entidade !== 'emprestimo') return '';
+      const label = c.entidade === 'emprestimo'
+        ? 'Data de vencimento da parcela (opcional)'
+        : 'Dia do vencimento (opcional)';
+      return '<div class="field"><label for="f_diaVenc">' + label + '</label><input id="f_diaVenc" type="number" min="1" max="31" placeholder="Ex: 10" value="' + esc(draftVal('f_diaVenc', it.diaVencimento || '')) + '"></div>';
     };
 
     if (c.entidade === 'receita') {
@@ -1652,6 +1651,7 @@ async function exportPDF() {
       html += '<div class="field"><label for="f_valorTotal">Valor principal (R$)</label><input id="f_valorTotal" type="number" step="0.01" min="0" value="' + esc(draftVal('f_valorTotal', it.valorTotal || '')) + '" required></div>';
       html += '<div class="field-row"><div class="field"><label for="f_juros">Juros total (%)</label><input id="f_juros" type="number" step="0.01" min="0" value="' + esc(draftVal('f_juros', it.juros || 0)) + '"></div><div class="field"><label for="f_numParcelas">Nº parcelas</label><input id="f_numParcelas" type="number" min="1" value="' + esc(draftVal('f_numParcelas', it.numParcelas || '')) + '" required></div></div>';
       html += mesField('Mês da 1ª parcela', it.mesInicio);
+      html += vencField();
     }
 
     return html;
@@ -1752,7 +1752,7 @@ async function exportPDF() {
       }
     } else if (c.entidade === 'emprestimo') {
       resource = 'emprestimos';
-      payload = { nome: base.nome, categoria: 'Empréstimo', mesInicio: val('f_mes'), valorTotal: Number(val('f_valorTotal')), juros: Number(val('f_juros') || 0), numParcelas: Number(val('f_numParcelas')) };
+      payload = { nome: base.nome, categoria: 'Empréstimo', mesInicio: val('f_mes'), valorTotal: Number(val('f_valorTotal')), juros: Number(val('f_juros') || 0), numParcelas: Number(val('f_numParcelas')), diaVencimento: diaVencimento };
     }
 
     try {

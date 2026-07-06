@@ -1,4 +1,4 @@
-const CACHE_NAME = 'financeiro-pwa-v13';
+const CACHE_NAME = 'financeiro-pwa-v14';
 const OFFLINE_URL = '/offline.html';
 const STATIC_ASSETS = [
   '/css/tokens.css',
@@ -16,6 +16,7 @@ const STATIC_ASSETS = [
   '/icons/icon-512.svg',
   '/icons/icon-192.png',
   '/icons/icon-512.png',
+  '/icons/icon-512-maskable.png',
   '/manifest.webmanifest',
   OFFLINE_URL,
   '/images/logo-home-financas.png',

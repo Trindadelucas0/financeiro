@@ -75,6 +75,7 @@ function mapEmprestimo(row) {
     numParcelas: Number(row.num_parcelas),
     mesInicio: row.mes_inicio,
     categoria: row.categoria || 'Empréstimo',
+    diaVencimento: row.dia_vencimento != null ? Number(row.dia_vencimento) : null,
   };
 }
 
@@ -212,7 +213,7 @@ function getVencimentosProximos(despesas, emprestimos, pagamentosMap, mes) {
   const [y, mm] = mes.split('-').map(Number);
   const out = [];
   getDespesasMes(despesas, emprestimos, mes).itens.forEach((d) => {
-    if (!d.diaVencimento || d.tipo === 'emprestimo') return;
+    if (!d.diaVencimento) return;
     const venc = new Date(y, mm - 1, Math.min(d.diaVencimento, 28));
     const diff = Math.ceil((venc - hoje) / (1000 * 60 * 60 * 24));
     if (diff >= 0 && diff <= 5) {
@@ -599,8 +600,8 @@ async function listEmprestimos(userId) {
 async function createEmprestimo(userId, data) {
   const pool = getPool();
   const { rows } = await pool.query(
-    `INSERT INTO emprestimos (user_id, nome, valor_total, juros, num_parcelas, mes_inicio, categoria)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO emprestimos (user_id, nome, valor_total, juros, num_parcelas, mes_inicio, categoria, dia_vencimento)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
     [
       userId,
@@ -610,6 +611,7 @@ async function createEmprestimo(userId, data) {
       data.numParcelas,
       data.mesInicio,
       data.categoria || 'Empréstimo',
+      data.diaVencimento ?? null,
     ],
   );
   return mapEmprestimo(rows[0]);
@@ -623,10 +625,11 @@ async function updateEmprestimo(userId, id, data) {
          valor_total = COALESCE($4, valor_total),
          juros = COALESCE($5, juros),
          num_parcelas = COALESCE($6, num_parcelas),
-         mes_inicio = COALESCE($7, mes_inicio)
+         mes_inicio = COALESCE($7, mes_inicio),
+         dia_vencimento = COALESCE($8, dia_vencimento)
      WHERE id = $1 AND user_id = $2
      RETURNING *`,
-    [id, userId, data.nome, data.valorTotal, data.juros, data.numParcelas, data.mesInicio],
+    [id, userId, data.nome, data.valorTotal, data.juros, data.numParcelas, data.mesInicio, data.diaVencimento],
   );
   if (rows.length === 0) {
     const err = new Error('Empréstimo não encontrado');

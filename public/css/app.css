@@ -76,8 +76,7 @@ a.brand:focus-visible {
 }
 
 @media (max-width: 768px) {
-  .brand-greeting,
-  .brand-meta { display: none; }
+  .brand-greeting { display: none; }
 }
 
 .month-switcher {
@@ -148,46 +147,10 @@ a.brand:focus-visible {
 
   .topbar .brand-logo {
     width: auto;
-    height: 64px;
-    max-width: 192px;
+    height: 80px;
+    max-width: 260px;
     object-fit: contain;
     object-position: left center;
-  }
-
-  .brand-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding-left: 16px;
-    border-left: 1px solid var(--border);
-  }
-
-  .brand-user {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--ice);
-    text-decoration: none;
-    line-height: 1.3;
-    white-space: nowrap;
-  }
-
-  .brand-sync {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    color: var(--muted);
-    letter-spacing: 0.02em;
-  }
-
-  .sync-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--green);
-    box-shadow: 0 0 8px var(--green-glow);
-    flex-shrink: 0;
   }
 
   .page-perfil .topbar,
@@ -784,14 +747,12 @@ tbody tr:hover { background: var(--surface-2); }
 
   .topbar .brand-logo {
     width: 100%;
-    max-width: 88px;
+    max-width: 104px;
     height: auto;
-    max-height: 40px;
+    max-height: 48px;
     object-fit: contain;
     object-position: left center;
   }
-
-  .topbar .brand-meta { display: none; }
 
   .topbar .month-switcher {
     grid-column: 2;
@@ -1836,14 +1797,6 @@ dialog.modal .type-picker.duracao-picker {
 .tab-summary-breakdown .donut-legend { margin-top: 0; }
 
 /* Profile page */
-.brand-greeting-link {
-  text-decoration: none;
-  color: var(--muted);
-  transition: color 180ms var(--ease-out);
-}
-
-.brand-greeting-link:hover { color: var(--ice); }
-
 .brand-logo-link {
   display: flex;
   text-decoration: none;

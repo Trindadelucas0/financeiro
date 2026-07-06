@@ -10,6 +10,7 @@
     "test:payments": "node scripts/test-payments.js",
     "test:production": "node scripts/test-production.js",
     "build:css": "tailwindcss -i ./src/styles/landing.css -o ./public/css/landing.css --minify",
+    "build:icons": "node scripts/generate-pwa-icons.js",
     "dev:css": "tailwindcss -i ./src/styles/landing.css -o ./public/css/landing.css --watch"
   },
   "engines": {
@@ -29,6 +30,7 @@
   },
   "devDependencies": {
     "@tailwindcss/cli": "^4.1.11",
+    "sharp": "^0.35.3",
     "tailwindcss": "^4.1.11"
   }
 }

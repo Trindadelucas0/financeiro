@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS emprestimos (
   num_parcelas INTEGER NOT NULL,
   mes_inicio VARCHAR(7) NOT NULL,
   categoria VARCHAR(100) NOT NULL DEFAULT 'Empréstimo',
+  dia_vencimento INTEGER,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -179,6 +180,8 @@ ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS customer_nome VARCHAR(255);
 ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS customer_email VARCHAR(255);
 ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS checkout_source VARCHAR(20) NOT NULL DEFAULT 'profile';
 ALTER TABLE payment_orders ALTER COLUMN user_id DROP NOT NULL;
+
+ALTER TABLE emprestimos ADD COLUMN IF NOT EXISTS dia_vencimento INTEGER;
 `;
 
 async function backfillUsernames(client) {

@@ -19,16 +19,12 @@
 
   function updateUserUi(user) {
     const nameEl = document.getElementById('userName');
-    const greetingEl = document.getElementById('userGreeting');
     const profileLink = document.getElementById('profileLink');
     const profileLabel = document.getElementById('profileLinkLabel');
     const profileAvatar = document.getElementById('profileLinkAvatar');
     const mobileAvatar = document.getElementById('topbarMobileAvatar');
 
     if (nameEl && user) nameEl.textContent = displayName(user);
-    if (greetingEl && user) {
-      greetingEl.textContent = user.username ? '@' + user.username : displayName(user);
-    }
     if (profileLabel && user) {
       profileLabel.textContent = user.username ? '@' + user.username : displayName(user);
     }
