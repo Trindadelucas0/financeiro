@@ -1312,11 +1312,8 @@ async function exportPDF() {
     return (
       '<button type="button" class="' + cls + '" data-value="' + esc(item.value) + '"' + clickAttr + ariaCurrent + disabled + '>' +
       '<span class="modal-rail-icon ' + item.iconClass + '" aria-hidden="true">' + item.icon + '</span>' +
-      '<span class="modal-rail-copy">' +
-      '<span class="modal-rail-label">' + esc(item.label) + '</span>' +
-      '<span class="modal-rail-label-short">' + esc(item.shortLabel || item.label) + '</span>' +
-      '<span class="modal-rail-desc">' + esc(item.desc) + '</span>' +
-      '</span></button>'
+      '<span class="modal-rail-label">' + esc(item.shortLabel || item.label) + '</span>' +
+      '</button>'
     );
   }
 
@@ -1347,11 +1344,7 @@ async function exportPDF() {
   function buildMainPanelHtml(c, locked) {
     let html = '';
     if (!c.entidade) {
-      html +=
-        '<p class="modal-panel-empty">' +
-        '<span class="empty-desktop">Escolha um tipo na barra ao lado para continuar.</span>' +
-        '<span class="empty-mobile">Escolha um tipo na barra acima para continuar.</span>' +
-        '</p>';
+      html += '<p class="modal-panel-empty">Escolha um tipo acima para continuar.</p>';
       return html;
     }
     html += buildPickersHtml(c, locked);
