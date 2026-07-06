@@ -4,6 +4,8 @@ const PRO_PLAN = {
   currency: 'BRL',
 };
 
+const RENEWAL_REMINDER_DAYS = 4;
+
 function formatProMonthlyPriceShort() {
   return PRO_PLAN.monthlyPriceBrl.toLocaleString('pt-BR', {
     style: 'currency',
@@ -38,6 +40,7 @@ function getProPlanPricing() {
 
 module.exports = {
   PRO_PLAN,
+  RENEWAL_REMINDER_DAYS,
   formatProMonthlyPrice,
   formatProMonthlyPriceShort,
   getProPlanPricing,
