@@ -1070,6 +1070,9 @@ dialog.modal-confirm[open] {
   z-index: var(--z-modal-confirm);
 }
 .modal-confirm-msg { font-size: 14px; color: var(--muted); margin: 12px 0 0; line-height: 1.5; }
+.password-dialog-field { margin-top: 16px; margin-bottom: 0; }
+.password-dialog-field input { width: 100%; }
+.password-dialog-field input.input-error { border-color: var(--red); }
 .btn-danger-primary { background: var(--red); color: var(--red-ink); }
 .btn-danger-primary:hover { background: var(--red-hover); }
 .btn-danger-primary:disabled { opacity: 0.6; cursor: not-allowed; }

@@ -24,9 +24,20 @@ async function me(req, res, next) {
   }
 }
 
+async function verifyPassword(req, res, next) {
+  try {
+    const { password } = req.body;
+    const result = await authService.verifyPassword(req.user.id, password);
+    return res.json(result);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   login,
   me,
+  verifyPassword,
   patchMe: profileController.patchMe,
   patchPassword: profileController.patchPassword,
   patchPasswordRequired: profileController.patchPasswordRequired,

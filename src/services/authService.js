@@ -89,4 +89,39 @@ async function getMe(userId) {
   };
 }
 
-module.exports = { login, getMe };
+async function verifyPassword(userId, password) {
+  if (!password) {
+    const err = new Error('Senha incorreta');
+    err.status = 401;
+    throw err;
+  }
+
+  const pool = getPool();
+  const { rows } = await pool.query(
+    'SELECT password_hash, ativo FROM users WHERE id = $1 LIMIT 1',
+    [userId],
+  );
+
+  if (rows.length === 0) {
+    const err = new Error('Usuário não encontrado');
+    err.status = 404;
+    throw err;
+  }
+
+  if (!rows[0].ativo) {
+    const err = new Error('Usuário desativado');
+    err.status = 403;
+    throw err;
+  }
+
+  const valid = await bcrypt.compare(password, rows[0].password_hash);
+  if (!valid) {
+    const err = new Error('Senha incorreta');
+    err.status = 401;
+    throw err;
+  }
+
+  return { ok: true };
+}
+
+module.exports = { login, getMe, verifyPassword };

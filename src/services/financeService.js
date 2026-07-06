@@ -1,4 +1,5 @@
 const { getPool } = require('../db/pool');
+const authService = require('./authService');
 
 /* ============ DATE UTILS ============ */
 
@@ -422,6 +423,28 @@ async function updateSettings(userId, { currentMonth, saldoConta }) {
 
 /* ============ RECEITAS CRUD ============ */
 
+async function assertPasswordIfPaid(userId, { entidade, itemId, mes, password }) {
+  if (!entidade || !itemId || !mes) return;
+
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT 1 FROM pagamentos
+     WHERE user_id = $1 AND entidade = $2 AND item_id = $3 AND mes = $4 AND pago = TRUE
+     LIMIT 1`,
+    [userId, entidade, itemId, mes],
+  );
+
+  if (rows.length === 0) return;
+
+  if (!password) {
+    const err = new Error('Senha obrigatória para alterar lançamento pago/recebido');
+    err.status = 403;
+    throw err;
+  }
+
+  await authService.verifyPassword(userId, password);
+}
+
 async function listReceitas(userId, mes) {
   const { receitas } = await loadUserFinanceData(userId);
   if (!mes) return receitas;
@@ -448,6 +471,15 @@ async function createReceita(userId, data) {
 }
 
 async function updateReceita(userId, id, data) {
+  if (data.mes) {
+    await assertPasswordIfPaid(userId, {
+      entidade: 'receita',
+      itemId: id,
+      mes: data.mes,
+      password: data.password,
+    });
+  }
+
   const pool = getPool();
   const { rows } = await pool.query(
     `UPDATE receitas
@@ -529,6 +561,15 @@ async function createDespesa(userId, data) {
 }
 
 async function updateDespesa(userId, id, data) {
+  if (data.mes) {
+    await assertPasswordIfPaid(userId, {
+      entidade: 'despesa',
+      itemId: id,
+      mes: data.mes,
+      password: data.password,
+    });
+  }
+
   const pool = getPool();
   const { rows } = await pool.query(
     `UPDATE despesas
@@ -680,7 +721,7 @@ async function listPagamentos(userId, mes) {
   return rows.map(mapPagamento);
 }
 
-async function upsertPagamento(userId, { entidade, itemId, mes, pago, comprovanteNome, comprovanteDataUrl }) {
+async function upsertPagamento(userId, { entidade, itemId, mes, pago, comprovanteNome, comprovanteDataUrl, password }) {
   const pool = getPool();
 
   if (!entidade || !itemId || !mes) {
@@ -696,6 +737,7 @@ async function upsertPagamento(userId, { entidade, itemId, mes, pago, comprovant
   }
 
   if (pago === false) {
+    await assertPasswordIfPaid(userId, { entidade, itemId, mes, password });
     await pool.query(
       'DELETE FROM pagamentos WHERE user_id = $1 AND entidade = $2 AND item_id = $3 AND mes = $4',
       [userId, entidade, itemId, mes],

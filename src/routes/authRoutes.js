@@ -11,7 +11,14 @@ const loginLimiter = createRateLimit({
   message: { error: 'Muitas tentativas de login. Tente novamente em alguns minutos.' },
 });
 
+const verifyPasswordLimiter = createRateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: { error: 'Muitas tentativas. Aguarde um minuto e tente novamente.' },
+});
+
 router.post('/login', loginLimiter, authController.login);
+router.post('/verify-password', authJwt, verifyPasswordLimiter, authController.verifyPassword);
 router.get('/me', authJwt, authController.me);
 router.get('/username-available', authJwt, authController.checkUsername);
 router.patch('/me', authJwt, authController.patchMe);

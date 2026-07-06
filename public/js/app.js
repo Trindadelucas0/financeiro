@@ -20,7 +20,7 @@
 
   let state = defaultState();
   let listFilters = { busca: '', categoria: '', status: 'todos' };
-  let modalCtx = { entidade: null, tipo: null, forma: null, duracaoTipo: 'indeterminado', editing: null };
+  let modalCtx = { entidade: null, tipo: null, forma: null, duracaoTipo: 'indeterminado', editing: null, editingMes: null, paidPassword: null };
   let modalDraft = {};
   let modalSnapshot = null;
   let modalSubmitting = false;
@@ -226,6 +226,33 @@ async function exportPDF() {
 
   function getPg(chave) { return state.pagamentos[chave] || { pago: false }; }
 
+  function isPagoNoMes(entidade, id, mes) {
+    return getPg(chavePg(entidade, id, mes)).pago;
+  }
+
+  async function requirePasswordForPaid(opts) {
+    while (true) {
+      let password = null;
+      if (window.FinanceUI && window.FinanceUI.showPasswordPrompt) {
+        password = await window.FinanceUI.showPasswordPrompt({
+          title: opts.title || 'Confirmar senha',
+          message: opts.message || 'Digite sua senha para continuar.',
+          confirmLabel: opts.confirmLabel || 'Confirmar',
+          cancelLabel: opts.cancelLabel || 'Cancelar',
+        });
+      } else {
+        password = window.prompt(opts.message || 'Digite sua senha:');
+      }
+      if (!password) return null;
+      try {
+        await apiFetch('/api/auth/verify-password', { method: 'POST', body: { password: password } });
+        return password;
+      } catch (err) {
+        toast(err.message || 'Senha incorreta', 'error');
+      }
+    }
+  }
+
   async function togglePago(chave) {
     const atual = getPg(chave);
     const parts = chave.split('_');
@@ -241,6 +268,33 @@ async function exportPDF() {
         danger: true,
       });
       if (!ok) return;
+
+      const password = await requirePasswordForPaid({
+        title: 'Confirmar senha',
+        message: entidade === 'receita'
+          ? 'Digite sua senha para desmarcar este recebimento.'
+          : 'Digite sua senha para desmarcar este pagamento.',
+      });
+      if (!password) return;
+
+      try {
+        const body = {
+          entidade,
+          itemId: id,
+          mes,
+          pago: false,
+          password,
+        };
+        const res = await apiFetch('/api/finance/pagamentos', { method: 'POST', body });
+        const applied = applyPagamentoRes(res, chave);
+        if (applied.remove) delete state.pagamentos[applied.chave];
+        else state.pagamentos[applied.chave] = applied;
+        render();
+        toast('Status de pagamento atualizado');
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+      return;
     }
 
     try {
@@ -308,16 +362,19 @@ async function exportPDF() {
     const chave = chavePg(entidade, id, mes);
     const pg = getPg(chave);
     const inputId = 'file_' + chave.replace(/[^a-zA-Z0-9]/g, '_');
+    const editEnt = entidade === 'receita' ? 'receita' : 'despesa';
+    const statusLabel = entidade === 'receita' ? 'recebido em' : 'pago em';
     return (
       '<div class="pago-cell">' +
         '<input type="checkbox" class="pago-check" aria-label="Marcar como pago" ' + (pg.pago ? 'checked' : '') + ' onchange="togglePago(\'' + chave + '\')">' +
         '<div>' +
           (pg.pago
-            ? '<div class="pago-meta">pago em ' + nowLabel(pg.dataHora) + '</div>' +
+            ? '<div class="pago-meta">' + statusLabel + ' ' + nowLabel(pg.dataHora) + '</div>' +
               '<div class="file-mini">' +
                 (pg.comprovanteDataUrl
                   ? '<button type="button" class="comprovante-link" onclick="verComprovante(\'' + chave + '\')">ver comprovante</button>'
                   : '<label for="' + inputId + '">anexar comprovante</label><input type="file" id="' + inputId + '" accept="image/*,application/pdf" onchange="anexarComprovante(\'' + chave + '\', this)">') +
+                ' · <button type="button" class="comprovante-link" onclick="editItem(\'' + editEnt + '\',\'' + id + '\',\'' + mes + '\')">editar</button>' +
               '</div>'
             : '<span class="pago-pendente">pendente</span>') +
         '</div>' +
@@ -1124,14 +1181,14 @@ async function exportPDF() {
       const valCls = isReceita ? 'val-pos' : 'val-neg';
       const arrKey = isReceita ? 'receitas' : item.tipo === 'emprestimo' ? 'emprestimos' : 'despesas';
       const editEnt = isReceita ? 'receita' : item.tipo === 'emprestimo' ? 'emprestimo' : 'despesa';
-      return '<tr><td>' + esc(item.nome) + ' ' + vencTag + '</td><td>' + tipoTag + '</td><td><span class="tag">' + esc(item.categoria) + '</span></td><td class="mono ' + valCls + '">' + formatBRL(item.valorEfetivo) + '</td><td>' + renderPagoCell(entidade, item.id, mes) + '</td><td class="row-actions"><button type="button" class="icon-btn" aria-label="Editar" onclick="editItem(\'' + editEnt + '\',\'' + item.id + '\')">✎</button><button type="button" class="icon-btn danger" aria-label="Excluir" onclick="removeItem(\'' + arrKey + '\',\'' + item.id + '\',\'' + editEnt + '\')">✕</button></td></tr>';
+      return '<tr><td>' + esc(item.nome) + ' ' + vencTag + '</td><td>' + tipoTag + '</td><td><span class="tag">' + esc(item.categoria) + '</span></td><td class="mono ' + valCls + '">' + formatBRL(item.valorEfetivo) + '</td><td>' + renderPagoCell(entidade, item.id, mes) + '</td><td class="row-actions"><button type="button" class="icon-btn" aria-label="Editar" onclick="editItem(\'' + editEnt + '\',\'' + item.id + '\',\'' + mes + '\')">✎</button><button type="button" class="icon-btn danger" aria-label="Excluir" onclick="removeItem(\'' + arrKey + '\',\'' + item.id + '\',\'' + editEnt + '\')">✕</button></td></tr>';
     }).join('');
 
     const mobileCards = items.map(function (item) {
       const valCls = isReceita ? 'val-pos' : 'val-neg';
       const arrKey = isReceita ? 'receitas' : item.tipo === 'emprestimo' ? 'emprestimos' : 'despesas';
       const editEnt = isReceita ? 'receita' : item.tipo === 'emprestimo' ? 'emprestimo' : 'despesa';
-      return '<div class="m-card"><div class="m-card-head"><strong>' + esc(item.nome) + '</strong><span class="mono ' + valCls + '">' + formatBRL(item.valorEfetivo) + '</span></div><div class="m-card-row"><span>' + renderTipoTag(item, mes, isReceita) + '</span><span class="tag">' + esc(item.categoria) + '</span></div><div class="m-card-row">' + renderPagoCell(entidade, item.id, mes) + '</div><div class="m-card-actions"><button type="button" class="btn btn-ghost btn-sm" onclick="editItem(\'' + editEnt + '\',\'' + item.id + '\')">Editar</button><button type="button" class="btn btn-danger-ghost btn-sm" onclick="removeItem(\'' + arrKey + '\',\'' + item.id + '\',\'' + editEnt + '\')">Excluir</button></div></div>';
+      return '<div class="m-card"><div class="m-card-head"><strong>' + esc(item.nome) + '</strong><span class="mono ' + valCls + '">' + formatBRL(item.valorEfetivo) + '</span></div><div class="m-card-row"><span>' + renderTipoTag(item, mes, isReceita) + '</span><span class="tag">' + esc(item.categoria) + '</span></div><div class="m-card-row">' + renderPagoCell(entidade, item.id, mes) + '</div><div class="m-card-actions"><button type="button" class="btn btn-ghost btn-sm" onclick="editItem(\'' + editEnt + '\',\'' + item.id + '\',\'' + mes + '\')">Editar</button><button type="button" class="btn btn-danger-ghost btn-sm" onclick="removeItem(\'' + arrKey + '\',\'' + item.id + '\',\'' + editEnt + '\')">Excluir</button></div></div>';
     }).join('');
 
     return '<div class="table-wrap"><table><thead><tr><th>Nome</th><th>Tipo</th><th>Categoria</th><th>Valor</th><th>Status</th><th></th></tr></thead><tbody>' + rows + '</tbody></table><div class="mobile-cards">' + mobileCards + '</div></div>';
@@ -1360,23 +1417,38 @@ async function exportPDF() {
   }
 
   function openModal() {
-    modalCtx = { entidade: null, tipo: null, forma: null, duracaoTipo: 'indeterminado', editing: null };
+    modalCtx = { entidade: null, tipo: null, forma: null, duracaoTipo: 'indeterminado', editing: null, editingMes: null, paidPassword: null };
     modalDraft = {};
     modalSnapshot = null;
     renderModal();
     openModalDialog();
   }
 
-  function editItem(entidade, id) {
+  async function editItem(entidade, id, mes) {
+    const editMes = mes || state.currentMonth;
     const arr = entidade === 'receita' ? state.receitas : entidade === 'despesa' ? state.despesas : state.emprestimos;
     const item = arr.find(function (i) { return i.id === id; });
     if (!item) return;
+
+    let paidPassword = null;
+    if ((entidade === 'receita' || entidade === 'despesa') && isPagoNoMes(entidade, id, editMes)) {
+      paidPassword = await requirePasswordForPaid({
+        title: 'Confirmar senha',
+        message: entidade === 'receita'
+          ? 'Este lançamento já foi recebido. Digite sua senha para editar.'
+          : 'Este lançamento já foi pago. Digite sua senha para editar.',
+      });
+      if (!paidPassword) return;
+    }
+
     modalCtx = {
       entidade: entidade,
       tipo: item.tipo || 'fixa',
       forma: item.formaPagamento || null,
       duracaoTipo: item.duracaoMeses ? 'definida' : 'indeterminado',
       editing: item,
+      editingMes: editMes,
+      paidPassword: paidPassword,
     };
     modalDraft = {};
     modalSnapshot = null;
@@ -1669,7 +1741,8 @@ async function exportPDF() {
     const pronto = modalIsReady(c);
     const panelHtml = buildMainPanelHtml(c, locked);
     const subCopy = c.editing
-      ? 'Tipo bloqueado na edição — altere valores e datas.'
+      ? 'Tipo bloqueado na edição — altere valores e datas.' +
+        (c.paidPassword && c.tipo === 'fixa' ? ' Alterações em lançamentos fixos afetam os meses seguintes.' : '')
       : 'Selecione o tipo e preencha os dados.';
 
     let html =
@@ -1753,6 +1826,11 @@ async function exportPDF() {
     } else if (c.entidade === 'emprestimo') {
       resource = 'emprestimos';
       payload = { nome: base.nome, categoria: 'Empréstimo', mesInicio: val('f_mes'), valorTotal: Number(val('f_valorTotal')), juros: Number(val('f_juros') || 0), numParcelas: Number(val('f_numParcelas')), diaVencimento: diaVencimento };
+    }
+
+    if (c.editing && c.paidPassword && (c.entidade === 'receita' || c.entidade === 'despesa')) {
+      payload.mes = c.editingMes || state.currentMonth;
+      payload.password = c.paidPassword;
     }
 
     try {

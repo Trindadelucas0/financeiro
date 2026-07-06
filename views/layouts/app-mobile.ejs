@@ -45,6 +45,21 @@
     </div>
   </dialog>
 
+  <dialog class="modal modal-confirm" id="passwordDialog" aria-labelledby="passwordTitle" aria-describedby="passwordMessage">
+    <div class="modal-inner">
+      <h3 id="passwordTitle">Confirmar senha</h3>
+      <p class="modal-confirm-msg" id="passwordMessage"></p>
+      <div class="field password-dialog-field">
+        <label for="passwordDialogInput">Senha</label>
+        <input id="passwordDialogInput" type="password" autocomplete="current-password" placeholder="Digite sua senha">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" id="passwordCancel">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="passwordOk">Confirmar</button>
+      </div>
+    </div>
+  </dialog>
+
   <div class="toast-container toast-container-mobile" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
