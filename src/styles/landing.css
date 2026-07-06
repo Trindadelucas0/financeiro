@@ -101,24 +101,133 @@
     margin-inline: auto;
   }
 
-  .landing-pricing-card {
-    box-shadow: 0 24px 80px oklch(0 0 0 / 0.35);
+  .landing-hero-sub {
+    max-width: 42ch;
+    line-height: 1.5;
+  }
+
+  .landing-pricing {
+    padding-block: clamp(4rem, 8vw, 6rem);
+    background:
+      radial-gradient(ellipse 80% 50% at 50% 0%, oklch(0.94 0.008 240 / 0.04), transparent 70%),
+      var(--color-bg);
+  }
+
+  .landing-pricing-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(2rem, 5vw, 4rem);
+    max-width: 56rem;
+    margin-inline: auto;
+    align-items: start;
+  }
+
+  @media (min-width: 48rem) {
+    .landing-pricing-layout {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  .landing-pricing-hero {
+    margin-bottom: clamp(1.5rem, 4vw, 2.5rem);
+  }
+
+  .landing-pricing-amount {
+    font-family: var(--font-display);
+    font-size: clamp(2.5rem, 5vw, 3.5rem);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.03em;
+    line-height: 1.08;
+    color: var(--color-text);
+  }
+
+  .landing-pricing-period {
+    margin-top: 0.5rem;
+    font-size: 1.125rem;
+    font-weight: 500;
+    color: var(--color-text);
+    line-height: 1.4;
+  }
+
+  .landing-pricing-note {
+    margin-top: 0.75rem;
+    font-size: 0.875rem;
+    color: var(--color-muted);
+    line-height: 1.5;
+    max-width: 36ch;
+  }
+
+  .landing-pricing-features {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .landing-pricing-features li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.625rem;
+    font-size: 0.875rem;
+    color: var(--color-muted);
+    line-height: 1.5;
+  }
+
+  .landing-pricing-check {
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+    color: var(--color-green);
+  }
+
+  .landing-pricing-trust {
+    margin-top: clamp(1.5rem, 4vw, 2.5rem);
+    padding-top: clamp(1.5rem, 4vw, 2rem);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .landing-pricing-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 
   .landing-pricing-pill {
     @apply inline-flex items-center rounded-full border border-border bg-surface-2 px-3 py-1.5 text-sm font-medium text-text;
   }
 
-  .landing-pricing-access-item {
-    @apply border-l-2 border-ice-dim pl-3;
+  .landing-pricing-secure {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    font-size: 0.875rem;
+    color: var(--color-muted);
+  }
+
+  .landing-pricing-checkout {
+    border-radius: 14px;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    padding: clamp(1.5rem, 4vw, 2rem);
+    box-shadow: 0 24px 80px oklch(0 0 0 / 0.35);
+  }
+
+  .landing-pricing-checkout-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0 0 1.25rem;
   }
 
   .landing-acquire-form {
-    @apply mt-8 space-y-4 text-left;
+    @apply space-y-4 text-left;
   }
 
   .landing-acquire-field label {
-    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-2;
+    @apply mb-1.5 block text-sm font-medium text-muted;
   }
 
   .landing-acquire-field input {
@@ -135,11 +244,11 @@
   }
 
   .landing-acquire-actions {
-    @apply flex flex-col gap-3 pt-2 sm:flex-row sm:items-center;
+    @apply flex flex-col gap-3 pt-2;
   }
 
   .landing-acquire-link {
-    @apply text-center text-sm font-medium text-muted underline-offset-4 hover:text-text hover:underline sm:text-left;
+    @apply text-center text-sm font-medium text-muted underline-offset-4 hover:text-text hover:underline;
   }
 
   .landing-footer-meta {
