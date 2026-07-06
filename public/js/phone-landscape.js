@@ -2,9 +2,10 @@
   'use strict';
 
   function isPhoneLandscape() {
-    var w = window.innerWidth;
-    var h = window.innerHeight;
-    return w > h && h <= 600;
+    var vv = window.visualViewport;
+    var w = vv ? vv.width : window.innerWidth;
+    var h = vv ? vv.height : window.innerHeight;
+    return w > h && h <= 700;
   }
 
   function apply() {

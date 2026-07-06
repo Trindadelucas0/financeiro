@@ -42,7 +42,7 @@
 
     <!-- Showcase -->
     <section class="landing-showcase" aria-labelledby="showcase-titulo">
-      <div class="mx-auto max-w-3xl px-5 text-center sm:px-8">
+      <div class="landing-showcase-inner px-5 text-center sm:px-8">
         <h2 id="showcase-titulo" class="sr-only">Preview do painel</h2>
         <div class="landing-reveal min-w-0">
           <%- include('../partials/landing/screenshot-slot', {
@@ -52,8 +52,9 @@
           }) %>
         </div>
         <p class="landing-showcase-caption landing-reveal mt-6 text-sm font-normal text-muted-2">
-          Saldo, receitas e despesas no mesmo olhar — igual ao painel real.
+          Saldo, receitas e despesas no mesmo olhar — no celular, gire para ver o fluxo mensal em tela cheia.
         </p>
+        <p class="landscape-only-hint landing-reveal" aria-hidden="true">Fluxo mensal em tela cheia</p>
       </div>
     </section>
 
