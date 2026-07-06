@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="620" viewBox="0 0 960 620" role="img" aria-label="Previa ilustrativa do dashboard Home Financas">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#141414"/>
+      <stop offset="100%" stop-color="#101010"/>
+    </linearGradient>
+  </defs>
+  <rect width="960" height="620" rx="14" fill="url(#bg)" stroke="#2a2a2a"/>
+  <rect x="760" y="16" width="132" height="24" rx="12" fill="#1a1a1a" stroke="#2a2a2a"/>
+  <text x="826" y="32" text-anchor="middle" fill="#8a8f98" font-family="Arial, sans-serif" font-size="10" font-weight="600">PREVIA ILUSTRATIVA</text>
+
+  <rect x="20" y="52" width="560" height="220" rx="14" fill="#121212" stroke="#2a2a2a"/>
+  <text x="36" y="84" fill="#8a8f98" font-family="Arial, sans-serif" font-size="12">Saldo do mes</text>
+  <text x="36" y="132" fill="#7fd99a" font-family="Courier New, monospace" font-size="40" font-weight="700">R$ 4.280,50</text>
+  <text x="36" y="160" fill="#7fd99a" font-family="Arial, sans-serif" font-size="12">+12% vs mes anterior</text>
+  <polyline fill="none" stroke="#7fd99a" stroke-width="2" points="36,250 120,220 220,205 320,180 420,160 520,145"/>
+
+  <rect x="600" y="52" width="160" height="66" rx="14" fill="#121212" stroke="#2a2a2a"/>
+  <text x="616" y="76" fill="#8a8f98" font-family="Arial, sans-serif" font-size="11">Receitas</text>
+  <text x="616" y="102" fill="#7fd99a" font-family="Courier New, monospace" font-size="18" font-weight="700">R$ 8.400,00</text>
+
+  <rect x="780" y="52" width="160" height="66" rx="14" fill="#121212" stroke="#2a2a2a"/>
+  <text x="796" y="76" fill="#8a8f98" font-family="Arial, sans-serif" font-size="11">Despesas</text>
+  <text x="796" y="102" fill="#e07a6d" font-family="Courier New, monospace" font-size="18" font-weight="700">R$ 4.119,50</text>
+
+  <rect x="600" y="130" width="160" height="66" rx="14" fill="#121212" stroke="#2a2a2a"/>
+  <text x="616" y="154" fill="#8a8f98" font-family="Arial, sans-serif" font-size="11">Saldo devedor</text>
+  <text x="616" y="180" fill="#e07a6d" font-family="Courier New, monospace" font-size="18" font-weight="700">R$ 890,00</text>
+
+  <rect x="20" y="292" width="920" height="300" rx="14" fill="#121212" stroke="#2a2a2a"/>
+  <text x="36" y="324" fill="#f2f2f2" font-family="Arial, sans-serif" font-size="16" font-weight="700">Fluxo mensal</text>
+  <rect x="842" y="306" width="78" height="24" rx="12" fill="#1a1a1a" stroke="#2a2a2a"/>
+  <text x="881" y="322" text-anchor="middle" fill="#8a8f98" font-family="Courier New, monospace" font-size="11">7 meses</text>
+  <line x1="36" y1="338" x2="924" y2="338" stroke="#2a2a2a"/>
+
+  <g font-family="Arial, sans-serif" font-size="11" fill="#8a8f98" text-anchor="middle">
+    <text x="86" y="566">Jan</text><text x="186" y="566">Fev</text><text x="286" y="566">Mar</text><text x="386" y="566">Abr</text>
+    <text x="486" y="566">Mai</text><text x="586" y="566">Jun</text><text x="686" y="566" fill="#f2f2f2">Jul</text>
+  </g>
+
+  <g>
+    <rect x="72" y="430" width="28" height="110" rx="4" fill="#d8d8d8" opacity="0.85"/>
+    <rect x="72" y="500" width="28" height="40" rx="4" fill="#e07a6d" opacity="0.85"/>
+    <rect x="172" y="410" width="28" height="130" rx="4" fill="#d8d8d8" opacity="0.85"/>
+    <rect x="172" y="495" width="28" height="45" rx="4" fill="#e07a6d" opacity="0.85"/>
+    <rect x="272" y="440" width="28" height="100" rx="4" fill="#d8d8d8" opacity="0.85"/>
+    <rect x="272" y="505" width="28" height="35" rx="4" fill="#e07a6d" opacity="0.85"/>
+    <rect x="372" y="400" width="28" height="140" rx="4" fill="#d8d8d8" opacity="0.85"/>
+    <rect x="372" y="490" width="28" height="50" rx="4" fill="#e07a6d" opacity="0.85"/>
+    <rect x="472" y="420" width="28" height="120" rx="4" fill="#d8d8d8" opacity="0.85"/>
+    <rect x="472" y="498" width="28" height="42" rx="4" fill="#e07a6d" opacity="0.85"/>
+    <rect x="572" y="415" width="28" height="125" rx="4" fill="#d8d8d8" opacity="0.85"/>
+    <rect x="572" y="502" width="28" height="38" rx="4" fill="#e07a6d" opacity="0.85"/>
+    <rect x="672" y="405" width="28" height="135" rx="4" fill="#d8d8d8" opacity="0.85"/>
+    <rect x="672" y="496" width="28" height="44" rx="4" fill="#e07a6d" opacity="0.85"/>
+  </g>
+</svg>

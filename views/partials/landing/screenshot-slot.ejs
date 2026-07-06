@@ -1,5 +1,6 @@
 <% if (typeof src !== 'undefined' && src) { %>
-  <figure class="landing-shot">
+  <figure class="landing-shot landing-shot-wrap" role="figure" aria-label="Prévia ilustrativa do painel">
+    <span class="landing-preview-badge landing-preview-badge--shot">Prévia ilustrativa</span>
     <img src="<%= src %>" alt="<%= alt %>" loading="lazy" decoding="async" class="landing-shot-img">
   </figure>
 <% } else { %>

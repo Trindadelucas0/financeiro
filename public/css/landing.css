@@ -1213,6 +1213,13 @@
     border: 1px solid var(--color-border);
     box-shadow: 0 24px 80px oklch(0 0 0 / 0.45);
   }
+  .landing-shot-wrap {
+    position: relative;
+  }
+  .landing-preview-badge--shot {
+    top: 14px;
+    right: 14px;
+  }
   .landing-shot-img {
     display: block;
     width: 100%;
@@ -1504,17 +1511,6 @@
     display: flex;
     flex-direction: column;
     gap: 0;
-  }
-  .landscape-only-hint {
-    display: none;
-  }
-  .landscape-only-hint-link {
-    color: var(--color-ice);
-    text-decoration: underline;
-    text-underline-offset: 2px;
-  }
-  .landscape-only-hint-link:hover {
-    color: var(--color-text);
   }
   .landing-preview .mock-mobile-shell {
     max-width: 320px;

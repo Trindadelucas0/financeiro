@@ -11,6 +11,7 @@
     "test:admin-clients": "node scripts/test-admin-clients.js",
     "test:production": "node scripts/test-production.js",
     "build:css": "tailwindcss -i ./src/styles/landing.css -o ./public/css/landing.css --minify",
+    "generate:landing-shots": "node scripts/generate-landing-shots.js",
     "build:icons": "node scripts/generate-pwa-icons.js",
     "dev:css": "tailwindcss -i ./src/styles/landing.css -o ./public/css/landing.css --watch"
   },
