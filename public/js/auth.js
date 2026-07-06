@@ -17,6 +17,15 @@
     return user.nome || user.username || user.email || '—';
   }
 
+  function updateAdminNav(user) {
+    const adminLink = document.getElementById('adminLink');
+    const adminClientsLink = document.getElementById('adminClientsLink');
+    const isAdmin = Boolean(user && user.role === 'admin');
+
+    if (adminLink) adminLink.hidden = !isAdmin;
+    if (adminClientsLink) adminClientsLink.hidden = !isAdmin;
+  }
+
   function updateUserUi(user) {
     const nameEl = document.getElementById('userName');
     const profileLink = document.getElementById('profileLink');
@@ -41,6 +50,7 @@
         : String(user.username || user.nome || '?').slice(0, 2).toUpperCase();
     }
     if (profileLink && user) profileLink.hidden = false;
+    updateAdminNav(user);
   }
 
   function showForcePasswordForm() {
@@ -396,13 +406,7 @@
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) logoutBtn.addEventListener('click', logout);
 
-    const adminLink = document.getElementById('adminLink');
-    const adminClientsLink = document.getElementById('adminClientsLink');
-    const user = getUser();
-    if (user && user.role === 'admin') {
-      if (adminLink) adminLink.hidden = false;
-      if (adminClientsLink) adminClientsLink.hidden = false;
-    }
+    updateAdminNav(getUser());
   }
 
   window.FinanceAuth = {

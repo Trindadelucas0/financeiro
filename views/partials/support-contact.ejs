@@ -1,0 +1,15 @@
+<% if (typeof support !== 'undefined' && support) { %>
+<aside class="support-contact<%= typeof variant !== 'undefined' && variant ? ' support-contact--' + variant : '' %>" aria-label="Canais de suporte">
+  <p class="support-contact-title">Problemas com pagamento ou acesso?</p>
+  <p class="support-contact-text">Entre em contato:</p>
+  <div class="support-contact-links">
+    <a
+      class="support-contact-link support-contact-link--whatsapp"
+      href="<%= support.whatsappUrl %>"
+      target="_blank"
+      rel="noopener noreferrer"
+    >WhatsApp <%= support.whatsappDisplay %></a>
+    <a class="support-contact-link support-contact-link--email" href="<%= support.emailUrl %>"><%= support.email %></a>
+  </div>
+</aside>
+<% } %>

@@ -118,8 +118,6 @@
           '<input id="au_email" type="email" required autocomplete="email"></div>' +
           '<div class="field"><label for="au_password">Senha</label>' +
           '<input id="au_password" type="password" required minlength="6" autocomplete="new-password"></div>' +
-          '<div class="field"><label for="au_role">Papel</label>' +
-          '<select id="au_role"><option value="user">Usuário</option><option value="admin">Admin</option></select></div>' +
           '<button type="submit" class="btn btn-primary btn-sm" id="adminCreateBtn">Criar usuário</button>' +
         '</form>' +
         '<div class="admin-users-list-wrap">' +
@@ -237,7 +235,6 @@
           nome: document.getElementById('au_nome').value.trim(),
           email: document.getElementById('au_email').value.trim(),
           password: document.getElementById('au_password').value,
-          role: document.getElementById('au_role').value,
         };
         const usernameVal = normalizeUsernameInput(document.getElementById('au_username').value);
         if (usernameVal) body.username = usernameVal;
