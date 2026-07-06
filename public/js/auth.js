@@ -6,6 +6,12 @@
     window.FinanceAuth = {
       bootLoginPage: function () {},
       initLoginPage: function () {},
+      requireAuth: function () {
+        window.location.href = '/login';
+        return false;
+      },
+      initAppAuth: function () { return Promise.resolve(false); },
+      requireAdminAsync: function () { return Promise.resolve(false); },
     };
     return;
   }
@@ -20,7 +26,7 @@
   function updateAdminNav(user) {
     const adminLink = document.getElementById('adminLink');
     const adminClientsLink = document.getElementById('adminClientsLink');
-    const isAdmin = Boolean(user && user.role === 'admin');
+    const isAdmin = Boolean(user && user.canManagePlatform);
 
     if (adminLink) adminLink.hidden = !isAdmin;
     if (adminClientsLink) adminClientsLink.hidden = !isAdmin;
@@ -113,6 +119,7 @@
     if (hasActiveSubscription(user, subscription)) return false;
 
     const path = window.location.pathname;
+    if (path.startsWith('/admin')) return false;
     if (path === '/app/perfil' || path.startsWith('/app/perfil')) return false;
 
     const params = new URLSearchParams(window.location.search);

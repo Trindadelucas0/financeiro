@@ -4,6 +4,14 @@ const { signToken } = require('../utils/jwt');
 const { mapUser } = require('../services/profileService');
 const subscriptionService = require('./subscriptionService');
 const { getProPlanPricing } = require('../config/plan');
+const { canManagePlatform } = require('../config/adminAccess');
+
+function withPlatformAccess(user) {
+  return {
+    ...user,
+    canManagePlatform: canManagePlatform(user),
+  };
+}
 
 function isEmailIdentifier(value) {
   return String(value || '').includes('@');
@@ -61,7 +69,7 @@ async function login(identifier, password) {
 
   return {
     token,
-    user: mapUser(user),
+    user: withPlatformAccess(mapUser(user)),
     subscription,
     pricing: getProPlanPricing(),
     welcomeGrant,
@@ -90,7 +98,7 @@ async function getMe(userId) {
   }
 
   return {
-    user: mapUser(rows[0]),
+    user: withPlatformAccess(mapUser(rows[0])),
     subscription: subscriptionService.mapSubscription(rows[0]),
     pricing: getProPlanPricing(),
   };

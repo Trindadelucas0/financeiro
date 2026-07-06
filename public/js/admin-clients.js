@@ -1,6 +1,16 @@
 (function () {
   'use strict';
 
+  if (!window.FinanceAPI || typeof window.FinanceAPI.apiFetch !== 'function') {
+    document.addEventListener('DOMContentLoaded', function () {
+      const view = document.getElementById('adminClientsView');
+      if (view) {
+        view.innerHTML = '<div class="empty-state">Erro ao carregar scripts. Pressione Ctrl+Shift+R para atualizar.</div>';
+      }
+    });
+    return;
+  }
+
   const { apiFetch } = window.FinanceAPI;
 
   function esc(s) {
@@ -253,19 +263,49 @@
     }
   }
 
+  function showInitError(msg) {
+    const view = document.getElementById('adminClientsView');
+    if (view) view.innerHTML = '<div class="empty-state">' + esc(msg) + '</div>';
+  }
+
   async function initAdminClients() {
-    if (!FinanceAuth.requireAuth()) return;
-    const ok = await FinanceAuth.initAppAuth();
-    if (!ok || !(await FinanceAuth.requireAdminAsync())) return;
+    try {
+      if (!window.FinanceAuth || typeof FinanceAuth.initAppAuth !== 'function') {
+        showInitError('Não foi possível carregar a autenticação. Atualize a página (Ctrl+Shift+R).');
+        return;
+      }
+      if (!FinanceAuth.requireAuth()) return;
+      const ok = await FinanceAuth.initAppAuth();
+      if (!ok) {
+        showInitError('Sessão expirada. Redirecionando para o login…');
+        setTimeout(function () { window.location.href = '/login'; }, 1200);
+        return;
+      }
+      if (!(await FinanceAuth.requireAdminAsync())) return;
 
-    if (window.FinanceUI) FinanceUI.init();
+      if (window.FinanceUI) FinanceUI.init();
 
-    const dialog = document.getElementById('clientModal');
-    if (dialog && window.FinanceUI) {
-      FinanceUI.bindModal(dialog, function () { requestCloseClientModal(); });
+      const dialog = document.getElementById('clientModal');
+      if (dialog && window.FinanceUI) {
+        FinanceUI.bindModal(dialog, function () { requestCloseClientModal(); });
+      }
+
+      await loadClients();
+    } catch (err) {
+      console.error('[admin-clients]', err);
+      showInitError(err.message || 'Erro ao carregar clientes manuais.');
     }
+  }
 
-    loadClients();
+  function bootPageInit() {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initAdminClients);
+    } else {
+      initAdminClients();
+    }
+    window.addEventListener('pageshow', function (event) {
+      if (event.persisted) initAdminClients();
+    });
   }
 
   window.openClientModal = openClientModal;
@@ -273,5 +313,5 @@
   window.closeClientModal = closeClientModal;
   window.requestCloseClientModal = requestCloseClientModal;
 
-  document.addEventListener('DOMContentLoaded', initAdminClients);
+  bootPageInit();
 })();
