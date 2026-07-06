@@ -1202,6 +1202,22 @@ async function exportPDF() {
     );
   }
 
+  function renderRenewalDashboardBanner() {
+    const api = window.FinanceAPI;
+    if (!api) return '';
+    const sub = api.getSubscription();
+    const user = api.getUser();
+    if (!sub || !sub.renewalDueSoon || (user && user.role === 'admin')) return '';
+    const days = sub.daysUntilExpiry || 0;
+    const label = days === 1 ? '1 dia' : days + ' dias';
+    return (
+      '<div class="renewal-dash-banner dash-reveal" role="status">' +
+        '<p class="renewal-dash-text">Sua assinatura expira em <strong>' + label + '</strong>. Renove para não perder o acesso ao painel — seus dados continuam salvos.</p>' +
+        '<a href="/app/perfil" class="btn btn-primary btn-sm">Renovar acesso</a>' +
+      '</div>'
+    );
+  }
+
   function renderDashboard() {
     const mes = state.currentMonth;
     const mesAnt = addMonths(mes, -1);
@@ -1243,6 +1259,7 @@ async function exportPDF() {
     const fluxoEmpty = chartPayload.fluxo.every(function (p) { return p.receitas === 0 && p.despesas === 0; });
 
     return (
+      renderRenewalDashboardBanner() +
       saldoContaHtml +
       renderPendingBills(mes) +
       '<div class="dash-bento dash-reveal">' +

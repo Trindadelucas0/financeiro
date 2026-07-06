@@ -225,6 +225,7 @@
       if (data && data.user) {
         setSession(token, data.user, data.subscription || null, data.pricing || null);
         updateUserUi(data.user);
+        updateRenewalBanner();
         redirectToPaywallIfNeeded();
         return data.user;
       }
@@ -232,6 +233,37 @@
       return null;
     }
     return getUser();
+  }
+
+  function renewalDaysLabel(days) {
+    if (days === 1) return '1 dia';
+    return days + ' dias';
+  }
+
+  function updateRenewalBanner() {
+    const user = getUser();
+    const sub = getSubscription();
+    const topbar = document.getElementById('renewalTopbar');
+
+    if (topbar) {
+      if (user && user.role === 'admin') {
+        topbar.hidden = true;
+      } else if (sub && sub.renewalDueSoon) {
+        const days = sub.daysUntilExpiry || 0;
+        topbar.innerHTML =
+          '<div class="renewal-topbar-inner" role="status">' +
+            '<span class="renewal-topbar-text">Sua assinatura expira em ' + renewalDaysLabel(days) + '.</span>' +
+            '<a href="/app/perfil" class="renewal-topbar-cta">Renovar acesso</a>' +
+          '</div>';
+        topbar.hidden = false;
+      } else {
+        topbar.hidden = true;
+      }
+    }
+
+    if (window.FinanceRenewalReminder && sub) {
+      FinanceRenewalReminder.maybeNotify(sub);
+    }
   }
 
   function logout() {
@@ -358,6 +390,7 @@
 
     if (redirectToPaywallIfNeeded()) return;
 
+    updateRenewalBanner();
     refreshSession();
 
     const logoutBtn = document.getElementById('logoutBtn');
@@ -385,5 +418,6 @@
     hasActiveSubscription,
     redirectToPaywallIfNeeded,
     goToAppHome,
+    updateRenewalBanner,
   };
 })();
