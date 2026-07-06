@@ -800,6 +800,10 @@ async function exportPDF() {
       requestAnimationFrame(function () {
         if (gen !== dashboardRevealGen) return;
         window.FinanceCharts.init(buildDashboardChartPayload());
+        requestAnimationFrame(function () {
+          if (gen !== dashboardRevealGen) return;
+          if (window.FinanceCharts.resize) window.FinanceCharts.resize();
+        });
       });
     }
   }
@@ -1790,8 +1794,25 @@ async function exportPDF() {
     }
     bindModalDraftSync();
     bindModalViewportSync();
+    bindChartLandscapeResize();
 
     loadState();
+  }
+
+  var chartResizeTimer;
+
+  function bindChartLandscapeResize() {
+    function onLayoutChange() {
+      if (window.FinancePhoneLandscape) window.FinancePhoneLandscape.apply();
+      if (!document.getElementById('chartFluxo') || !window.FinanceCharts) return;
+      clearTimeout(chartResizeTimer);
+      chartResizeTimer = setTimeout(function () {
+        window.FinanceCharts.resize();
+      }, 150);
+    }
+    window.addEventListener('orientationchange', onLayoutChange);
+    window.addEventListener('resize', onLayoutChange);
+    onLayoutChange();
   }
 
   window.changeMonth = changeMonth;

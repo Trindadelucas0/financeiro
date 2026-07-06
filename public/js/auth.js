@@ -47,13 +47,148 @@
     if (profileLink && user) profileLink.hidden = false;
   }
 
+  function showForcePasswordForm() {
+    const loginForm = document.getElementById('loginForm');
+    const forceForm = document.getElementById('forcePasswordForm');
+    const subtitle = document.getElementById('loginSubtitle');
+    if (loginForm) loginForm.hidden = true;
+    if (forceForm) forceForm.hidden = false;
+    if (subtitle) subtitle.hidden = true;
+  }
+
+  function goToDashboard() {
+    window.location.href = '/app/dashboard';
+  }
+
   async function login(identifier, password) {
     const data = await apiFetch('/api/auth/login', {
       method: 'POST',
       body: { identifier, password },
     });
     setSession(data.token, data.user, data.subscription || null, data.pricing || null);
-    window.location.href = '/app/dashboard';
+
+    if (data.user && data.user.mustChangePassword) {
+      showForcePasswordForm();
+      return data;
+    }
+
+    goToDashboard();
+    return data;
+  }
+
+  async function submitRequiredPassword(newPassword) {
+    const data = await apiFetch('/api/auth/me/password-required', {
+      method: 'PATCH',
+      body: { newPassword },
+    });
+    const token = getToken();
+    if (data && data.user) {
+      setSession(token, data.user, data.subscription || null, data.pricing || null);
+    }
+    goToDashboard();
+    return data;
+  }
+
+  function cleanCheckoutQuery() {
+    const params = new URLSearchParams(window.location.search);
+    if (!params.get('checkout')) return;
+
+    params.delete('checkout');
+    params.delete('order_nsu');
+    params.delete('transaction_nsu');
+    params.delete('slug');
+    params.delete('receipt_url');
+    params.delete('capture_method');
+    const qs = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (qs ? '?' + qs : ''));
+  }
+
+  function renderWelcome(data) {
+    const welcome = document.getElementById('checkoutWelcome');
+    const hint = document.getElementById('checkoutWelcomeHint');
+    const credentials = document.getElementById('checkoutCredentials');
+    const pending = document.getElementById('checkoutPending');
+    const passwordRow = document.getElementById('welcomePasswordRow');
+    const subtitle = document.getElementById('loginSubtitle');
+
+    if (!welcome) return;
+
+    welcome.hidden = false;
+    if (subtitle) subtitle.textContent = 'Entre com as credenciais abaixo';
+
+    if (data.pending) {
+      if (hint) hint.textContent = data.message || 'Confirmando pagamento…';
+      if (pending) pending.hidden = false;
+      if (credentials) credentials.hidden = true;
+      return;
+    }
+
+    if (pending) pending.hidden = true;
+    if (hint) hint.textContent = data.loginHint || 'Use os dados abaixo para entrar.';
+    if (credentials) credentials.hidden = false;
+
+    const emailEl = document.getElementById('welcomeEmail');
+    const usernameEl = document.getElementById('welcomeUsername');
+    const passwordEl = document.getElementById('welcomePassword');
+    const identifierInput = document.getElementById('identifier');
+    const passwordInput = document.getElementById('password');
+
+    if (emailEl) emailEl.textContent = data.email || '—';
+    if (usernameEl) usernameEl.textContent = data.username ? '@' + data.username : '—';
+
+    if (data.isNewAccount && data.tempPassword) {
+      if (passwordRow) passwordRow.hidden = false;
+      if (passwordEl) passwordEl.textContent = data.tempPassword;
+      if (identifierInput) identifierInput.value = data.email || '';
+      if (passwordInput) passwordInput.value = data.tempPassword;
+    } else {
+      if (passwordRow) passwordRow.hidden = true;
+      if (identifierInput) identifierInput.value = data.email || '';
+    }
+  }
+
+  async function handleCheckoutSuccess() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('checkout') !== 'success') return;
+
+    const orderNsu = params.get('order_nsu');
+    if (!orderNsu) return;
+
+    const transactionNsu = params.get('transaction_nsu');
+    const slug = params.get('slug');
+
+    async function fetchWelcome() {
+      const query = new URLSearchParams({ order_nsu: orderNsu });
+      if (transactionNsu) query.set('transaction_nsu', transactionNsu);
+      if (slug) query.set('slug', slug);
+      return apiFetch('/api/payments/welcome?' + query.toString());
+    }
+
+    try {
+      const data = await fetchWelcome();
+      renderWelcome(data);
+
+      if (data.pending) {
+        setTimeout(async function () {
+          try {
+            const retry = await fetchWelcome();
+            renderWelcome(retry);
+          } catch (err) {
+            const hint = document.getElementById('checkoutWelcomeHint');
+            if (hint) hint.textContent = err.message || 'Não foi possível confirmar o pagamento.';
+          }
+        }, 2500);
+      }
+    } catch (err) {
+      const welcome = document.getElementById('checkoutWelcome');
+      const hint = document.getElementById('checkoutWelcomeHint');
+      if (welcome) welcome.hidden = false;
+      if (hint) {
+        hint.textContent = err.message || 'Não foi possível carregar os dados do pagamento.';
+      }
+    } finally {
+      cleanCheckoutQuery();
+    }
   }
 
   async function refreshSession() {
@@ -97,13 +232,25 @@
 
   function initLoginPage() {
     const form = document.getElementById('loginForm');
+    const forceForm = document.getElementById('forcePasswordForm');
     const errEl = document.getElementById('loginError');
-    if (!form) return;
+    const forceErrEl = document.getElementById('forcePasswordError');
+
+    handleCheckoutSuccess();
 
     if (getToken()) {
-      window.location.href = '/app/dashboard';
-      return;
+      const user = getUser();
+      if (user && user.mustChangePassword) {
+        showForcePasswordForm();
+        return;
+      }
+      if (!window.location.search.includes('checkout=success')) {
+        goToDashboard();
+        return;
+      }
     }
+
+    if (!form) return;
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -133,6 +280,44 @@
         if (btn) btn.disabled = false;
       }
     });
+
+    if (forceForm) {
+      forceForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (forceErrEl) forceErrEl.hidden = true;
+
+        const newPass = document.getElementById('newPassword').value;
+        const confirmPass = document.getElementById('confirmPassword').value;
+        const btn = forceForm.querySelector('[type="submit"]');
+
+        if (newPass.length < 6) {
+          if (forceErrEl) {
+            forceErrEl.textContent = 'A nova senha deve ter pelo menos 6 caracteres.';
+            forceErrEl.hidden = false;
+          }
+          return;
+        }
+
+        if (newPass !== confirmPass) {
+          if (forceErrEl) {
+            forceErrEl.textContent = 'As senhas não coincidem.';
+            forceErrEl.hidden = false;
+          }
+          return;
+        }
+
+        if (btn) btn.disabled = true;
+        try {
+          await submitRequiredPassword(newPass);
+        } catch (err) {
+          if (forceErrEl) {
+            forceErrEl.textContent = err.message || 'Não foi possível atualizar a senha.';
+            forceErrEl.hidden = false;
+          }
+          if (btn) btn.disabled = false;
+        }
+      });
+    }
   }
 
   function bootLoginPage() {

@@ -16,5 +16,6 @@ router.get('/me', authJwt, authController.me);
 router.get('/username-available', authJwt, authController.checkUsername);
 router.patch('/me', authJwt, authController.patchMe);
 router.patch('/me/password', authJwt, authController.patchPassword);
+router.patch('/me/password-required', authJwt, authController.patchPasswordRequired);
 
 module.exports = router;

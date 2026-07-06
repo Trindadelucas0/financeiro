@@ -86,6 +86,62 @@
     @apply border-b border-border bg-bg/90 backdrop-blur-sm;
   }
 
+  .landing-showcase {
+    @apply border-t border-border bg-surface/40 py-16 sm:py-24;
+  }
+
+  .landing-showcase-caption {
+    max-width: 42ch;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .landing-showcase-inner {
+    max-width: 48rem;
+    margin-inline: auto;
+  }
+
+  .landing-pricing-card {
+    box-shadow: 0 24px 80px oklch(0 0 0 / 0.35);
+  }
+
+  .landing-pricing-pill {
+    @apply inline-flex items-center rounded-full border border-border bg-surface-2 px-3 py-1.5 text-sm font-medium text-text;
+  }
+
+  .landing-pricing-access-item {
+    @apply border-l-2 border-ice-dim pl-3;
+  }
+
+  .landing-acquire-form {
+    @apply mt-8 space-y-4 text-left;
+  }
+
+  .landing-acquire-field label {
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-2;
+  }
+
+  .landing-acquire-field input {
+    @apply w-full rounded-[10px] border border-border bg-surface-2 px-4 py-3 text-sm text-text outline-none transition-colors;
+    transition-timing-function: var(--ease-out-quart);
+  }
+
+  .landing-acquire-field input:focus {
+    @apply border-ice ring-2 ring-ice/20;
+  }
+
+  .landing-acquire-error {
+    @apply text-sm text-red;
+  }
+
+  .landing-acquire-actions {
+    @apply flex flex-col gap-3 pt-2 sm:flex-row sm:items-center;
+  }
+
+  .landing-acquire-link {
+    @apply text-center text-sm font-medium text-muted underline-offset-4 hover:text-text hover:underline sm:text-left;
+  }
+
   .brand-logo {
     display: block;
     height: auto;
@@ -369,6 +425,16 @@
   }
 
   .landing-preview .mock-bar-group-active .mock-bar-label { color: var(--color-ice); }
+
+  .landing-preview .mock-dashboard-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .landscape-only-hint {
+    display: none;
+  }
 
   /* Mobile mock */
   .landing-preview .mock-mobile-shell {

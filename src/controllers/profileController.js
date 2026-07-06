@@ -1,4 +1,5 @@
 const profileService = require('../services/profileService');
+const authService = require('../services/authService');
 
 async function patchMe(req, res, next) {
   try {
@@ -58,9 +59,21 @@ async function checkUsername(req, res, next) {
   }
 }
 
+async function patchPasswordRequired(req, res, next) {
+  try {
+    const { newPassword } = req.body;
+    await profileService.changePasswordRequired(req.user.id, newPassword);
+    const result = await authService.getMe(req.user.id);
+    return res.json(result);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   patchMe,
   patchPassword,
+  patchPasswordRequired,
   createFeedback,
   listFeedback,
   patchFeedback,

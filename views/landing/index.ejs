@@ -16,7 +16,7 @@
       </a>
       <nav class="flex items-center gap-3" aria-label="Navegação principal">
         <a href="/login" class="btn-ghost hidden px-4 py-2 sm:inline-flex">Entrar</a>
-        <a href="/login" class="btn-ice px-4 py-2 text-sm sm:px-6 sm:py-3">Acessar painel</a>
+        <a href="#adquirir" data-scroll-acquire class="btn-ice px-4 py-2 text-sm sm:px-6 sm:py-3">Adquirir</a>
       </nav>
     </div>
   </header>
@@ -24,173 +24,105 @@
   <main id="conteudo">
     <!-- Hero -->
     <section class="mx-auto max-w-6xl px-5 pb-16 pt-10 sm:px-8 sm:pb-24 sm:pt-16 lg:pb-28">
-      <div class="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
-        <div class="landing-reveal is-visible max-w-xl">
-          <%- include('../partials/brand-logo', { logoSize: 'hero' }) %>
+      <div class="landing-reveal is-visible max-w-xl">
+        <%- include('../partials/brand-logo', { logoSize: 'hero' }) %>
 
-          <h1 class="mt-6 font-display text-balance text-[clamp(2rem,5vw,3.75rem)] font-bold leading-[1.08] tracking-[-0.03em] text-text sm:mt-8">
-            Planilha no fim do mês? Nem pensar.
-          </h1>
-          <p class="mt-5 max-w-[55ch] text-pretty text-base leading-relaxed text-muted sm:text-lg">
-            Receitas, despesas, parcelas e previsão num painel escuro, legível à noite — salvo entre acessos.
-          </p>
-          <% if (typeof pricing !== 'undefined' && pricing) { %>
-          <p class="mt-4 font-mono text-sm tabular-nums text-text">
-            <span class="font-semibold"><%= pricing.priceShort %></span>
-            <span class="text-muted-2"> · <%= pricing.accessLabel %></span>
-          </p>
-          <% } %>
-          <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <a href="/login" class="btn-ice w-full sm:w-auto">Liberar acesso</a>
-            <a href="/login" class="btn-ghost w-full sm:w-auto">Já tenho conta</a>
-          </div>
-        </div>
-
-        <div class="landing-reveal is-visible" style="transition-delay: 80ms;">
-          <%- include('../partials/landing/screenshot-slot', {
-            src: typeof shots !== 'undefined' ? shots.dashboard : null,
-            alt: 'Dashboard Home Finanças — saldo, receitas e despesas',
-            fallbackPartial: 'mock-bento-hero',
-            previewModifier: 'landing-preview--hero'
-          }) %>
+        <h1 class="mt-6 font-display text-balance text-[clamp(2rem,5vw,3.75rem)] font-bold leading-[1.08] tracking-[-0.03em] text-text sm:mt-8">
+          Planilha no fim do mês? Nem pensar.
+        </h1>
+        <p class="mt-5 max-w-[55ch] text-pretty text-base leading-relaxed text-muted sm:text-lg">
+          Receitas, despesas, parcelas e previsão num painel escuro, legível à noite — salvo entre acessos.
+        </p>
+        <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <a href="#adquirir" data-scroll-acquire class="btn-ice w-full sm:w-auto">Adquirir acesso</a>
+          <a href="/login" class="btn-ghost w-full sm:w-auto">Já tenho conta</a>
         </div>
       </div>
     </section>
 
     <!-- Showcase -->
-    <section class="border-t border-border bg-surface/40" aria-labelledby="showcase-titulo">
-      <div class="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-24">
-        <h2 id="showcase-titulo" class="landing-reveal font-display text-balance text-[clamp(1.5rem,3vw,2rem)] font-bold tracking-[-0.02em]">
-          Veja por dentro — é assim que fica.
-        </h2>
-
-        <div class="mt-12 space-y-0 divide-y divide-border">
-          <article class="landing-reveal grid gap-6 py-10 sm:grid-cols-2 sm:items-center sm:gap-12 sm:py-14">
-            <div>
-              <h3 class="font-display text-xl font-semibold text-text">Saldo, receitas e despesas no mesmo olhar.</h3>
-              <p class="mt-3 max-w-prose text-pretty leading-relaxed text-muted">
-                Bento com saldo hero, mini KPIs e fluxo dos últimos meses — igual ao painel real.
-              </p>
-            </div>
-            <div class="min-w-0">
-              <%- include('../partials/landing/screenshot-slot', {
-                src: typeof shots !== 'undefined' ? shots.dashboard : null,
-                alt: 'Dashboard desktop Home Finanças',
-                fallbackPartial: 'mock-bento'
-              }) %>
-            </div>
-          </article>
-
-          <article class="landing-reveal grid gap-6 py-10 sm:grid-cols-2 sm:items-center sm:gap-12 sm:py-14">
-            <div class="order-2 sm:order-1 min-w-0">
-              <%- include('../partials/landing/screenshot-slot', {
-                src: typeof shots !== 'undefined' ? shots.mobile : null,
-                alt: 'Home Finanças no celular',
-                fallbackPartial: 'mock-mobile'
-              }) %>
-            </div>
-            <div class="order-1 sm:order-2 sm:text-right">
-              <h3 class="font-display text-xl font-semibold text-text">Celular à noite. Números grandes. Sem zoom.</h3>
-              <p class="mt-3 max-w-prose text-pretty leading-relaxed text-muted sm:ml-auto">
-                Hero de saldo, ações rápidas e navegação na base — PWA instalável.
-              </p>
-            </div>
-          </article>
-
-          <article class="landing-reveal grid gap-6 py-10 sm:grid-cols-2 sm:items-center sm:gap-12 sm:py-14">
-            <div>
-              <h3 class="font-display text-xl font-semibold text-text">Previsão antes do dia 30 te pegar.</h3>
-              <p class="mt-3 max-w-prose text-pretty leading-relaxed text-muted">
-                Projeção de saldo, contas a pagar e entradas futuras — antes de estourar o orçamento.
-              </p>
-            </div>
-            <div class="min-w-0">
-              <%- include('../partials/landing/screenshot-slot', {
-                src: typeof shots !== 'undefined' ? shots.previsao : null,
-                alt: 'Previsão financeira Home Finanças',
-                fallbackPartial: 'mock-previsao'
-              }) %>
-            </div>
-          </article>
+    <section class="landing-showcase" aria-labelledby="showcase-titulo">
+      <div class="mx-auto max-w-3xl px-5 text-center sm:px-8">
+        <h2 id="showcase-titulo" class="sr-only">Preview do painel</h2>
+        <div class="landing-reveal min-w-0">
+          <%- include('../partials/landing/screenshot-slot', {
+            src: typeof shots !== 'undefined' ? shots.dashboard : null,
+            alt: 'Dashboard Home Finanças — saldo, receitas e despesas',
+            fallbackPartial: 'mock-bento'
+          }) %>
         </div>
+        <p class="landing-showcase-caption landing-reveal mt-6 text-sm font-normal text-muted-2">
+          Saldo, receitas e despesas no mesmo olhar — igual ao painel real.
+        </p>
       </div>
     </section>
 
-    <!-- Benefits -->
-    <section class="border-t border-border" aria-labelledby="beneficios-titulo">
-      <div class="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-24">
-        <h2 id="beneficios-titulo" class="landing-reveal font-display text-balance text-[clamp(1.5rem,3vw,2rem)] font-bold tracking-[-0.02em]">
-          O que a planilha não te mostra.
-        </h2>
-
-        <div class="mt-12 space-y-0 divide-y divide-border">
-          <article class="landing-reveal grid gap-4 py-8 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] sm:gap-12 sm:py-10">
-            <h3 class="font-display text-xl font-semibold text-text">Saldo do mês sem abrir dez abas</h3>
-            <p class="max-w-prose text-pretty leading-relaxed text-muted">
-              Um bento com saldo hero, receitas, despesas e pendências — números tabulares, legíveis no escuro.
-            </p>
-          </article>
-
-          <article class="landing-reveal grid gap-4 py-8 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] sm:gap-12 sm:py-10">
-            <p class="order-2 max-w-prose text-pretty leading-relaxed text-muted sm:order-1 sm:col-start-1">
-              Cadastre uma vez. O painel lembra vencimentos, mostra o que falta pagar e evita surpresa no cartão.
-            </p>
-            <h3 class="order-1 font-display text-xl font-semibold text-text sm:order-2 sm:col-start-2 sm:text-right">
-              Parcela vencendo? O painel avisa.
-            </h3>
-          </article>
-
-          <article class="landing-reveal grid gap-4 py-8 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] sm:gap-12 sm:py-10">
-            <h3 class="font-display text-xl font-semibold text-text">Previsão antes de estourar</h3>
-            <p class="max-w-prose text-pretty leading-relaxed text-muted">
-              Veja quanto sobra com base no que entrou, no que falta pagar e no que está agendado.
-            </p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <!-- Pricing -->
+    <!-- Pricing & access -->
     <% if (typeof pricing !== 'undefined' && pricing) { %>
-    <section class="border-t border-border bg-surface/40" aria-labelledby="preco-titulo">
-      <div class="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-20">
-        <div class="landing-reveal mx-auto max-w-xl rounded-[14px] border border-border bg-surface px-6 py-8 sm:px-8 sm:py-10">
-          <h2 id="preco-titulo" class="font-display text-balance text-[clamp(1.375rem,3vw,1.75rem)] font-bold tracking-[-0.02em]">
-            Pro — <%= pricing.priceShort %> por <%= pricing.accessDays %> dias
-          </h2>
-          <p class="mt-2 text-pretty text-muted"><%= pricing.subline %></p>
-          <ul class="mt-6 space-y-2 text-sm text-muted">
+    <section id="adquirir" class="landing-pricing border-t border-border" aria-labelledby="preco-titulo">
+      <div class="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-24">
+        <div class="landing-reveal landing-pricing-card mx-auto max-w-2xl rounded-[14px] border border-border bg-surface px-6 py-8 sm:px-10 sm:py-12">
+          <div class="text-center">
+            <p class="font-mono text-[clamp(2.5rem,6vw,3.5rem)] font-semibold tabular-nums tracking-tight text-text">
+              <%= pricing.priceShort %>
+            </p>
+            <p id="preco-titulo" class="mt-2 font-display text-lg font-semibold text-text">
+              <%= pricing.accessDays %> dias de acesso Pro
+            </p>
+          </div>
+
+          <div class="mt-10 grid gap-8 sm:grid-cols-2">
+            <div>
+              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-2">Formas de pagamento</h3>
+              <div class="mt-3 flex flex-wrap gap-2">
+                <% pricing.paymentMethods.forEach(function(method) { %>
+                <span class="landing-pricing-pill"><%= method %></span>
+                <% }); %>
+              </div>
+              <p class="mt-3 text-sm text-muted">Pagamento seguro via InfinitePay</p>
+            </div>
+
+            <div>
+              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-2">Formas de acesso</h3>
+              <ul class="mt-3 space-y-3">
+                <% pricing.accessMethods.forEach(function(item) { %>
+                <li class="landing-pricing-access-item">
+                  <span class="font-medium text-text"><%= item.label %></span>
+                  <span class="mt-0.5 block text-sm text-muted"><%= item.detail %></span>
+                </li>
+                <% }); %>
+              </ul>
+            </div>
+          </div>
+
+          <ul class="mt-10 space-y-2 border-t border-border pt-8 text-sm text-muted">
             <li>Dashboard completo — receitas, despesas, parcelas e orçamentos</li>
             <li>Relatório PDF do mês</li>
             <li>Previsão de saldo e alertas</li>
             <li>PWA no celular</li>
           </ul>
-          <a href="/login" class="btn-ice mt-8 w-full sm:w-auto">Liberar acesso Pro</a>
+
+          <form id="acquireForm" class="landing-acquire-form" novalidate>
+            <div class="landing-acquire-field">
+              <label for="acquireNome">Nome completo</label>
+              <input id="acquireNome" name="nome" type="text" required autocomplete="name" placeholder="Seu nome">
+            </div>
+            <div class="landing-acquire-field">
+              <label for="acquireEmail">E-mail</label>
+              <input id="acquireEmail" name="email" type="email" required autocomplete="email" placeholder="voce@email.com">
+            </div>
+            <p id="acquireError" class="landing-acquire-error" hidden role="alert"></p>
+            <div class="landing-acquire-actions">
+              <button type="submit" id="acquireSubmit" class="btn-ice w-full sm:w-auto" data-label="Adquirir — <%= pricing.priceShort %>">
+                Adquirir — <%= pricing.priceShort %>
+              </button>
+              <a href="/login" class="landing-acquire-link">Já tenho conta</a>
+            </div>
+          </form>
         </div>
       </div>
     </section>
     <% } %>
-
-    <!-- Final CTA -->
-    <section class="mx-auto max-w-6xl px-5 py-16 sm:px-8 sm:py-24" aria-labelledby="cta-final">
-      <div class="landing-reveal rounded-[14px] border border-border bg-surface px-6 py-10 sm:px-10 sm:py-14">
-        <div class="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <div class="max-w-lg">
-            <h2 id="cta-final" class="font-display text-balance text-[clamp(1.375rem,3vw,1.75rem)] font-bold tracking-[-0.02em]">
-              Veio do Instagram? <%= typeof pricing !== 'undefined' && pricing ? pricing.subline : 'Comece agora' %>.
-            </h2>
-            <p class="mt-2 text-pretty text-muted">
-              <% if (typeof pricing !== 'undefined' && pricing) { %>
-              <%= pricing.accessLabel %> com PDF, previsão e alertas. Marque pagamentos e veja quanto sobrou de verdade.
-              <% } else { %>
-              Peça seu acesso, marque pagamentos e veja quanto sobrou de verdade.
-              <% } %>
-            </p>
-          </div>
-          <a href="/login" class="btn-ice shrink-0 self-start sm:self-center">Entrar agora</a>
-        </div>
-      </div>
-    </section>
   </main>
 
   <footer class="border-t border-border">
@@ -203,5 +135,6 @@
   </footer>
 
   <script src="/js/landing.js"></script>
+  <script src="/js/landing-checkout.js"></script>
 </body>
 </html>

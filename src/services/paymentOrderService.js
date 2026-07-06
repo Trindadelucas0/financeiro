@@ -1,12 +1,23 @@
 const { getPool } = require('../db/pool');
 
-async function createOrder({ userId, orderNsu, amountCents }) {
+async function createOrder({ userId, orderNsu, amountCents, checkoutSource = 'profile' }) {
   const pool = getPool();
   const { rows } = await pool.query(
-    `INSERT INTO payment_orders (user_id, order_nsu, amount_cents, status)
-     VALUES ($1, $2, $3, 'pending')
+    `INSERT INTO payment_orders (user_id, order_nsu, amount_cents, status, checkout_source)
+     VALUES ($1, $2, $3, 'pending', $4)
      RETURNING *`,
-    [userId, orderNsu, amountCents],
+    [userId, orderNsu, amountCents, checkoutSource],
+  );
+  return rows[0];
+}
+
+async function createGuestOrder({ orderNsu, amountCents, customerNome, customerEmail }) {
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `INSERT INTO payment_orders (order_nsu, amount_cents, status, customer_nome, customer_email, checkout_source)
+     VALUES ($1, $2, 'pending', $3, $4, 'guest')
+     RETURNING *`,
+    [orderNsu, amountCents, customerNome, customerEmail],
   );
   return rows[0];
 }
@@ -35,8 +46,18 @@ async function markOrderPaid({ orderNsu, invoiceSlug, transactionNsu }) {
   return rows[0] || null;
 }
 
+async function linkOrderToUser(orderNsu, userId) {
+  const pool = getPool();
+  await pool.query(
+    'UPDATE payment_orders SET user_id = $2 WHERE order_nsu = $1',
+    [orderNsu, userId],
+  );
+}
+
 module.exports = {
   createOrder,
+  createGuestOrder,
   getOrderByNsu,
   markOrderPaid,
+  linkOrderToUser,
 };

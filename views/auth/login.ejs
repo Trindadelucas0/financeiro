@@ -9,7 +9,18 @@
     <div class="auth-brand">
       <%- include('../partials/brand-logo', { logoSize: 'lg' }) %>
     </div>
-    <p class="auth-sub">Entre com sua conta para continuar</p>
+    <p class="auth-sub" id="loginSubtitle">Entre com sua conta para continuar</p>
+
+    <div id="checkoutWelcome" class="auth-checkout-welcome" hidden>
+      <p class="auth-checkout-title">Pagamento confirmado</p>
+      <p class="auth-checkout-hint" id="checkoutWelcomeHint"></p>
+      <dl class="auth-credentials" id="checkoutCredentials" hidden>
+        <div><dt>E-mail</dt><dd id="welcomeEmail"></dd></div>
+        <div><dt>Usuário</dt><dd id="welcomeUsername"></dd></div>
+        <div id="welcomePasswordRow"><dt>Senha temporária</dt><dd id="welcomePassword"></dd></div>
+      </dl>
+      <p class="auth-checkout-pending" id="checkoutPending" hidden>Confirmando pagamento…</p>
+    </div>
 
     <form id="loginForm" class="auth-form" novalidate>
       <div class="field">
@@ -22,6 +33,20 @@
       </div>
       <p class="auth-error" id="loginError" hidden role="alert"></p>
       <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+    </form>
+
+    <form id="forcePasswordForm" class="auth-form" hidden novalidate>
+      <p class="auth-sub">Defina uma nova senha para continuar</p>
+      <div class="field">
+        <label for="newPassword">Nova senha</label>
+        <input id="newPassword" name="newPassword" type="password" autocomplete="new-password" minlength="6" required placeholder="Mínimo 6 caracteres">
+      </div>
+      <div class="field">
+        <label for="confirmPassword">Confirmar nova senha</label>
+        <input id="confirmPassword" name="confirmPassword" type="password" autocomplete="new-password" minlength="6" required placeholder="Repita a nova senha">
+      </div>
+      <p class="auth-error" id="forcePasswordError" hidden role="alert"></p>
+      <button type="submit" class="btn btn-primary btn-block">Salvar e entrar</button>
     </form>
   </div>
 

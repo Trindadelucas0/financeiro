@@ -12,6 +12,7 @@ function mapUser(row) {
     email: row.email,
     role: row.role,
     ativo: row.ativo,
+    mustChangePassword: Boolean(row.must_change_password),
     createdAt: row.created_at,
   };
 }
@@ -142,6 +143,44 @@ async function changePassword(userId, currentPassword, newPassword) {
   await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, userId]);
 }
 
+async function changePasswordRequired(userId, newPassword) {
+  if (!newPassword) {
+    const err = new Error('Nova senha é obrigatória');
+    err.status = 400;
+    throw err;
+  }
+
+  if (String(newPassword).length < 6) {
+    const err = new Error('Nova senha deve ter pelo menos 6 caracteres');
+    err.status = 400;
+    throw err;
+  }
+
+  const pool = getPool();
+  const { rows } = await pool.query(
+    'SELECT must_change_password FROM users WHERE id = $1 LIMIT 1',
+    [userId],
+  );
+
+  if (rows.length === 0) {
+    const err = new Error('Usuário não encontrado');
+    err.status = 404;
+    throw err;
+  }
+
+  if (!rows[0].must_change_password) {
+    const err = new Error('Troca de senha não é obrigatória para esta conta');
+    err.status = 403;
+    throw err;
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 10);
+  await pool.query(
+    'UPDATE users SET password_hash = $1, must_change_password = FALSE WHERE id = $2',
+    [passwordHash, userId],
+  );
+}
+
 async function createFeedback(userId, { tipo, mensagem }) {
   const normalizedTipo = String(tipo || '').trim().toLowerCase();
   const text = String(mensagem || '').trim();
@@ -212,6 +251,7 @@ async function markFeedbackRead(id) {
 module.exports = {
   updateProfile,
   changePassword,
+  changePasswordRequired,
   createFeedback,
   listFeedback,
   markFeedbackRead,

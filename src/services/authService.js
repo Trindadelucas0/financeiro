@@ -64,7 +64,7 @@ async function login(identifier, password) {
 async function getMe(userId) {
   const pool = getPool();
   const { rows } = await pool.query(
-    `SELECT id, nome, username, email, role, ativo, created_at,
+    `SELECT id, nome, username, email, role, ativo, created_at, must_change_password,
             plan, subscription_status, subscription_current_period_end
      FROM users WHERE id = $1 LIMIT 1`,
     [userId],

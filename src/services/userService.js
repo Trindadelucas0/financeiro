@@ -139,4 +139,66 @@ async function updateUser(id, { ativo, nome, role, username }) {
   }
 }
 
-module.exports = { createUser, listUsers, updateUser };
+async function createUserFromPurchase({ nome, email, password }) {
+  const pool = getPool();
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+
+  if (!nome || !normalizedEmail || !password) {
+    const err = new Error('nome, email e password são obrigatórios');
+    err.status = 400;
+    throw err;
+  }
+
+  if (password.length < 6) {
+    const err = new Error('Senha deve ter pelo menos 6 caracteres');
+    err.status = 400;
+    throw err;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const finalUsername = await ensureUniqueUsername(client, usernameFromEmail(normalizedEmail));
+
+    const insert = await client.query(
+      `INSERT INTO users (nome, username, email, password_hash, role, ativo, must_change_password)
+       VALUES ($1, $2, $3, $4, 'user', TRUE, TRUE)
+       RETURNING id, nome, username, email, role, ativo, must_change_password, created_at`,
+      [nome.trim(), finalUsername, normalizedEmail, passwordHash],
+    );
+
+    await ensureUserSettings(client, insert.rows[0].id);
+    await client.query('COMMIT');
+
+    return mapUser(insert.rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    if (err.code === '23505') {
+      const msg = err.constraint && String(err.constraint).includes('username')
+        ? 'Username já cadastrado'
+        : 'Email já cadastrado';
+      const dup = new Error(msg);
+      dup.status = 409;
+      throw dup;
+    }
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function getUserByEmail(email) {
+  const pool = getPool();
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const { rows } = await pool.query(
+    `SELECT id, nome, username, email, role, ativo, must_change_password, created_at
+     FROM users WHERE email = $1 LIMIT 1`,
+    [normalizedEmail],
+  );
+  return rows[0] ? mapUser(rows[0]) : null;
+}
+
+module.exports = { createUser, createUserFromPurchase, getUserByEmail, listUsers, updateUser };

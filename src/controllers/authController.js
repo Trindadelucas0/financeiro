@@ -29,5 +29,6 @@ module.exports = {
   me,
   patchMe: profileController.patchMe,
   patchPassword: profileController.patchPassword,
+  patchPasswordRequired: profileController.patchPasswordRequired,
   checkUsername: profileController.checkUsername,
 };

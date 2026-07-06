@@ -62,8 +62,29 @@ async function main() {
     assert(res.status === 200, `status ${res.status}`);
     const html = await res.text();
     assert(html.includes('30 dias') || html.includes('R$'), 'copy de preço na landing');
-    pass('Landing carrega com preço');
+    assert(html.includes('acquireForm') || html.includes('Adquirir'), 'formulário de compra na landing');
+    pass('Landing carrega com preço e compra');
   } catch (e) { fail('Landing', e); }
+
+  // 2.5 Guest checkout sem auth
+  let guestOrderNsu;
+  try {
+    const { status, data } = await request('/api/payments/guest-checkout', {
+      method: 'POST',
+      body: { nome: 'Teste Guest', email: `guest-${Date.now()}@local.dev` },
+    });
+    assert(status === 200, `status ${status}: ${data?.error}`);
+    assert(data.url && data.url.includes('checkout.infinitepay'), 'URL guest checkout inválida');
+    guestOrderNsu = data.orderNsu;
+    pass(`Guest checkout gera URL (${guestOrderNsu})`);
+  } catch (e) { fail('Guest checkout', e); }
+
+  // 2.6 Welcome sem pedido pago
+  try {
+    const { status } = await request('/api/payments/welcome?order_nsu=inexistente-123');
+    assert(status === 404, `esperado 404, got ${status}`);
+    pass('Welcome retorna 404 para pedido inexistente');
+  } catch (e) { fail('Welcome pedido inexistente', e); }
 
   // 3. Stripe removido
   try {

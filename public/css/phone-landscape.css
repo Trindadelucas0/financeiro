@@ -1,0 +1,240 @@
+/* Modo paisagem no celular — ativado por html.is-phone-landscape (phone-landscape.js) */
+
+html.is-phone-landscape .bottom-nav {
+  display: flex !important;
+}
+
+html.is-phone-landscape .toast-container {
+  bottom: calc(72px + var(--safe-bottom));
+  left: 16px;
+  right: 16px;
+}
+
+/* --- Landing --- */
+html.is-phone-landscape .landing-showcase {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  min-height: 100dvh;
+  height: 100dvh;
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  background: oklch(0.09 0 0);
+}
+
+html.is-phone-landscape #landingNav,
+html.is-phone-landscape .landing-showcase-caption {
+  display: none !important;
+}
+
+html.is-phone-landscape .landing-showcase-inner {
+  max-width: none !important;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-inline: 8px;
+}
+
+html.is-phone-landscape .landing-showcase-inner > .landing-reveal {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+html.is-phone-landscape .landscape-only-hint {
+  display: block;
+  flex-shrink: 0;
+  margin-top: 4px;
+  font-size: 11px;
+  color: oklch(0.52 0.01 240);
+  text-align: center;
+}
+
+html.is-phone-landscape .landing-preview {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+}
+
+html.is-phone-landscape .landing-preview .mock-dashboard-stack {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+html.is-phone-landscape .landing-preview .dash-bento {
+  display: none !important;
+}
+
+html.is-phone-landscape .landing-preview .chart-panel-fluxo {
+  flex: 1;
+  display: flex !important;
+  flex-direction: column;
+  margin: 0;
+  min-height: 0;
+  padding: 12px 14px;
+  overflow: hidden;
+}
+
+html.is-phone-landscape .landing-preview .chart-panel-fluxo .panel-head {
+  flex-shrink: 0;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+}
+
+html.is-phone-landscape .landing-preview .mock-chart-bars {
+  flex: 1;
+  height: auto !important;
+  min-height: 0;
+  max-height: none;
+  padding-top: 4px;
+  overflow: hidden;
+}
+
+/* --- App dashboard (layout-desktop) --- */
+html.is-phone-landscape body.layout-desktop .desktop-tabs,
+html.is-phone-landscape body.layout-desktop .desktop-only,
+html.is-phone-landscape body.layout-desktop .topbar .actions-row,
+html.is-phone-landscape body.layout-desktop .topbar .brand-meta,
+html.is-phone-landscape body.layout-desktop .footer-note.desktop-only {
+  display: none !important;
+}
+
+html.is-phone-landscape body.layout-desktop .topbar {
+  display: grid !important;
+  grid-template-columns: minmax(56px, 72px) minmax(0, 1fr) 36px;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+html.is-phone-landscape body.layout-desktop .topbar .brand-logo {
+  max-width: 72px;
+  max-height: 32px;
+}
+
+html.is-phone-landscape body.layout-desktop .topbar .month-switcher {
+  grid-column: 2;
+  width: 100%;
+  min-width: 0;
+  justify-content: center;
+  padding: 2px 4px;
+}
+
+html.is-phone-landscape body.layout-desktop .topbar .month-switcher .label {
+  font-size: 11px;
+  min-width: 0;
+  flex: 1;
+}
+
+html.is-phone-landscape body.layout-desktop .topbar-mobile-profile {
+  display: flex !important;
+  grid-column: 3;
+  width: 36px;
+  height: 36px;
+}
+
+html.is-phone-landscape body.layout-desktop .app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  height: 100dvh;
+  max-width: none;
+  padding: calc(4px + var(--safe-top)) 10px calc(60px + var(--safe-bottom));
+  overflow: hidden;
+}
+
+html.is-phone-landscape body.layout-desktop[data-page="dashboard"] .mobile-only,
+html.is-phone-landscape body.layout-desktop[data-page="dashboard"] .dash-bento,
+html.is-phone-landscape body.layout-desktop[data-page="dashboard"] .pending-bills,
+html.is-phone-landscape body.layout-desktop[data-page="dashboard"] .saldo-conta-box,
+html.is-phone-landscape body.layout-desktop[data-page="dashboard"] .grid-3,
+html.is-phone-landscape body.layout-desktop[data-page="dashboard"] .panel-overdue,
+html.is-phone-landscape body.layout-desktop[data-page="dashboard"] .chart-panel-proj {
+  display: none !important;
+}
+
+html.is-phone-landscape body.layout-desktop[data-page="dashboard"] #view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 4px 4px;
+}
+
+html.is-phone-landscape body.layout-desktop[data-page="dashboard"] .chart-panel-fluxo {
+  flex: 1;
+  display: flex !important;
+  flex-direction: column;
+  margin-bottom: 0;
+  min-height: 0;
+  padding: 10px 12px;
+  overflow: hidden;
+}
+
+html.is-phone-landscape body.layout-desktop[data-page="dashboard"] .chart-panel-fluxo .panel-head {
+  flex-shrink: 0;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+}
+
+html.is-phone-landscape body.layout-desktop[data-page="dashboard"] .chart-wrap.chart-fluxo,
+html.is-phone-landscape body.layout-desktop[data-page="dashboard"] .chart-panel-fluxo .chart-empty {
+  flex: 1;
+  height: auto !important;
+  min-height: 0;
+}
+
+/* layout-mobile-bank (se usado) */
+html.is-phone-landscape .layout-mobile-bank .hero-balance,
+html.is-phone-landscape .layout-mobile-bank .dash-bento,
+html.is-phone-landscape .layout-mobile-bank .pending-bills,
+html.is-phone-landscape .layout-mobile-bank .saldo-conta-box,
+html.is-phone-landscape .layout-mobile-bank .grid-3,
+html.is-phone-landscape .layout-mobile-bank .panel-overdue,
+html.is-phone-landscape .layout-mobile-bank .chart-panel-proj {
+  display: none !important;
+}
+
+html.is-phone-landscape .layout-mobile-bank .app-mobile-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  height: 100dvh;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+
+html.is-phone-landscape .layout-mobile-bank .mobile-main,
+html.is-phone-landscape .layout-mobile-bank #view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+html.is-phone-landscape .layout-mobile-bank .chart-panel-fluxo {
+  flex: 1;
+  display: flex !important;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+html.is-phone-landscape .layout-mobile-bank .chart-wrap.chart-fluxo {
+  flex: 1;
+  height: auto !important;
+  min-height: 0;
+}

@@ -3,6 +3,21 @@
   var reveals = document.querySelectorAll('.landing-reveal');
   var reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  function onLandscapeChange() {
+    if (!window.FinancePhoneLandscape || !window.FinancePhoneLandscape.isActive()) return;
+    var showcase = document.querySelector('.landing-showcase');
+    if (showcase) {
+      requestAnimationFrame(function () {
+        showcase.scrollIntoView({ block: 'nearest', behavior: reducedMotion ? 'auto' : 'smooth' });
+      });
+    }
+  }
+
+  window.addEventListener('orientationchange', function () {
+    setTimeout(onLandscapeChange, 350);
+  });
+  window.addEventListener('resize', onLandscapeChange);
+
   if (nav) {
     window.addEventListener('scroll', function () {
       if (window.scrollY > 8) {

@@ -108,6 +108,26 @@ a.brand:focus-visible {
 
 .actions-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
+.topbar .actions-row .btn {
+  height: 32px;
+  min-height: 32px;
+  padding: 0 12px;
+  line-height: 1;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.topbar .actions-row .btn-primary {
+  border: 1px solid transparent;
+}
+
+.topbar .actions-row .profile-link-avatar {
+  width: 18px;
+  height: 18px;
+  font-size: 9px;
+  flex-shrink: 0;
+}
+
 @media (min-width: 769px) {
   .topbar {
     display: grid;
@@ -1514,6 +1534,58 @@ dialog.modal .type-picker.duracao-picker {
 
 .auth-form { text-align: left; }
 .auth-error { color: var(--red); font-size: 13px; margin: 0 0 12px; }
+
+.auth-checkout-welcome {
+  margin: 0 0 20px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  text-align: left;
+}
+
+.auth-checkout-title {
+  margin: 0 0 8px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.auth-checkout-hint,
+.auth-checkout-pending {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.auth-credentials {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.auth-credentials div {
+  display: grid;
+  gap: 2px;
+}
+
+.auth-credentials dt {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-2);
+}
+
+.auth-credentials dd {
+  margin: 0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 14px;
+  color: var(--text);
+  word-break: break-all;
+}
 
 .auth-page .field { margin-bottom: 16px; }
 

@@ -21,6 +21,36 @@ async function createCheckout(req, res, next) {
   }
 }
 
+async function guestCheckout(req, res, next) {
+  try {
+    const { nome, email } = req.body;
+    const session = await infinitePayService.createGuestCheckoutLink({ nome, email });
+    return res.json(session);
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function welcomeCredentials(req, res, next) {
+  try {
+    const { order_nsu: orderNsu, transaction_nsu: transactionNsu, slug } = req.query;
+
+    if (!orderNsu) {
+      return res.status(400).json({ error: 'order_nsu é obrigatório' });
+    }
+
+    const result = await infinitePayService.getWelcomeCredentials({
+      orderNsu,
+      transactionNsu,
+      slug,
+    });
+
+    return res.json(result);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 async function confirmPayment(req, res, next) {
   try {
     const { order_nsu: orderNsu, transaction_nsu: transactionNsu, slug } = req.body;
@@ -61,6 +91,8 @@ async function webhook(req, res, next) {
 module.exports = {
   getStatus,
   createCheckout,
+  guestCheckout,
+  welcomeCredentials,
   confirmPayment,
   webhook,
 };

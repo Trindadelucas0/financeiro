@@ -465,6 +465,12 @@
     }
   }
 
+  function resize() {
+    instances.forEach(function (c) {
+      if (c && typeof c.resize === 'function') c.resize();
+    });
+  }
+
   function init(payload) {
     destroy();
     if (!payload || typeof Chart === 'undefined') return;
@@ -486,5 +492,5 @@
     }
   }
 
-  window.FinanceCharts = { init: init, initListTab: initListTab, destroy: destroy, formatBRL: formatBRL };
+  window.FinanceCharts = { init: init, initListTab: initListTab, destroy: destroy, resize: resize, formatBRL: formatBRL };
 })();

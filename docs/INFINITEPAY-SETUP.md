@@ -45,7 +45,8 @@ Documentação oficial: [Como usar o Checkout da InfinitePay](https://ajuda.infi
 
 | Uso | URL |
 |---|---|
-| Redirect após pagamento | `https://cashome.avadesk.com.br/app/perfil?checkout=success` |
+| Redirect após compra na landing | `https://cashome.avadesk.com.br/login?checkout=success` |
+| Redirect após renovação no perfil | `https://cashome.avadesk.com.br/app/perfil?checkout=success` |
 | Webhook | `https://cashome.avadesk.com.br/api/payments/webhook` |
 
 ---
@@ -85,7 +86,7 @@ npm start      # VPS
 
 ## 4. Webhook (produção)
 
-Em desenvolvimento local, a confirmação usa o **redirect** (`/app/perfil?checkout=success`) com `payment_check` como fallback.
+Em desenvolvimento local, a confirmação usa o **redirect** com `GET /api/payments/welcome` (landing) ou `/api/payments/confirm` (perfil) como fallback.
 
 Em produção, o webhook recebe notificações em tempo real:
 
@@ -112,7 +113,18 @@ npm start
 
 ## 6. Testar o fluxo completo
 
-### Produção
+### Compra na landing (novo cliente)
+
+1. Acesse a home (`/` ou `https://cashome.avadesk.com.br`)
+2. Na seção **Adquirir**, preencha **nome** e **e-mail**
+3. Clique **Adquirir — R$ 9,90** e complete o checkout InfinitePay
+4. Volte para `/login?checkout=success` com credenciais exibidas na tela
+5. Entre com a senha temporária (ex.: `lucas123`) e defina uma nova senha
+6. Exporte o **relatório PDF** — deve baixar sem erro 402
+
+### Renovação no perfil (cliente existente)
+
+#### Produção
 
 1. Acesse [https://cashome.avadesk.com.br/login](https://cashome.avadesk.com.br/login)
 2. Vá em **Meu perfil**
@@ -121,11 +133,11 @@ npm start
 5. Volte ao app → badge **Pro** e data de validade (+30 dias)
 6. Exporte o **relatório PDF** — deve baixar sem erro 402
 
-### Local
+#### Local
 
 1. `npm run dev`
 2. Login em `http://localhost:3538/login`
-3. Mesmos passos acima
+3. Mesmos passos de renovação acima
 
 ### Conferir no banco (opcional)
 
@@ -174,8 +186,10 @@ LIMIT 5;
 | Método | Rota | Função |
 |---|---|---|
 | `GET` | `/api/payments/subscription` | Status do plano |
-| `POST` | `/api/payments/checkout` | Gera link InfinitePay |
-| `POST` | `/api/payments/confirm` | Confirma pagamento no redirect |
+| `POST` | `/api/payments/checkout` | Gera link InfinitePay (logado, perfil) |
+| `POST` | `/api/payments/guest-checkout` | Gera link InfinitePay (landing, sem login) |
+| `GET` | `/api/payments/welcome` | Credenciais pós-pagamento da landing |
+| `POST` | `/api/payments/confirm` | Confirma pagamento no redirect (perfil) |
 | `POST` | `/api/payments/webhook` | Notificação InfinitePay |
 | `GET` | `/api/finance/export/pdf` | PDF (requer Pro) |
 

@@ -115,17 +115,22 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_stripe_customer ON users(stripe_cust
 
 CREATE TABLE IF NOT EXISTS payment_orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   order_nsu VARCHAR(64) NOT NULL UNIQUE,
   invoice_slug VARCHAR(64),
   transaction_nsu VARCHAR(64),
   amount_cents INTEGER NOT NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'failed')),
+  customer_nome VARCHAR(255),
+  customer_email VARCHAR(255),
+  checkout_source VARCHAR(20) NOT NULL DEFAULT 'profile' CHECK (checkout_source IN ('guest', 'profile')),
   paid_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_payment_orders_user ON payment_orders(user_id);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE;
 `;
 
 const MIGRATION_SQL = `
@@ -153,17 +158,27 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_users_stripe_customer ON users(stripe_cust
 
 CREATE TABLE IF NOT EXISTS payment_orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   order_nsu VARCHAR(64) NOT NULL UNIQUE,
   invoice_slug VARCHAR(64),
   transaction_nsu VARCHAR(64),
   amount_cents INTEGER NOT NULL,
   status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'failed')),
+  customer_nome VARCHAR(255),
+  customer_email VARCHAR(255),
+  checkout_source VARCHAR(20) NOT NULL DEFAULT 'profile' CHECK (checkout_source IN ('guest', 'profile')),
   paid_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_payment_orders_user ON payment_orders(user_id);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password BOOLEAN NOT NULL DEFAULT FALSE;
+
+ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS customer_nome VARCHAR(255);
+ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS customer_email VARCHAR(255);
+ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS checkout_source VARCHAR(20) NOT NULL DEFAULT 'profile';
+ALTER TABLE payment_orders ALTER COLUMN user_id DROP NOT NULL;
 `;
 
 async function backfillUsernames(client) {

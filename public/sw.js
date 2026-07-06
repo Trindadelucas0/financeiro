@@ -1,9 +1,11 @@
-const CACHE_NAME = 'financeiro-pwa-v11';
+const CACHE_NAME = 'financeiro-pwa-v12';
 const OFFLINE_URL = '/offline.html';
 const STATIC_ASSETS = [
   '/css/tokens.css',
   '/css/app.css',
   '/css/mobile-bank.css',
+  '/css/phone-landscape.css',
+  '/js/phone-landscape.js',
   '/js/api.js',
   '/js/auth.js',
   '/js/pwa.js',
