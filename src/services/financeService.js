@@ -948,6 +948,62 @@ async function getMesItemsForReport(userId, mes) {
   return { currentMonth, receitasItens, despesasItens, settings: data.settings };
 }
 
+async function getReportCharts(userId, mes) {
+  const data = await loadUserFinanceData(userId);
+  const currentMonth = mes || data.settings.currentMonth;
+
+  const fluxo = [];
+  for (let i = -5; i <= 0; i++) {
+    const m = addMonths(currentMonth, i);
+    const r = getReceitasMes(data.receitas, m).total;
+    const d = getDespesasMes(data.despesas, data.emprestimos, m).total;
+    fluxo.push({
+      mes: m,
+      mesLabel: monthLabelShort(m),
+      receitas: r,
+      despesas: d,
+      saldo: r - d,
+    });
+  }
+
+  const forecast = buildForecastStrip(
+    data.despesas,
+    data.emprestimos,
+    data.receitas,
+    currentMonth,
+    6,
+  );
+
+  const despesas = getDespesasMes(data.despesas, data.emprestimos, currentMonth);
+  const catBreakdown = getCategoriaBreakdown(despesas.itens);
+  const categorias = catBreakdown.slice(0, 6).map(([label, valor]) => ({ label, valor }));
+  if (catBreakdown.length > 6) {
+    const outros = catBreakdown.slice(6).reduce((s, entry) => s + entry[1], 0);
+    categorias.push({ label: 'Outros', valor: outros });
+  }
+
+  let pagoVal = 0;
+  let pendenteVal = 0;
+  despesas.itens.forEach((d) => {
+    const ent = entidadeDoItemDespesa(d);
+    if (getPg(data.pagamentos, ent, d.id, currentMonth).pago) {
+      pagoVal += d.valorEfetivo;
+    } else {
+      pendenteVal += d.valorEfetivo;
+    }
+  });
+  const despTotal = pagoVal + pendenteVal;
+  const pctPago = despTotal > 0 ? (pagoVal / despTotal) * 100 : 0;
+
+  return {
+    fluxo,
+    forecast,
+    categorias,
+    pagamentos: { pagoVal, pendenteVal, pctPago },
+    sparkSaldo: fluxo.map((f) => ({ mesLabel: f.mesLabel, saldo: f.saldo })),
+  };
+}
+
 module.exports = {
   monthKeyOf,
   loadUserFinanceData,
@@ -972,6 +1028,7 @@ module.exports = {
   getDashboard,
   getPrevisao,
   getMesItemsForReport,
+  getReportCharts,
   parcelasRestantes,
   valorParcelaSimples,
   valorParcelaEmprestimo,

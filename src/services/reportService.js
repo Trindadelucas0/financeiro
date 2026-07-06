@@ -1,4 +1,5 @@
 const financeService = require('./financeService');
+const { getOrCreateAiInsights } = require('./geminiReportService');
 const { getPool } = require('../db/pool');
 
 const MESES_PT = [
@@ -125,10 +126,38 @@ function buildOrganizationAdvice({
   return tips.slice(0, 7);
 }
 
+function buildFallbackExecutiveSummary(report) {
+  const k = report.kpis;
+  const saldoTxt = k.saldo.positivo
+    ? `saldo positivo de ${formatBRL(k.saldo.total)}`
+    : `déficit de ${formatBRL(Math.abs(k.saldo.total))}`;
+  return `Em ${report.mesLabel}, receitas de ${formatBRL(k.receitas.total)} e despesas de ${formatBRL(k.despesas.total)} resultaram em ${saldoTxt}. ${report.pagamentos.pctPago.toFixed(0)}% das despesas foram quitadas no período.`;
+}
+
+async function enrichReportWithAi(report, userId) {
+  const insights = await getOrCreateAiInsights(userId, report.mes, report);
+  if (insights) {
+    report.aiInsights = insights;
+    report.aiEnabled = true;
+    return report;
+  }
+  report.aiEnabled = false;
+  report.aiInsights = {
+    resumoExecutivo: buildFallbackExecutiveSummary(report),
+    pontosAtencao: report.improvements.map((i) => i.text),
+    planoAcao: report.advice,
+    source: 'fallback',
+    generatedAt: new Date().toISOString(),
+    fromCache: false,
+  };
+  return report;
+}
+
 async function buildMonthlyReport(userId, mes) {
   const dashboard = await financeService.getDashboard(userId, mes);
   const previsao = await financeService.getPrevisao(userId, { mes: dashboard.mes, meses: 6 });
   const mesItems = await financeService.getMesItemsForReport(userId, dashboard.mes);
+  const charts = await financeService.getReportCharts(userId, dashboard.mes);
 
   const pool = getPool();
   const { rows: userRows } = await pool.query('SELECT nome FROM users WHERE id = $1', [userId]);
@@ -173,11 +202,16 @@ async function buildMonthlyReport(userId, mes) {
     previsao: previsao.rows,
     atrasados: dashboard.atrasados,
     saldoConta: mesItems.settings.saldoConta,
+    alerts: dashboard.alerts,
+    vencimentosProximos: dashboard.vencimentosProximos,
+    orcamentos: dashboard.orcamentos,
+    charts,
   };
 }
 
 module.exports = {
   buildMonthlyReport,
+  enrichReportWithAi,
   formatBRL,
   monthLabelLong,
 };

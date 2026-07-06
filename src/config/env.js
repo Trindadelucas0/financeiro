@@ -60,6 +60,11 @@ function loadEnv() {
     appUrl,
     port,
     nodeEnv: process.env.NODE_ENV || 'development',
+    gemini: {
+      apiKey: (process.env.GEMINI_API_KEY || '').trim(),
+      model: (process.env.GEMINI_MODEL || 'gemini-2.0-flash').trim(),
+      enabled: Boolean((process.env.GEMINI_API_KEY || '').trim()),
+    },
   };
 }
 

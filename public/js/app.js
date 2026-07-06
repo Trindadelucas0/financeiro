@@ -177,7 +177,19 @@
   }
 
 async function exportPDF() {
+  const btn = document.querySelector('[onclick*="exportPDF"]') || document.getElementById('btnExportPdf');
+  const originalLabel = btn ? btn.textContent : '';
+  let slowTimer = null;
+
   try {
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Gerando relatório…';
+      slowTimer = setTimeout(function () {
+        if (btn) btn.textContent = 'Gerando análise personalizada…';
+      }, 3000);
+    }
+
     const token = window.FinanceAPI.getToken();
     const res = await fetch('/api/finance/export/pdf?mes=' + encodeURIComponent(state.currentMonth), {
       headers: token ? { Authorization: 'Bearer ' + token } : {},
@@ -209,6 +221,12 @@ async function exportPDF() {
     toast('Relatório PDF baixado');
   } catch (err) {
     toast(err.message || 'Erro ao exportar PDF', 'error');
+  } finally {
+    clearTimeout(slowTimer);
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = originalLabel || 'Exportar PDF';
+    }
   }
 }
 

@@ -206,6 +206,16 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS idx_users_billing_source ON users(billing_source);
 
+CREATE TABLE IF NOT EXISTS report_ai_cache (
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  mes VARCHAR(7) NOT NULL,
+  insights JSONB NOT NULL,
+  generated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, mes)
+);
+
+CREATE INDEX IF NOT EXISTS idx_report_ai_cache_generated ON report_ai_cache(generated_at);
+
 ALTER TABLE users ADD COLUMN IF NOT EXISTS access_grant_type VARCHAR(20);
 DO $$ BEGIN
   ALTER TABLE users ADD CONSTRAINT users_access_grant_type_check

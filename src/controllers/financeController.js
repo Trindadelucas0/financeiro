@@ -1,4 +1,5 @@
 const financeService = require('../services/financeService');
+const { buildMonthlyReport, enrichReportWithAi } = require('../services/reportService');
 
 function getReportPdfService() {
   return require('../services/reportPdfService');
@@ -193,8 +194,10 @@ async function getPrevisao(req, res, next) {
 
 async function exportPdf(req, res, next) {
   try {
-    const pdf = await getReportPdfService().generateMonthlyReportPdf(userId(req), req.query.mes);
     const mes = req.query.mes || financeService.monthKeyOf(new Date());
+    const report = await buildMonthlyReport(userId(req), mes);
+    await enrichReportWithAi(report, userId(req));
+    const pdf = await getReportPdfService().generateMonthlyReportPdf(report);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="relatorio-financeiro-${mes}.pdf"`);
     return res.send(pdf);
