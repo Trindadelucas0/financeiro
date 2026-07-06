@@ -127,11 +127,12 @@
   </main>
 
   <footer class="border-t border-border">
-    <div class="mx-auto flex max-w-6xl flex-col gap-4 px-5 py-8 text-sm text-muted sm:flex-row sm:items-center sm:justify-between sm:px-8">
-      <p>Home Finanças · controle pessoal · PWA instalável</p>
-      <a href="/login" class="font-medium text-text underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ice focus-visible:ring-offset-2 focus-visible:ring-offset-bg">
-        Entrar
-      </a>
+    <div class="mx-auto max-w-6xl px-5 py-8 sm:px-8">
+      <%- include('../partials/support-contact', { variant: 'landing' }) %>
+      <div class="landing-footer-meta">
+        <p>Home Finanças · controle pessoal · PWA instalável</p>
+        <a href="/login" class="landing-footer-login">Entrar</a>
+      </div>
     </div>
   </footer>
 
