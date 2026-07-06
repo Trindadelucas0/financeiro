@@ -383,16 +383,25 @@
             label: 'Saldo projetado',
             data: saldos,
             type: 'line',
-            borderColor: c.ice,
+            borderColor: c.green,
             backgroundColor: 'transparent',
             borderWidth: 2.5,
-            pointRadius: 4,
+            pointRadius: saldos.map(function (v, i) { return forecast[i].isCurrent ? 5 : 4; }),
             pointHoverRadius: 6,
             pointBackgroundColor: saldos.map(function (v, i) {
-              return i === 0 ? c.ice : (v >= 0 ? c.green : c.red);
+              if (forecast[i].isCurrent) return c.ice;
+              return v >= 0 ? c.green : c.red;
             }),
             pointBorderColor: c.bg,
             pointBorderWidth: 2,
+            segment: {
+              borderColor: function (ctx) {
+                var idx = ctx.p0DataIndex;
+                if (saldos[idx] >= 0 && saldos[idx + 1] >= 0) return c.green;
+                if (saldos[idx] < 0 && saldos[idx + 1] < 0) return c.red;
+                return c.red;
+              },
+            },
             tension: 0.25,
             fill: false,
             order: 1,
@@ -431,7 +440,11 @@
                 var idx = items[0].dataIndex;
                 var f = forecast[idx];
                 if (items[0].dataset.label === 'Saldo projetado') {
-                  return ['Receitas: ' + formatBRL(f.receitas), 'Despesas: ' + formatBRL(f.despesas)];
+                  return [
+                    'Receitas: ' + formatBRL(f.receitas),
+                    'Despesas: ' + formatBRL(f.despesas),
+                    'Acumulado: ' + formatBRL(f.cumulativo),
+                  ];
                 }
                 return [];
               },
@@ -441,7 +454,15 @@
         scales: {
           x: {
             grid: { color: c.border, drawBorder: false },
-            ticks: { color: c.muted2, font: { family: fontFamily(), size: 11 } },
+            ticks: {
+              color: function (ctx) {
+                return forecast[ctx.index] && forecast[ctx.index].isCurrent ? c.ice : c.muted2;
+              },
+              font: function (ctx) {
+                var weight = forecast[ctx.index] && forecast[ctx.index].isCurrent ? '600' : '400';
+                return { family: fontFamily(), size: 11, weight: weight };
+              },
+            },
           },
           y: {
             grid: { color: c.border, drawBorder: false },

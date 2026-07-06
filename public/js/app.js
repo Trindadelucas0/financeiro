@@ -576,13 +576,125 @@ async function exportPDF() {
 
   function buildForecastSeries(fromMonth, months) {
     const nodes = [];
+    let cumulativo = 0;
     for (let i = 0; i < months; i++) {
       const mes = addMonths(fromMonth, i);
       const r = getReceitasMes(mes).total;
       const d = getDespesasMes(mes).total;
-      nodes.push({ mes: mes, mesLabel: monthLabelShort(mes), receitas: r, despesas: d, saldo: r - d });
+      const saldo = r - d;
+      cumulativo += saldo;
+      nodes.push({
+        mes: mes,
+        mesLabel: monthLabelShort(mes),
+        receitas: r,
+        despesas: d,
+        saldo: saldo,
+        isCurrent: i === 0,
+        cumulativo: cumulativo,
+        isNegative: saldo < 0,
+      });
     }
     return nodes;
+  }
+
+  function buildForecastSummary(forecast) {
+    if (!forecast.length) {
+      return { avgSaldo: 0, mesesNegativos: 0, saldoAcumulado: 0, totalReceitas: 0, totalDespesas: 0 };
+    }
+    let totalReceitas = 0;
+    let totalDespesas = 0;
+    let mesesNegativos = 0;
+    forecast.forEach(function (f) {
+      totalReceitas += f.receitas;
+      totalDespesas += f.despesas;
+      if (f.isNegative) mesesNegativos++;
+    });
+    const saldoAcumulado = forecast[forecast.length - 1].cumulativo;
+    const avgSaldo = saldoAcumulado / forecast.length;
+    return {
+      avgSaldo: avgSaldo,
+      mesesNegativos: mesesNegativos,
+      saldoAcumulado: saldoAcumulado,
+      totalReceitas: totalReceitas,
+      totalDespesas: totalDespesas,
+    };
+  }
+
+  function forecastIsEmpty(forecast) {
+    return forecast.every(function (f) { return f.receitas === 0 && f.despesas === 0; });
+  }
+
+  function renderForecastSummary(summary) {
+    const avgCls = summary.avgSaldo >= 0 ? 'val-pos' : 'val-neg';
+    const acumCls = summary.saldoAcumulado >= 0 ? 'val-pos' : 'val-neg';
+    const negCls = summary.mesesNegativos > 0 ? 'val-neg' : '';
+    return (
+      '<div class="forecast-summary">' +
+        '<div class="forecast-summary-stat">' +
+          '<span class="forecast-summary-label">Saldo médio mensal</span>' +
+          '<span class="forecast-summary-value mono ' + avgCls + '">' + formatBRL(summary.avgSaldo) + '</span>' +
+        '</div>' +
+        '<div class="forecast-summary-stat">' +
+          '<span class="forecast-summary-label">Meses negativos</span>' +
+          '<span class="forecast-summary-value mono ' + negCls + '">' + summary.mesesNegativos + '<span class="forecast-summary-of">/6</span></span>' +
+        '</div>' +
+        '<div class="forecast-summary-stat">' +
+          '<span class="forecast-summary-label">Saldo acumulado</span>' +
+          '<span class="forecast-summary-value mono ' + acumCls + '">' + formatBRL(summary.saldoAcumulado) + '</span>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function renderForecastStrip(forecast) {
+    return (
+      '<div class="forecast-strip" role="list" aria-label="Saldo projetado por mês">' +
+        forecast.map(function (f, i) {
+          const pos = f.saldo >= 0;
+          const nodeCls = 'fc-node' + (f.isCurrent ? ' fc-node--current' : '');
+          const dotCls = 'fc-dot ' + (pos ? 'pos' : 'neg');
+          const valCls = 'fc-value mono ' + (pos ? 'pos' : 'neg');
+          return (
+            '<div class="' + nodeCls + '" role="listitem" style="animation-delay:' + (i * 60) + 'ms">' +
+              '<span class="fc-line" aria-hidden="true"></span>' +
+              '<span class="' + dotCls + '" aria-hidden="true"></span>' +
+              '<span class="fc-month">' + esc(f.mesLabel) + (f.isCurrent ? ' · atual' : '') + '</span>' +
+              '<span class="' + valCls + '">' + formatBRL(f.saldo) + '</span>' +
+            '</div>'
+          );
+        }).join('') +
+      '</div>'
+    );
+  }
+
+  function renderForecastPanel(forecast) {
+    const mes = state.currentMonth;
+    const empty = forecastIsEmpty(forecast);
+    const summary = buildForecastSummary(forecast);
+
+    let bodyHtml;
+    if (empty) {
+      bodyHtml = renderChartEmpty('Cadastre lançamentos para ver a projeção.', true);
+    } else {
+      bodyHtml =
+        renderForecastSummary(summary) +
+        '<div class="chart-wrap chart-proj"><canvas id="chartProjecao" role="img" aria-label="Projeção de saldo"></canvas></div>' +
+        renderForecastStrip(forecast);
+    }
+
+    return (
+      '<div class="panel chart-panel chart-panel-proj forecast-panel dash-reveal">' +
+        '<div class="panel-head">' +
+          '<div class="forecast-panel-title">' +
+            '<h3>Projeção — próximos 6 meses</h3>' +
+            '<p class="forecast-panel-desc">Estimativa com receitas fixas, despesas fixas, parcelas e empréstimos ativos no período.</p>' +
+          '</div>' +
+          '<span class="panel-hint-pill">a partir de ' + monthLabelShort(mes) + '</span>' +
+        '</div>' +
+        bodyHtml +
+        '<p class="forecast-footnote">Inclui receitas fixas, despesas fixas, parcelas e empréstimos ativos. Variáveis não lançadas não entram. <a href="/app/previsao" class="forecast-footnote-link">Ver previsão completa</a></p>' +
+      '</div>'
+    );
   }
 
   function categoriasFromItens(itens) {
@@ -1198,12 +1310,7 @@ async function exportPDF() {
         '</div>' +
       '</div>' +
       renderOverduePanel(atrasados) +
-      '<div class="panel chart-panel chart-panel-proj dash-reveal">' +
-        '<div class="panel-head"><h3>Projeção — próximos 6 meses</h3><span class="panel-hint-pill">receitas fixas + compromissos</span></div>' +
-        (chartPayload.forecast.every(function (f) { return f.receitas === 0 && f.despesas === 0; })
-          ? renderChartEmpty('Cadastre lançamentos para ver a projeção.', true)
-          : '<div class="chart-wrap chart-proj"><canvas id="chartProjecao" role="img" aria-label="Projeção de saldo"></canvas></div>') +
-      '</div>'
+      renderForecastPanel(chartPayload.forecast)
     );
   }
 
@@ -1393,10 +1500,141 @@ async function exportPDF() {
     );
   }
 
+  function getGastoCategoriaMes(cat, mes) {
+    return getDespesasMes(mes).itens
+      .filter(function (d) { return d.categoria === cat && d.tipo !== 'emprestimo'; })
+      .reduce(function (s, d) { return s + d.valorEfetivo; }, 0);
+  }
+
+  function buildOrcamentosPreview(mes) {
+    let totalLimite = 0;
+    let totalGastoLimitado = 0;
+    let comLimite = 0;
+    const rows = CATEGORIAS_DESPESA.map(function (cat) {
+      const limite = Number(state.orcamentos[cat]) || 0;
+      const gasto = getGastoCategoriaMes(cat, mes);
+      if (limite > 0) {
+        totalLimite += limite;
+        totalGastoLimitado += gasto;
+        comLimite++;
+      }
+      const pct = limite > 0 ? Math.min(100, (gasto / limite) * 100) : 0;
+      let barCls = 'ok';
+      if (limite > 0 && gasto > limite) barCls = 'over';
+      else if (limite > 0 && pct >= 85) barCls = 'warn';
+      return { cat: cat, limite: limite, gasto: gasto, pct: pct, barCls: barCls, hasLimite: limite > 0 };
+    });
+    return { rows: rows, totalLimite: totalLimite, totalGastoLimitado: totalGastoLimitado, comLimite: comLimite };
+  }
+
+  function renderBudgetRow(row) {
+    const id = 'orc_' + row.cat.replace(/\s+/g, '_');
+    const inputVal = row.limite > 0 ? String(row.limite) : '';
+    const statusCls = row.hasLimite && row.gasto > row.limite ? ' budget-row--over' : row.hasLimite && row.pct >= 85 ? ' budget-row--warn' : '';
+    const gastoMeta = row.hasLimite
+      ? '<span class="budget-row-spent mono' + (row.gasto > row.limite ? ' val-neg' : '') + '">' + formatBRL(row.gasto) + '</span><span class="budget-row-sep">/</span><span class="budget-row-cap mono">' + formatBRL(row.limite) + '</span>'
+      : '<span class="budget-row-spent mono">' + formatBRL(row.gasto) + '</span><span class="budget-row-open">sem teto</span>';
+    const progressHtml = row.hasLimite
+      ? '<div class="bar-track budget-row-bar" aria-hidden="true"><div class="bar-fill ' + row.barCls + '" style="--bar-scale:' + (row.pct / 100).toFixed(4) + '"></div></div>'
+      : '<div class="budget-row-bar budget-row-bar--empty" aria-hidden="true"></div>';
+
+    return (
+      '<div class="budget-row' + statusCls + '">' +
+        '<div class="budget-row-info">' +
+          '<div class="budget-row-head">' +
+            '<span class="budget-cat-name">' + esc(row.cat) + '</span>' +
+            '<div class="budget-row-usage">' + gastoMeta + '</div>' +
+          '</div>' +
+          progressHtml +
+        '</div>' +
+        '<div class="budget-row-field">' +
+          '<label class="sr-only" for="' + id + '">Teto mensal — ' + esc(row.cat) + '</label>' +
+          '<div class="budget-input-wrap">' +
+            '<span class="budget-input-prefix mono" aria-hidden="true">R$</span>' +
+            '<input id="' + id + '" class="budget-input mono" type="number" step="0.01" min="0" inputmode="decimal" placeholder="Ilimitado" value="' + esc(inputVal) + '" data-cat="' + esc(row.cat) + '">' +
+          '</div>' +
+          '<button type="button" class="budget-clear-btn" aria-label="Remover limite de ' + esc(row.cat) + '" onclick="clearOrcamentoCategoria(' + JSON.stringify(row.cat) + ')" title="Remover limite">×</button>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  function renderBudgetPanel(mes) {
+    const preview = buildOrcamentosPreview(mes);
+    const pctOrcado = preview.totalLimite > 0
+      ? Math.min(100, (preview.totalGastoLimitado / preview.totalLimite) * 100)
+      : 0;
+
+    return (
+      '<div class="panel budget-panel">' +
+        '<div class="panel-head">' +
+          '<div class="budget-panel-title">' +
+            '<h3>Orçamento mensal por categoria</h3>' +
+            '<p class="budget-panel-desc">Defina tetos de gasto. O dashboard alerta quando você se aproxima ou ultrapassa o limite.</p>' +
+          '</div>' +
+          '<span class="panel-hint-pill">' + monthLabelShort(mes) + '</span>' +
+        '</div>' +
+        '<div class="budget-summary">' +
+          '<div class="budget-summary-stat">' +
+            '<span class="budget-summary-label">Categorias com teto</span>' +
+            '<span class="budget-summary-value mono">' + preview.comLimite + '<span class="budget-summary-of">/' + CATEGORIAS_DESPESA.length + '</span></span>' +
+          '</div>' +
+          '<div class="budget-summary-stat">' +
+            '<span class="budget-summary-label">Total orçado</span>' +
+            '<span class="budget-summary-value mono">' + (preview.totalLimite > 0 ? formatBRL(preview.totalLimite) : '—') + '</span>' +
+          '</div>' +
+          '<div class="budget-summary-stat">' +
+            '<span class="budget-summary-label">Gasto nas categorias com teto</span>' +
+            '<span class="budget-summary-value mono' + (preview.totalGastoLimitado > preview.totalLimite && preview.totalLimite > 0 ? ' val-neg' : '') + '">' + formatBRL(preview.totalGastoLimitado) + '</span>' +
+          '</div>' +
+        '</div>' +
+        (preview.totalLimite > 0
+          ? '<div class="budget-summary-progress">' + renderPaidProgress(pctOrcado, pctOrcado.toFixed(0) + '% do orçamento utilizado nas categorias com teto') + '</div>'
+          : '') +
+        '<form class="budget-form" onsubmit="salvarOrcamentos(event)">' +
+          '<div class="budget-list" role="list">' +
+            preview.rows.map(function (row) { return '<div role="listitem">' + renderBudgetRow(row) + '</div>'; }).join('') +
+          '</div>' +
+          '<div class="budget-form-footer">' +
+            '<p class="budget-form-hint">Deixe em branco as categorias sem limite. Os valores referem-se a despesas do mês selecionado no topo.</p>' +
+            '<button type="submit" class="btn btn-primary">Salvar orçamentos</button>' +
+          '</div>' +
+        '</form>' +
+      '</div>'
+    );
+  }
+
   function renderOrcamentos() {
-    return '<div class="section-title-row"><h2>Orçamentos &amp; Conta</h2></div><div class="panel" style="margin-bottom:16px;"><div class="panel-head"><h3>Saldo em conta</h3><span class="hint">valor manual para conciliação</span></div><form onsubmit="salvarSaldoConta(event)" class="field-row" style="align-items:end;"><div class="field" style="margin:0;"><label for="saldoContaInput">Quanto você tem agora (R$)</label><input id="saldoContaInput" type="number" step="0.01" value="' + (state.saldoConta || '') + '" required></div><button type="submit" class="btn btn-primary">Salvar saldo</button></form>' + (state.saldoContaAtualizadoEm ? '<p style="font-size:12px;color:var(--muted-2);margin:12px 0 0;">Última atualização: ' + nowLabel(state.saldoContaAtualizadoEm) + '</p>' : '') + '</div><div class="panel"><div class="panel-head"><h3>Orçamento mensal por categoria</h3><span class="hint">teto de gasto · alertas no dashboard</span></div><form onsubmit="salvarOrcamentos(event)"><div class="budget-grid">' + CATEGORIAS_DESPESA.map(function (cat) {
-      return '<div class="budget-item"><label for="orc_' + cat + '">' + esc(cat) + '</label><input id="orc_' + cat + '" type="number" step="0.01" min="0" placeholder="Sem limite" value="' + (state.orcamentos[cat] || '') + '"></div>';
-    }).join('') + '</div><div style="margin-top:16px;"><button type="submit" class="btn btn-primary">Salvar orçamentos</button></div></form></div>';
+    const mes = state.currentMonth;
+    return (
+      '<div class="section-title-row"><h2>Orçamentos &amp; Conta</h2></div>' +
+      '<div class="panel account-balance-panel" style="margin-bottom:16px;">' +
+        '<div class="panel-head"><h3>Saldo em conta</h3><span class="hint">valor manual para conciliação</span></div>' +
+        '<form onsubmit="salvarSaldoConta(event)" class="account-balance-form">' +
+          '<div class="field account-balance-field">' +
+            '<label for="saldoContaInput">Quanto você tem agora</label>' +
+            '<div class="budget-input-wrap budget-input-wrap--lg">' +
+              '<span class="budget-input-prefix mono" aria-hidden="true">R$</span>' +
+              '<input id="saldoContaInput" class="budget-input mono" type="number" step="0.01" value="' + esc(String(state.saldoConta || '')) + '" required>' +
+            '</div>' +
+          '</div>' +
+          '<button type="submit" class="btn btn-primary">Salvar saldo</button>' +
+        '</form>' +
+        (state.saldoContaAtualizadoEm
+          ? '<p class="account-balance-meta">Última atualização: ' + nowLabel(state.saldoContaAtualizadoEm) + '</p>'
+          : '') +
+      '</div>' +
+      renderBudgetPanel(mes)
+    );
+  }
+
+  function clearOrcamentoCategoria(cat) {
+    const id = 'orc_' + cat.replace(/\s+/g, '_');
+    const el = document.getElementById(id);
+    if (el) {
+      el.value = '';
+      el.focus();
+    }
   }
 
   async function salvarSaldoConta(e) {
@@ -1419,7 +1657,9 @@ async function exportPDF() {
     e.preventDefault();
     const orcamentos = {};
     CATEGORIAS_DESPESA.forEach(function (cat) {
-      const v = document.getElementById('orc_' + cat).value;
+      const id = 'orc_' + cat.replace(/\s+/g, '_');
+      const el = document.getElementById(id);
+      const v = el ? el.value : '';
       if (v) orcamentos[cat] = Number(v);
     });
     try {
@@ -2065,6 +2305,7 @@ async function exportPDF() {
   window.exportPDF = exportPDF;
   window.salvarSaldoConta = salvarSaldoConta;
   window.salvarOrcamentos = salvarOrcamentos;
+  window.clearOrcamentoCategoria = clearOrcamentoCategoria;
   window.setEntidade = setEntidade;
   window.setTipo = setTipo;
   window.setForma = setForma;
