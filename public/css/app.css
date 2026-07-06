@@ -1790,6 +1790,46 @@ dialog.modal .type-picker.duracao-picker {
   border-top: 1px solid var(--border);
 }
 
+.auth-welcome-dialog .modal-inner {
+  text-align: center;
+  max-width: 400px;
+}
+
+.auth-welcome-dialog h3 {
+  margin: 0 0 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.25rem;
+}
+
+.admin-access-grant {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-align: left;
+}
+
+.admin-access-grant-legend {
+  padding: 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.admin-access-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.admin-access-option input {
+  accent-color: var(--ice);
+}
+
 .auth-shell {
   width: 100%;
   max-width: min(100%, 420px);
