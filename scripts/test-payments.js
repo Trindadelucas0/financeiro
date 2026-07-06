@@ -220,6 +220,55 @@ async function main() {
     } catch (e) { fail('Painel após assinatura', e); }
   }
 
+  // 10.2 renewalDueSoon com 3 dias restantes
+  if (userToken) {
+    try {
+      const { getPool } = require('../src/db/pool');
+      const pool = getPool();
+      await pool.query(
+        `UPDATE users
+         SET plan = 'pro', subscription_status = 'active',
+             subscription_current_period_end = NOW() + INTERVAL '3 days'
+         WHERE email = 'testpay@local.dev'`,
+      );
+      const me = await request('/api/auth/me', { token: userToken });
+      assert(me.data.subscription.isPro, 'deveria ser Pro');
+      assert(me.data.subscription.renewalDueSoon === true, 'renewalDueSoon true');
+      assert(
+        me.data.subscription.daysUntilExpiry >= 2 && me.data.subscription.daysUntilExpiry <= 4,
+        `daysUntilExpiry esperado ~3, got ${me.data.subscription.daysUntilExpiry}`,
+      );
+      pass('renewalDueSoon com 3 dias restantes');
+    } catch (e) { fail('renewalDueSoon 3 dias', e); }
+  }
+
+  // 10.3 renewalDueSoon false com 10 dias
+  if (userToken) {
+    try {
+      const { getPool } = require('../src/db/pool');
+      const pool = getPool();
+      await pool.query(
+        `UPDATE users
+         SET subscription_current_period_end = NOW() + INTERVAL '10 days'
+         WHERE email = 'testpay@local.dev'`,
+      );
+      const me = await request('/api/auth/me', { token: userToken });
+      assert(me.data.subscription.renewalDueSoon === false, 'renewalDueSoon false');
+      assert(me.data.subscription.daysUntilExpiry >= 9, 'daysUntilExpiry >= 9');
+      pass('renewalDueSoon false com 10 dias restantes');
+    } catch (e) { fail('renewalDueSoon 10 dias', e); }
+  }
+
+  // 10.4 Admin sem renewalDueSoon
+  if (adminToken) {
+    try {
+      const me = await request('/api/auth/me', { token: adminToken });
+      assert(me.data.subscription.isPro, 'admin isPro');
+      assert(me.data.subscription.renewalDueSoon === false, 'admin renewalDueSoon false');
+      pass('Admin sem aviso de renovação');
+    } catch (e) { fail('Admin renewalDueSoon', e); }
+  }
+
   // 10.1 Bloqueio após expiração simulada
   if (userToken) {
     try {

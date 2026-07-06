@@ -2540,6 +2540,65 @@ dialog.modal .type-picker.duracao-picker {
   color: var(--muted);
 }
 
+.renewal-topbar {
+  margin: 0;
+  padding: 10px 16px;
+  background: oklch(0.22 0.03 75 / 0.45);
+  border-bottom: 1px solid oklch(0.55 0.1 75 / 0.35);
+}
+
+.renewal-topbar-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+  font-size: 13px;
+}
+
+.renewal-topbar-text {
+  color: var(--text);
+}
+
+.renewal-topbar-cta {
+  font-weight: 600;
+  color: var(--ice, #e8f4f8);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.renewal-topbar-cta:hover {
+  opacity: 0.9;
+}
+
+.renewal-dash-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid oklch(0.55 0.1 75 / 0.35);
+  background: oklch(0.22 0.03 75 / 0.25);
+}
+
+.renewal-dash-text {
+  margin: 0;
+  flex: 1 1 200px;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.renewal-dash-text strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
 .plan-meta {
   display: flex;
   flex-wrap: wrap;
