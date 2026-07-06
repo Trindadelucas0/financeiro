@@ -83,11 +83,11 @@
       }
 
       if (grantType === 'lifetime') {
-        title.textContent = 'Acesso vitalício liberado!';
-        message.textContent = 'Você recebeu acesso vitalício ao painel. Agora defina sua senha pessoal para continuar.';
+        title.textContent = 'Bem-vindo(a)!';
+        message.textContent = 'Seu cadastro foi feito manualmente e você tem acesso vitalício ao painel. Defina sua senha pessoal para continuar.';
       } else {
-        title.textContent = 'Você ganhou 30 dias grátis!';
-        message.textContent = 'Seu acesso Pro está liberado por 30 dias. Defina sua senha para entrar no painel.';
+        title.textContent = 'Bem-vindo(a)!';
+        message.textContent = 'Seu cadastro foi feito manualmente pela nossa equipe. Defina sua senha pessoal para acessar o painel.';
       }
 
       function closeModal() {

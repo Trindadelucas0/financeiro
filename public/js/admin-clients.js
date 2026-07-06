@@ -103,7 +103,7 @@
       '</div>' +
 
       '<div class="section-title-row"><h2>Clientes</h2><button type="button" class="btn btn-primary btn-sm" onclick="openClientModal()">+ Novo cliente</button></div>' +
-      '<p class="hint admin-clients-hint">Cadastre quem paga direto para você. Escolha vitalício ou 30 dias grátis; depois renove com &quot;Registrar pagamento&quot;.</p>' +
+      '<p class="hint admin-clients-hint">Cadastre quem paga direto para você. Escolha vitalício ou acesso inicial de 30 dias; depois renove com &quot;Registrar pagamento&quot;.</p>' +
       '<div class="panel"><div class="table-wrap"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Status</th><th>Vencimento</th><th>Cadastro</th><th></th></tr></thead><tbody>' +
       (clients.length === 0
         ? '<tr><td colspan="6"><div class="empty-state">Nenhum cliente manual cadastrado.</div></td></tr>'
@@ -185,7 +185,7 @@
         '<div class="field"><label for="c_password">Senha <span class="hint">(opcional — gerada automaticamente se vazio)</span></label><input id="c_password" type="password" minlength="6" autocomplete="new-password"></div>' +
         '<fieldset class="field admin-access-grant">' +
           '<legend class="admin-access-grant-legend">Tipo de acesso</legend>' +
-          '<label class="admin-access-option"><input type="radio" name="c_access_grant" value="trial" checked> 30 dias grátis</label>' +
+          '<label class="admin-access-option"><input type="radio" name="c_access_grant" value="trial" checked> Acesso inicial (30 dias)</label>' +
           '<label class="admin-access-option"><input type="radio" name="c_access_grant" value="lifetime"> Vitalício</label>' +
         '</fieldset>' +
         '<p class="hint">No primeiro login, a pessoa verá a mensagem de boas-vindas e definirá uma nova senha.</p>' +
@@ -219,7 +219,7 @@
         } else if (data.accessGrant === 'lifetime') {
           toast('Cliente criado com acesso vitalício');
         } else {
-          toast('Cliente criado com 30 dias grátis');
+          toast('Cliente criado com acesso inicial de 30 dias');
         }
       } catch (err) {
         toast(err.message, 'error');
