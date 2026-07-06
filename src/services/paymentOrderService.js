@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const { getPool } = require('../db/pool');
 
 async function createOrder({ userId, orderNsu, amountCents, checkoutSource = 'profile' }) {
@@ -54,10 +55,26 @@ async function linkOrderToUser(orderNsu, userId) {
   );
 }
 
+async function createManualPaidOrder({ userId, customerNome, customerEmail, amountCents }) {
+  const pool = getPool();
+  const orderNsu = `manual-${crypto.randomUUID()}`;
+  const { rows } = await pool.query(
+    `INSERT INTO payment_orders (
+       user_id, order_nsu, amount_cents, status,
+       customer_nome, customer_email, checkout_source, paid_at
+     )
+     VALUES ($1, $2, $3, 'paid', $4, $5, 'manual', NOW())
+     RETURNING *`,
+    [userId, orderNsu, amountCents, customerNome, customerEmail],
+  );
+  return rows[0];
+}
+
 module.exports = {
   createOrder,
   createGuestOrder,
   getOrderByNsu,
   markOrderPaid,
   linkOrderToUser,
+  createManualPaidOrder,
 };

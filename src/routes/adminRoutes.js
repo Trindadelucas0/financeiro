@@ -10,6 +10,9 @@ router.use(authJwt, requireAdmin);
 router.post('/users', adminController.createUser);
 router.get('/users', adminController.listUsers);
 router.patch('/users/:id', adminController.patchUser);
+router.get('/clients', adminController.listClients);
+router.post('/clients', adminController.createClient);
+router.post('/clients/:id/payments', adminController.registerClientPayment);
 router.get('/feedback', adminController.listFeedback);
 router.patch('/feedback/:id', adminController.patchFeedback);
 

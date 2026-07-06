@@ -182,6 +182,29 @@ ALTER TABLE payment_orders ADD COLUMN IF NOT EXISTS checkout_source VARCHAR(20) 
 ALTER TABLE payment_orders ALTER COLUMN user_id DROP NOT NULL;
 
 ALTER TABLE emprestimos ADD COLUMN IF NOT EXISTS dia_vencimento INTEGER;
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS billing_source VARCHAR(20) NOT NULL DEFAULT 'site';
+
+DO $$ DECLARE r RECORD; BEGIN
+  FOR r IN
+    SELECT c.conname
+    FROM pg_constraint c
+    JOIN pg_class t ON c.conrelid = t.oid
+    WHERE t.relname = 'payment_orders'
+      AND c.contype = 'c'
+      AND pg_get_constraintdef(c.oid) LIKE '%checkout_source%'
+  LOOP
+    EXECUTE format('ALTER TABLE payment_orders DROP CONSTRAINT %I', r.conname);
+  END LOOP;
+END $$;
+
+DO $$ BEGIN
+  ALTER TABLE payment_orders ADD CONSTRAINT payment_orders_checkout_source_check
+    CHECK (checkout_source IN ('guest', 'profile', 'manual'));
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_users_billing_source ON users(billing_source);
 `;
 
 async function backfillUsernames(client) {

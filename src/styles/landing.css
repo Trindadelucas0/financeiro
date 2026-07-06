@@ -183,6 +183,7 @@
 
   /* --- App-faithful previews (scoped; usa --color-* do Tailwind, não depende de tokens.css) --- */
   .landing-preview {
+    position: relative;
     font-family: var(--font-sans);
     color: var(--color-text);
     background: var(--color-surface);
@@ -190,6 +191,23 @@
     border-radius: 14px;
     padding: 16px;
     box-shadow: 0 24px 80px oklch(0 0 0 / 0.45);
+  }
+
+  .landing-preview-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 2;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    pointer-events: none;
   }
 
   .landing-preview--hero {
@@ -434,6 +452,16 @@
 
   .landscape-only-hint {
     display: none;
+  }
+
+  .landscape-only-hint-link {
+    color: var(--color-ice);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .landscape-only-hint-link:hover {
+    color: var(--color-text);
   }
 
   /* Mobile mock */

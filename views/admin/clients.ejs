@@ -2,29 +2,29 @@
 <html lang="pt-BR">
 <head>
   <%- include('../partials/head') %>
-  <title>Usuários · Admin</title>
+  <title>Clientes manuais · Admin</title>
 </head>
-<body class="layout-desktop admin-page" data-page="admin-users">
+<body class="layout-desktop admin-page" data-page="admin-clients">
   <div class="app">
     <header class="topbar">
       <a href="/app/dashboard" class="brand" aria-label="Home Finanças — ir ao dashboard">
         <%- include('../partials/brand-logo') %>
-        <span class="brand-greeting">Gerenciar usuários</span>
+        <span class="brand-greeting">Clientes manuais</span>
       </a>
       <div class="actions-row">
-        <a href="/admin/clients" class="btn btn-ghost btn-sm">Clientes manuais</a>
+        <a href="/admin/users" class="btn btn-ghost btn-sm">Usuários</a>
         <a href="/app/dashboard" class="btn btn-ghost btn-sm">Voltar ao app</a>
         <button type="button" class="btn btn-ghost btn-sm" id="logoutBtn">Sair</button>
       </div>
     </header>
 
-    <main id="adminView" role="main" aria-busy="true">
-      <div class="loading-state">Carregando usuários…</div>
+    <main id="adminClientsView" role="main" aria-busy="true">
+      <div class="loading-state">Carregando clientes…</div>
     </main>
   </div>
 
-  <dialog class="modal" id="userModal" aria-labelledby="userModalTitle">
-    <div class="modal-inner" id="userModalBody"></div>
+  <dialog class="modal" id="clientModal" aria-labelledby="clientModalTitle">
+    <div class="modal-inner" id="clientModalBody"></div>
   </dialog>
 
   <dialog class="modal modal-confirm" id="confirmDialog" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
@@ -44,7 +44,7 @@
   <script src="/js/auth.js"></script>
   <script src="/js/pwa.js"></script>
   <script src="/js/ui.js"></script>
-  <script src="/js/admin.js"></script>
+  <script src="/js/admin-clients.js"></script>
   <%- include('../partials/sw-register') %>
 </body>
 </html>

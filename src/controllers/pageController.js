@@ -55,6 +55,10 @@ function adminUsers(req, res) {
   res.render('admin/users', { title: 'Usuários — Admin' });
 }
 
+function adminClients(req, res) {
+  res.render('admin/clients', { title: 'Clientes manuais — Admin' });
+}
+
 function landingPage(req, res) {
   const shots = {
     dashboard: landingShot('dashboard-desktop'),
@@ -90,6 +94,7 @@ module.exports = {
   appPrevisao,
   appPerfil,
   adminUsers,
+  adminClients,
   landingPage,
   redirectApp,
   notFoundPage,

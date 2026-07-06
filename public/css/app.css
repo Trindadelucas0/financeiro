@@ -1930,6 +1930,10 @@ dialog.modal .type-picker.duracao-picker {
 
 .status-pill.active { background: var(--green-dim); color: var(--green); }
 .status-pill.inactive { background: var(--red-dim); color: var(--red); }
+.status-pill.warning { background: rgba(245, 158, 11, 0.15); color: #d97706; }
+
+.admin-clients-summary { margin-bottom: 20px; }
+.admin-clients-hint { margin: -8px 0 16px; }
 
 .mobile-only { display: none; }
 @media (max-width: 768px) { .mobile-only { display: block; } }

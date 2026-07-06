@@ -397,9 +397,11 @@
     if (logoutBtn) logoutBtn.addEventListener('click', logout);
 
     const adminLink = document.getElementById('adminLink');
+    const adminClientsLink = document.getElementById('adminClientsLink');
     const user = getUser();
-    if (adminLink && user && user.role === 'admin') {
-      adminLink.hidden = false;
+    if (user && user.role === 'admin') {
+      if (adminLink) adminLink.hidden = false;
+      if (adminClientsLink) adminClientsLink.hidden = false;
     }
   }
 

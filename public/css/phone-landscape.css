@@ -3,11 +3,14 @@
 /* --- Landing: celular em paisagem (mesma lógica de phone-landscape.js) --- */
 html.is-phone-landscape .landing-showcase {
   position: fixed;
-  inset: 0;
-  z-index: 25;
-  min-height: 100dvh;
-  height: 100dvh;
-  padding: 8px 0;
+  top: 52px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 15;
+  min-height: 0;
+  height: auto;
+  padding: 8px 0 10px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -15,7 +18,10 @@ html.is-phone-landscape .landing-showcase {
   background: oklch(0.09 0 0);
 }
 
-html.is-phone-landscape #landingNav,
+html.is-phone-landscape #landingNav {
+  z-index: 30;
+}
+
 html.is-phone-landscape .landing-showcase-caption {
   display: none !important;
 }
@@ -45,10 +51,18 @@ html.is-phone-landscape .landing-showcase .landing-reveal {
 html.is-phone-landscape .landscape-only-hint {
   display: block;
   flex-shrink: 0;
-  margin-top: 4px;
+  margin-top: 6px;
+  padding-inline: 8px;
   font-size: 11px;
+  line-height: 1.4;
   color: oklch(0.52 0.01 240);
   text-align: center;
+}
+
+html.is-phone-landscape .landscape-only-hint-link {
+  color: oklch(0.94 0.008 240);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 html.is-phone-landscape .landing-preview {
@@ -88,6 +102,7 @@ html.is-phone-landscape .landing-preview .chart-panel-fluxo .panel-head {
   flex-shrink: 0;
   margin-bottom: 8px;
   padding-bottom: 6px;
+  padding-right: 108px;
 }
 
 html.is-phone-landscape .landing-preview .mock-chart-bars {

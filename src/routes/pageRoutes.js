@@ -16,5 +16,6 @@ router.get('/app/previsao', pageController.appPrevisao);
 router.get('/app/perfil', pageController.appPerfil);
 
 router.get('/admin/users', pageController.adminUsers);
+router.get('/admin/clients', pageController.adminClients);
 
 module.exports = router;

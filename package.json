@@ -8,6 +8,7 @@
     "dev": "node scripts/dev.js",
     "migrate": "node src/db/migrate.js",
     "test:payments": "node scripts/test-payments.js",
+    "test:admin-clients": "node scripts/test-admin-clients.js",
     "test:production": "node scripts/test-production.js",
     "build:css": "tailwindcss -i ./src/styles/landing.css -o ./public/css/landing.css --minify",
     "build:icons": "node scripts/generate-pwa-icons.js",
