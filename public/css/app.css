@@ -55,7 +55,10 @@ a.brand:focus-visible {
 
 .topbar .brand-logo,
 .mobile-brand .brand-logo {
-  filter: drop-shadow(0 0 14px var(--ice-glow));
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 8px var(--ice-glow)) drop-shadow(0 0 20px var(--ice-glow));
+  object-fit: contain;
+  object-position: left center;
 }
 
 .brand-logo-lg {
@@ -147,8 +150,8 @@ a.brand:focus-visible {
 
   .topbar .brand-logo {
     width: auto;
-    height: 80px;
-    max-width: 260px;
+    height: 96px;
+    max-width: 300px;
     object-fit: contain;
     object-position: left center;
   }
@@ -764,7 +767,7 @@ tbody tr:hover { background: var(--surface-2); }
 
   .topbar {
     display: grid;
-    grid-template-columns: minmax(64px, 88px) minmax(0, 1fr) 40px;
+    grid-template-columns: minmax(88px, 116px) minmax(0, 1fr) 40px;
     align-items: center;
     gap: 8px;
     margin-bottom: 10px;
@@ -778,9 +781,9 @@ tbody tr:hover { background: var(--surface-2); }
 
   .topbar .brand-logo {
     width: 100%;
-    max-width: 104px;
+    max-width: 128px;
     height: auto;
-    max-height: 48px;
+    max-height: 58px;
     object-fit: contain;
     object-position: left center;
   }
