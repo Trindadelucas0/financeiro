@@ -1,7 +1,7 @@
 (function () {
   'use strict';
 
-  const { apiFetch, getUser, setSession, getToken } = window.FinanceAPI;
+  const { apiFetch, getUser, setSession, getToken, getSubscription, getPricing } = window.FinanceAPI;
 
   let usernameOk = true;
   let usernameCheckTimer = null;
@@ -258,7 +258,146 @@
     loadAdminFeedbackList();
   }
 
-  function renderProfile(user) {
+  function formatPlanDate(iso) {
+    if (!iso) return '';
+    try {
+      return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch {
+      return '';
+    }
+  }
+
+  function planStatusLabel(status) {
+    if (status === 'active') return 'Ativo';
+    if (status === 'expired') return 'Expirado';
+    return status || 'Gratuito';
+  }
+
+  function renderPlanSection(subscription, pricing) {
+    const sub = subscription || { plan: 'free', status: null, isPro: false };
+    const price = (pricing && pricing.label) || 'R$ 9,90 · 30 dias';
+    const access = (pricing && pricing.accessLabel) || '30 dias de acesso';
+    const fullLabel = (pricing && pricing.subline) || price;
+    const isPro = Boolean(sub.isPro);
+    const badgeClass = isPro ? 'plan-badge plan-badge-pro' : 'plan-badge plan-badge-free';
+    const badgeText = isPro ? 'Pro' : 'Gratuito';
+    const renewal = sub.currentPeriodEnd ? formatPlanDate(sub.currentPeriodEnd) : '';
+
+    let body = '';
+    if (isPro) {
+      body =
+        '<p class="profile-hint">Acesso Pro ativo — relatório PDF, previsão e recursos premium liberados.</p>' +
+        '<p class="plan-meta">' +
+          '<span class="plan-status">' + esc(planStatusLabel(sub.status)) + '</span>' +
+          (renewal ? '<span class="plan-renewal">Válido até ' + esc(renewal) + '</span>' : '') +
+        '</p>' +
+        '<button type="button" class="btn btn-primary btn-sm" id="planCheckoutBtn">Renovar acesso</button>';
+    } else {
+      body =
+        '<p class="profile-hint">' + esc(price) + '. Libere PDF, previsão e recursos Pro.</p>' +
+        '<p class="plan-meta">' +
+          '<span class="plan-price">' + esc(fullLabel) + '</span>' +
+        '</p>' +
+        '<button type="button" class="btn btn-primary btn-sm" id="planCheckoutBtn">Liberar acesso — ' + esc((pricing && pricing.priceShort) || 'R$ 9,90') + '</button>';
+    }
+
+    return (
+      '<section class="panel profile-section profile-section-plan">' +
+        '<div class="panel-head"><h3>Plano</h3><span class="' + badgeClass + '">' + badgeText + '</span></div>' +
+        body +
+      '</section>'
+    );
+  }
+
+  async function startCheckout() {
+    const btn = document.getElementById('planCheckoutBtn');
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Abrindo checkout…';
+    }
+    try {
+      const data = await apiFetch('/api/payments/checkout', { method: 'POST', body: {} });
+      if (data && data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      throw new Error('URL de checkout não retornada');
+    } catch (err) {
+      const msg = err.status === 503
+        ? 'Pagamentos em configuração. Tente novamente mais tarde.'
+        : (err.message || 'Não foi possível iniciar o checkout');
+      toast(msg, 'error');
+      if (btn) {
+        btn.disabled = false;
+        const pricing = getPricing();
+        btn.textContent = subIsPro() ? 'Renovar acesso' : ('Liberar acesso — ' + ((pricing && pricing.priceShort) || 'R$ 9,90'));
+      }
+    }
+  }
+
+  function subIsPro() {
+    const sub = getSubscription();
+    return sub && sub.isPro;
+  }
+
+  async function confirmPaymentFromRedirect(params) {
+    const orderNsu = params.get('order_nsu');
+    const transactionNsu = params.get('transaction_nsu');
+    const slug = params.get('slug');
+
+    if (!orderNsu) return false;
+
+    try {
+      const data = await apiFetch('/api/payments/confirm', {
+        method: 'POST',
+        body: {
+          order_nsu: orderNsu,
+          transaction_nsu: transactionNsu || undefined,
+          slug: slug || undefined,
+        },
+      });
+      if (data && data.subscription) {
+        setSession(getToken(), getUser(), data.subscription, data.pricing || getPricing());
+      }
+      return true;
+    } catch (err) {
+      if (err.status !== 402) {
+        toast(err.message || 'Não foi possível confirmar o pagamento', 'error');
+      }
+      return false;
+    }
+  }
+
+  async function handleCheckoutQuery() {
+    const params = new URLSearchParams(window.location.search);
+    const checkout = params.get('checkout');
+    if (!checkout) return;
+
+    if (checkout === 'success') {
+      toast('Pagamento recebido! Confirmando seu acesso…');
+      await confirmPaymentFromRedirect(params);
+      try {
+        const data = await apiFetch('/api/auth/me');
+        if (data) {
+          setSession(getToken(), data.user, data.subscription || null, data.pricing || null);
+        }
+      } catch (_) { /* ignore */ }
+    } else if (checkout === 'cancel') {
+      toast('Checkout cancelado', 'error');
+    }
+
+    params.delete('checkout');
+    params.delete('order_nsu');
+    params.delete('transaction_nsu');
+    params.delete('slug');
+    params.delete('receipt_url');
+    params.delete('capture_method');
+    const qs = params.toString();
+    const next = window.location.pathname + (qs ? '?' + qs : '');
+    window.history.replaceState({}, '', next);
+  }
+
+  function renderProfile(user, subscription, pricing) {
     const view = document.getElementById('view');
     if (!view || !user) return;
 
@@ -274,6 +413,8 @@
             '<p class="profile-email">' + esc(user.email) + '</p>' +
           '</div>' +
         '</header>' +
+
+        renderPlanSection(subscription, pricing) +
 
         '<section class="panel profile-section profile-section-account">' +
           '<div class="panel-head"><h3>Nome de usuário</h3><span class="panel-hint-pill">login</span></div>' +
@@ -338,6 +479,9 @@
     bindProfileEvents(user);
     if (user.role === 'admin') bindAdminEvents();
     updatePwaUi();
+
+    const checkoutBtn = document.getElementById('planCheckoutBtn');
+    if (checkoutBtn) checkoutBtn.addEventListener('click', startCheckout);
   }
 
   function updatePwaUi() {
@@ -380,9 +524,9 @@
             username: normalizeUsernameInput(document.getElementById('pf_username').value),
           },
         });
-        setSession(getToken(), data.user);
+        setSession(getToken(), data.user, getSubscription());
         if (window.FinanceAuth) FinanceAuth.updateUserUi(data.user);
-        renderProfile(data.user);
+        renderProfile(data.user, getSubscription(), getPricing());
         toast('Conta salva');
       } catch (err) {
         toast(err.message, 'error');
@@ -463,11 +607,12 @@
 
   async function loadCurrentUser() {
     if (window.FinanceAuth && typeof FinanceAuth.refreshSession === 'function') {
-      return FinanceAuth.refreshSession();
+      await FinanceAuth.refreshSession();
+      return getUser();
     }
     const data = await apiFetch('/api/auth/me');
     if (data && data.user) {
-      setSession(getToken(), data.user);
+      setSession(getToken(), data.user, data.subscription || null, data.pricing || null);
       if (window.FinanceAuth && FinanceAuth.updateUserUi) FinanceAuth.updateUserUi(data.user);
       return data.user;
     }
@@ -477,13 +622,15 @@
   async function initPerfil() {
     if (!window.FinanceAuth || !FinanceAuth.requireAuth()) return;
     FinanceAuth.initAppAuth();
+    await handleCheckoutQuery();
 
     const view = document.getElementById('view');
     if (view) view.setAttribute('aria-busy', 'true');
 
     try {
-      const user = await loadCurrentUser();
-      renderProfile(user || getUser());
+      await loadCurrentUser();
+      const user = getUser();
+      renderProfile(user, getSubscription(), getPricing());
     } catch (err) {
       if (view) {
         view.innerHTML = '<div class="empty-state">' + esc(err.message) + '</div>';

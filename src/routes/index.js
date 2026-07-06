@@ -3,6 +3,7 @@ const authRoutes = require('./authRoutes');
 const adminRoutes = require('./adminRoutes');
 const financeRoutes = require('./financeRoutes');
 const feedbackRoutes = require('./feedbackRoutes');
+const paymentRoutes = require('./paymentRoutes');
 const pageRoutes = require('./pageRoutes');
 const pageController = require('../controllers/pageController');
 
@@ -13,6 +14,7 @@ router.use('/api/auth', authRoutes);
 router.use('/api/admin', adminRoutes);
 router.use('/api/finance', financeRoutes);
 router.use('/api/feedback', feedbackRoutes);
+router.use('/api/payments', paymentRoutes);
 
 router.use((req, res) => {
   if (req.path.startsWith('/api/')) {

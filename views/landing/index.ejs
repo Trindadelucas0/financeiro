@@ -25,7 +25,7 @@
     <!-- Hero -->
     <section class="mx-auto max-w-6xl px-5 pb-16 pt-10 sm:px-8 sm:pb-24 sm:pt-16 lg:pb-28">
       <div class="grid items-center gap-12 lg:grid-cols-[1.1fr_0.9fr] lg:gap-16">
-        <div class="landing-reveal max-w-xl">
+        <div class="landing-reveal is-visible max-w-xl">
           <%- include('../partials/brand-logo', { logoSize: 'hero' }) %>
 
           <h1 class="mt-6 font-display text-balance text-[clamp(2rem,5vw,3.75rem)] font-bold leading-[1.08] tracking-[-0.03em] text-text sm:mt-8">
@@ -46,11 +46,12 @@
           </div>
         </div>
 
-        <div class="landing-reveal" style="transition-delay: 80ms;">
+        <div class="landing-reveal is-visible" style="transition-delay: 80ms;">
           <%- include('../partials/landing/screenshot-slot', {
             src: typeof shots !== 'undefined' ? shots.dashboard : null,
             alt: 'Dashboard Home Finanças — saldo, receitas e despesas',
-            fallbackPartial: 'mock-bento'
+            fallbackPartial: 'mock-bento-hero',
+            previewModifier: 'landing-preview--hero'
           }) %>
         </div>
       </div>

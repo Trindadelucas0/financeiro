@@ -2,6 +2,8 @@ const bcrypt = require('bcryptjs');
 const { getPool } = require('../db/pool');
 const { signToken } = require('../utils/jwt');
 const { mapUser } = require('../services/profileService');
+const subscriptionService = require('./subscriptionService');
+const { getProPlanPricing } = require('../config/plan');
 
 function isEmailIdentifier(value) {
   return String(value || '').includes('@');
@@ -54,14 +56,17 @@ async function login(identifier, password) {
   };
 
   const token = signToken(payload);
+  const subscription = subscriptionService.mapSubscription(user);
 
-  return { token, user: mapUser(user) };
+  return { token, user: mapUser(user), subscription, pricing: getProPlanPricing() };
 }
 
 async function getMe(userId) {
   const pool = getPool();
   const { rows } = await pool.query(
-    'SELECT id, nome, username, email, role, ativo, created_at FROM users WHERE id = $1 LIMIT 1',
+    `SELECT id, nome, username, email, role, ativo, created_at,
+            plan, subscription_status, subscription_current_period_end
+     FROM users WHERE id = $1 LIMIT 1`,
     [userId],
   );
 
@@ -77,7 +82,11 @@ async function getMe(userId) {
     throw err;
   }
 
-  return mapUser(rows[0]);
+  return {
+    user: mapUser(rows[0]),
+    subscription: subscriptionService.mapSubscription(rows[0]),
+    pricing: getProPlanPricing(),
+  };
 }
 
 module.exports = { login, getMe };

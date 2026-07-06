@@ -1,6 +1,7 @@
 const express = require('express');
 const financeController = require('../controllers/financeController');
 const { authJwt } = require('../middleware/authJwt');
+const { requirePro } = require('../middleware/requirePro');
 
 const router = express.Router();
 
@@ -32,6 +33,6 @@ router.put('/orcamentos', financeController.putOrcamentos);
 
 router.get('/dashboard', financeController.getDashboard);
 router.get('/previsao', financeController.getPrevisao);
-router.get('/export/pdf', financeController.exportPdf);
+router.get('/export/pdf', requirePro, financeController.exportPdf);
 
 module.exports = router;

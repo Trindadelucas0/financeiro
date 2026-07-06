@@ -1,0 +1,187 @@
+# InfinitePay — configuração do plano Pro
+
+Este guia lista os passos manuais para habilitar pagamentos via InfinitePay Checkout. O código do app (checkout, webhook, gate do PDF) já está implementado.
+
+**Produção:** [https://cashome.avadesk.com.br/](https://cashome.avadesk.com.br/)
+
+---
+
+## Resumo rápido
+
+1. Criar conta InfinitePay e obter sua **InfiniteTag** (`handle`)
+2. Cadastrar `https://cashome.avadesk.com.br` no Checkout Integrado
+3. Copiar [`.env.production.example`](../.env.production.example) para `.env` na VPS
+4. Testar pagamento e exportação PDF
+
+---
+
+## Modelo de cobrança
+
+- **R$ 9,90** por **30 dias** de acesso Pro
+- Sem trial, sem assinatura recorrente automática
+- Ao expirar, o usuário volta ao plano Gratuito e pode **Renovar acesso** no perfil
+
+---
+
+## 1. Criar conta InfinitePay
+
+1. Baixe o app ou acesse [https://www.infinitepay.io](https://www.infinitepay.io)
+2. Complete o cadastro
+3. Anote sua **InfiniteTag** (ex.: `$lucas-rodrigues-740` → use `lucas-rodrigues-740` no `.env`)
+
+---
+
+## 2. Ativar Checkout Integrado
+
+1. App InfinitePay → **Vendas** → **Checkout**
+2. Cadastre a URL do site:
+   - **Produção:** `https://cashome.avadesk.com.br`
+   - Dev (opcional): `http://localhost:3538`
+3. Salve
+
+Documentação oficial: [Como usar o Checkout da InfinitePay](https://ajuda.infinitepay.io/pt-BR/articles/10766888-como-usar-o-checkout-da-infinitepay)
+
+### URLs geradas automaticamente pelo app (produção)
+
+| Uso | URL |
+|---|---|
+| Redirect após pagamento | `https://cashome.avadesk.com.br/app/perfil?checkout=success` |
+| Webhook | `https://cashome.avadesk.com.br/api/payments/webhook` |
+
+---
+
+## 3. Preencher o `.env`
+
+### Desenvolvimento local
+
+No [`.env`](../.env):
+
+```env
+APP_URL=http://localhost:3538
+INFINITEPAY_HANDLE=lucas-rodrigues-740
+```
+
+### Produção (VPS)
+
+Copie [`.env.production.example`](../.env.production.example) para `.env` no servidor:
+
+```env
+APP_URL=https://cashome.avadesk.com.br
+INFINITEPAY_HANDLE=lucas-rodrigues-740
+JWT_SECRET=<string-longa-aleatoria>
+# ... demais variáveis de banco e admin
+```
+
+**Importante:** não use o domínio de produção no `.env` local — o checkout redirecionaria para o site ao vivo.
+
+Reinicie o servidor após alterar:
+
+```bash
+npm run dev    # local
+npm start      # VPS
+```
+
+---
+
+## 4. Webhook (produção)
+
+Em desenvolvimento local, a confirmação usa o **redirect** (`/app/perfil?checkout=success`) com `payment_check` como fallback.
+
+Em produção, o webhook recebe notificações em tempo real:
+
+- URL: `https://cashome.avadesk.com.br/api/payments/webhook`
+- O app responde `200 OK` ao receber pagamento aprovado
+
+Para testar webhook em dev, use um túnel (ngrok, Cloudflare Tunnel) apontando para `localhost:3538`.
+
+---
+
+## 5. Deploy na VPS
+
+1. Proxy reverso (nginx/caddy): `https://cashome.avadesk.com.br` → `http://127.0.0.1:3538`
+2. HTTPS válido (Let's Encrypt)
+3. Na VPS:
+
+```bash
+npm install
+npm run migrate
+npm start
+```
+
+---
+
+## 6. Testar o fluxo completo
+
+### Produção
+
+1. Acesse [https://cashome.avadesk.com.br/login](https://cashome.avadesk.com.br/login)
+2. Vá em **Meu perfil**
+3. Clique **Liberar acesso — R$ 9,90**
+4. Complete o checkout InfinitePay (Pix ou cartão)
+5. Volte ao app → badge **Pro** e data de validade (+30 dias)
+6. Exporte o **relatório PDF** — deve baixar sem erro 402
+
+### Local
+
+1. `npm run dev`
+2. Login em `http://localhost:3538/login`
+3. Mesmos passos acima
+
+### Conferir no banco (opcional)
+
+```sql
+SELECT email, plan, subscription_status, subscription_current_period_end
+FROM users
+WHERE email = 'seu@email.com';
+
+SELECT order_nsu, status, paid_at
+FROM payment_orders
+ORDER BY created_at DESC
+LIMIT 5;
+```
+
+---
+
+## Troubleshooting
+
+### "Pagamentos em configuração" ao clicar Liberar acesso
+
+- `INFINITEPAY_HANDLE` vazio no `.env`
+- Reinicie o servidor após preencher
+
+### Checkout abre mas plano continua Gratuito
+
+- Pagamento ainda não confirmado — aguarde e recarregue o perfil
+- Em dev, o redirect com `order_nsu` na URL dispara `/api/payments/confirm`
+- Em produção, confira se o webhook está acessível
+
+### Exportar PDF retorna erro de plano Pro
+
+- Acesso expirou (`subscription_current_period_end` no passado)
+- Faça logout/login ou abra perfil
+- Admin sempre tem acesso Pro
+
+### Erro na API InfinitePay
+
+- `handle` incorreto — confira a InfiniteTag no app
+- URL `https://cashome.avadesk.com.br` não cadastrada no Checkout Integrado
+- Valor do item em **centavos** (990 = R$ 9,90)
+
+---
+
+## Referência das rotas
+
+| Método | Rota | Função |
+|---|---|---|
+| `GET` | `/api/payments/subscription` | Status do plano |
+| `POST` | `/api/payments/checkout` | Gera link InfinitePay |
+| `POST` | `/api/payments/confirm` | Confirma pagamento no redirect |
+| `POST` | `/api/payments/webhook` | Notificação InfinitePay |
+| `GET` | `/api/finance/export/pdf` | PDF (requer Pro) |
+
+---
+
+## Suporte
+
+- InfinitePay Checkout: [https://www.infinitepay.io/checkout](https://www.infinitepay.io/checkout)
+- Central de Ajuda: [https://ajuda.infinitepay.io](https://ajuda.infinitepay.io)

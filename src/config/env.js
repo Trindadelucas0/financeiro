@@ -34,6 +34,8 @@ function loadEnv() {
     throw new Error('JWT_SECRET deve ter pelo menos 8 caracteres');
   }
 
+  const appUrl = (process.env.APP_URL || `http://localhost:${port}`).replace(/\/$/, '');
+
   return {
     pg: {
       host: process.env.PGHOST,
@@ -50,6 +52,12 @@ function loadEnv() {
       email: process.env.ADMIN_EMAIL.trim().toLowerCase(),
       password: process.env.ADMIN_PASSWORD,
     },
+    infinitePay: {
+      enabled: Boolean(process.env.INFINITEPAY_HANDLE && String(process.env.INFINITEPAY_HANDLE).trim()),
+      handle: (process.env.INFINITEPAY_HANDLE || '').trim().replace(/^\$/, ''),
+      appUrl,
+    },
+    appUrl,
     port,
     nodeEnv: process.env.NODE_ENV || 'development',
   };

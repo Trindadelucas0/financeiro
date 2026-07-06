@@ -3,7 +3,7 @@
     <img src="<%= src %>" alt="<%= alt %>" loading="lazy" decoding="async" class="landing-shot-img">
   </figure>
 <% } else { %>
-  <div class="landing-preview" aria-hidden="true">
+  <div class="landing-preview<%= typeof previewModifier !== 'undefined' && previewModifier ? ' ' + previewModifier : '' %>" aria-hidden="true">
     <%- include(fallbackPartial) %>
   </div>
 <% } %>

@@ -66,6 +66,7 @@ function landingPage(req, res) {
   res.render('landing/index', {
     title: 'Home Finanças',
     shots,
+    appUrl: getAppUrl(),
     ogImage: `${getAppUrl()}${ogImagePath}`,
     pricing: getProPlanPricing(),
   });

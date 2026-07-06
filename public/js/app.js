@@ -181,6 +181,23 @@ async function exportPDF() {
     const res = await fetch('/api/finance/export/pdf?mes=' + encodeURIComponent(state.currentMonth), {
       headers: token ? { Authorization: 'Bearer ' + token } : {},
     });
+
+    if (res.status === 402) {
+      let payload = null;
+      try {
+        payload = await res.json();
+      } catch {
+        payload = null;
+      }
+      if (payload && payload.code === 'PRO_REQUIRED') {
+        toast('Relatório PDF disponível no plano Pro. Vá em Meu perfil para liberar o acesso.', 'error');
+        setTimeout(function () {
+          window.location.href = '/app/perfil';
+        }, 1800);
+        return;
+      }
+    }
+
     if (!res.ok) throw new Error('Falha ao gerar relatório PDF');
     const blob = await res.blob();
     const a = document.createElement('a');

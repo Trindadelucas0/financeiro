@@ -17,8 +17,8 @@ async function login(req, res, next) {
 
 async function me(req, res, next) {
   try {
-    const user = await authService.getMe(req.user.id);
-    return res.json({ user });
+    const result = await authService.getMe(req.user.id);
+    return res.json(result);
   } catch (err) {
     return next(err);
   }

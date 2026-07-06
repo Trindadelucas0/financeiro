@@ -10,7 +10,7 @@
     return;
   }
 
-  const { apiFetch, setSession, clearSession, getToken, getUser } = window.FinanceAPI;
+  const { apiFetch, setSession, clearSession, getToken, getUser, getSubscription, getPricing } = window.FinanceAPI;
 
   function displayName(user) {
     if (!user) return '—';
@@ -52,7 +52,7 @@
       method: 'POST',
       body: { identifier, password },
     });
-    setSession(data.token, data.user);
+    setSession(data.token, data.user, data.subscription || null, data.pricing || null);
     window.location.href = '/app/dashboard';
   }
 
@@ -62,7 +62,7 @@
     try {
       const data = await apiFetch('/api/auth/me');
       if (data && data.user) {
-        setSession(token, data.user);
+        setSession(token, data.user, data.subscription || null, data.pricing || null);
         updateUserUi(data.user);
         return data.user;
       }
@@ -167,5 +167,6 @@
     initAppAuth,
     displayName,
     updateUserUi,
+    getSubscription,
   };
 })();

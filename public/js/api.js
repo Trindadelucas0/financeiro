@@ -3,6 +3,8 @@
 
   const TOKEN_KEY = 'financeiro_token';
   const USER_KEY = 'financeiro_user';
+  const SUBSCRIPTION_KEY = 'financeiro_subscription';
+  const PRICING_KEY = 'financeiro_pricing';
 
   function migrateLegacySession() {
     const legacyToken = sessionStorage.getItem(TOKEN_KEY);
@@ -23,23 +25,53 @@
     return localStorage.getItem(TOKEN_KEY);
   }
 
-  function setSession(token, user) {
+  function setSession(token, user, subscription, pricing) {
     localStorage.setItem(TOKEN_KEY, token);
     localStorage.setItem(USER_KEY, JSON.stringify(user));
+    if (subscription !== undefined) {
+      localStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(subscription));
+    }
+    if (pricing !== undefined) {
+      localStorage.setItem(PRICING_KEY, JSON.stringify(pricing));
+    }
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(SUBSCRIPTION_KEY);
+    sessionStorage.removeItem(PRICING_KEY);
   }
 
   function clearSession() {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(SUBSCRIPTION_KEY);
+    localStorage.removeItem(PRICING_KEY);
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(SUBSCRIPTION_KEY);
+    sessionStorage.removeItem(PRICING_KEY);
   }
 
   function getUser() {
     try {
       const raw = localStorage.getItem(USER_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function getSubscription() {
+    try {
+      const raw = localStorage.getItem(SUBSCRIPTION_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function getPricing() {
+    try {
+      const raw = localStorage.getItem(PRICING_KEY);
       return raw ? JSON.parse(raw) : null;
     } catch {
       return null;
@@ -77,7 +109,13 @@
 
     if (!res.ok) {
       const msg = isJson && payload && payload.error ? payload.error : 'Erro na requisição';
-      throw new Error(msg);
+      const err = new Error(msg);
+      if (isJson && payload) {
+        err.code = payload.code;
+        err.status = res.status;
+        err.payload = payload;
+      }
+      throw err;
     }
 
     return payload;
@@ -86,10 +124,14 @@
   window.FinanceAPI = {
     TOKEN_KEY,
     USER_KEY,
+    SUBSCRIPTION_KEY,
+    PRICING_KEY,
     getToken,
     setSession,
     clearSession,
     getUser,
+    getSubscription,
+    getPricing,
     apiFetch,
   };
 })();
