@@ -180,7 +180,8 @@ async function registerManualPayment(userId, { days } = {}) {
     throw err;
   }
 
-    const periodEnd = await subscriptionService.grantProAccess(userId, accessDays);
+  const periodEnd = await subscriptionService.grantProAccess(userId, accessDays);
+  const pool = getPool();
 
   await pool.query(
     `UPDATE users SET access_grant_type = 'paid' WHERE id = $1`,
