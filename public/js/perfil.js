@@ -648,30 +648,16 @@
     document.addEventListener('pwa-installed', updatePwaUi);
   }
 
-  async function loadCurrentUser() {
-    if (window.FinanceAuth && typeof FinanceAuth.refreshSession === 'function') {
-      await FinanceAuth.refreshSession();
-      return getUser();
-    }
-    const data = await apiFetch('/api/auth/me');
-    if (data && data.user) {
-      setSession(getToken(), data.user, data.subscription || null, data.pricing || null);
-      if (window.FinanceAuth && FinanceAuth.updateUserUi) FinanceAuth.updateUserUi(data.user);
-      return data.user;
-    }
-    return getUser();
-  }
-
   async function initPerfil() {
     if (!window.FinanceAuth || !FinanceAuth.requireAuth()) return;
-    FinanceAuth.initAppAuth();
+    const ok = await FinanceAuth.initAppAuth();
+    if (!ok) return;
     await handleCheckoutQuery();
 
     const view = document.getElementById('view');
     if (view) view.setAttribute('aria-busy', 'true');
 
     try {
-      await loadCurrentUser();
       const user = getUser();
       renderProfile(user, getSubscription(), getPricing());
     } catch (err) {

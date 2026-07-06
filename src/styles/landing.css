@@ -170,6 +170,20 @@
     @apply text-sm font-medium text-ice underline underline-offset-4 hover:text-text;
   }
 
+  .support-contact-icon {
+    @apply inline-flex items-center justify-center rounded-full border border-border bg-surface-2 text-green no-underline transition-colors;
+    width: 42px;
+    height: 42px;
+  }
+
+  .support-contact-icon:hover {
+    @apply border-green/50 bg-green-dim text-text;
+  }
+
+  .support-contact--landing .support-contact-icon--whatsapp {
+    @apply border-green/30 bg-green-dim text-green hover:border-green/50 hover:bg-green-dim hover:text-text;
+  }
+
   .brand-logo {
     display: block;
     height: auto;

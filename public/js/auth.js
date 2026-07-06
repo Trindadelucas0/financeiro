@@ -299,6 +299,16 @@
     return true;
   }
 
+  async function requireAdminAsync() {
+    if (!requireAuth()) return false;
+    const user = getUser() || await refreshSession();
+    if (!user || user.role !== 'admin') {
+      window.location.href = '/app/dashboard';
+      return false;
+    }
+    return true;
+  }
+
   function initLoginPage() {
     const form = document.getElementById('loginForm');
     const forceForm = document.getElementById('forcePasswordForm');
@@ -308,15 +318,17 @@
     handleCheckoutSuccess();
 
     if (getToken()) {
-      const user = getUser();
-      if (user && user.mustChangePassword) {
-        showForcePasswordForm();
-        return;
-      }
-      if (!window.location.search.includes('checkout=success')) {
-        goToDashboard();
-        return;
-      }
+      refreshSession().then(function (user) {
+        if (!user) return;
+        if (user.mustChangePassword) {
+          showForcePasswordForm();
+          return;
+        }
+        if (!window.location.search.includes('checkout=success')) {
+          goToDashboard();
+        }
+      });
+      if (!form) return;
     }
 
     if (!form) return;
@@ -394,19 +406,21 @@
     initLoginPage();
   }
 
-  function initAppAuth() {
-    if (!requireAuth()) return;
-    updateUserUi(getUser());
-
-    if (redirectToPaywallIfNeeded()) return;
-
-    updateRenewalBanner();
-    refreshSession();
+  async function initAppAuth() {
+    if (!requireAuth()) return false;
 
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) logoutBtn.addEventListener('click', logout);
 
-    updateAdminNav(getUser());
+    const user = await refreshSession();
+    if (!user) {
+      clearSession();
+      window.location.href = '/login';
+      return false;
+    }
+
+    if (redirectToPaywallIfNeeded()) return false;
+    return true;
   }
 
   window.FinanceAuth = {
@@ -414,6 +428,7 @@
     logout,
     requireAuth,
     requireAdmin,
+    requireAdminAsync,
     refreshSession,
     initLoginPage,
     bootLoginPage,

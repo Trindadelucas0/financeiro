@@ -1,7 +1,8 @@
 (function () {
   'use strict';
 
-  const ASK_KEY = 'financeiro_renewal_notify_asked';
+  const notifiedKeys = new Set();
+  let permissionAsked = false;
 
   function storageKey(periodEnd) {
     return 'renewal_notified_' + String(periodEnd || '');
@@ -17,14 +18,14 @@
     if (!('Notification' in window)) return;
 
     const key = storageKey(sub.currentPeriodEnd);
-    if (localStorage.getItem(key)) return;
+    if (notifiedKeys.has(key)) return;
 
     const body = notifyBody(sub.daysUntilExpiry);
 
     function show() {
       try {
         new Notification('Home Finanças', { body: body, tag: key });
-        localStorage.setItem(key, '1');
+        notifiedKeys.add(key);
       } catch (_) {
         /* ignore */
       }
@@ -35,8 +36,8 @@
       return;
     }
 
-    if (Notification.permission === 'default' && !localStorage.getItem(ASK_KEY)) {
-      localStorage.setItem(ASK_KEY, '1');
+    if (Notification.permission === 'default' && !permissionAsked) {
+      permissionAsked = true;
       Notification.requestPermission().then(function (permission) {
         if (permission === 'granted') show();
       });

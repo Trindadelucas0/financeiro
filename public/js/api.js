@@ -2,80 +2,62 @@
   'use strict';
 
   const TOKEN_KEY = 'financeiro_token';
-  const USER_KEY = 'financeiro_user';
-  const SUBSCRIPTION_KEY = 'financeiro_subscription';
-  const PRICING_KEY = 'financeiro_pricing';
+  const LEGACY_KEYS = ['financeiro_user', 'financeiro_subscription', 'financeiro_pricing'];
 
-  function migrateLegacySession() {
+  let sessionCache = {
+    user: null,
+    subscription: null,
+    pricing: null,
+  };
+
+  function purgeLegacySessionData() {
+    LEGACY_KEYS.forEach(function (key) {
+      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
+    });
+  }
+
+  function migrateLegacyToken() {
     const legacyToken = sessionStorage.getItem(TOKEN_KEY);
-    const legacyUser = sessionStorage.getItem(USER_KEY);
     if (legacyToken && !localStorage.getItem(TOKEN_KEY)) {
       localStorage.setItem(TOKEN_KEY, legacyToken);
     }
-    if (legacyUser && !localStorage.getItem(USER_KEY)) {
-      localStorage.setItem(USER_KEY, legacyUser);
-    }
-    if (legacyToken) sessionStorage.removeItem(TOKEN_KEY);
-    if (legacyUser) sessionStorage.removeItem(USER_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+    purgeLegacySessionData();
   }
 
-  migrateLegacySession();
+  migrateLegacyToken();
 
   function getToken() {
     return localStorage.getItem(TOKEN_KEY);
   }
 
   function setSession(token, user, subscription, pricing) {
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
-    if (subscription !== undefined) {
-      localStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(subscription));
+    if (token) {
+      localStorage.setItem(TOKEN_KEY, token);
     }
-    if (pricing !== undefined) {
-      localStorage.setItem(PRICING_KEY, JSON.stringify(pricing));
-    }
-    sessionStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(USER_KEY);
-    sessionStorage.removeItem(SUBSCRIPTION_KEY);
-    sessionStorage.removeItem(PRICING_KEY);
+    if (user !== undefined) sessionCache.user = user;
+    if (subscription !== undefined) sessionCache.subscription = subscription;
+    if (pricing !== undefined) sessionCache.pricing = pricing;
   }
 
   function clearSession() {
     localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
-    localStorage.removeItem(SUBSCRIPTION_KEY);
-    localStorage.removeItem(PRICING_KEY);
     sessionStorage.removeItem(TOKEN_KEY);
-    sessionStorage.removeItem(USER_KEY);
-    sessionStorage.removeItem(SUBSCRIPTION_KEY);
-    sessionStorage.removeItem(PRICING_KEY);
+    sessionCache = { user: null, subscription: null, pricing: null };
+    purgeLegacySessionData();
   }
 
   function getUser() {
-    try {
-      const raw = localStorage.getItem(USER_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
+    return sessionCache.user;
   }
 
   function getSubscription() {
-    try {
-      const raw = localStorage.getItem(SUBSCRIPTION_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
+    return sessionCache.subscription;
   }
 
   function getPricing() {
-    try {
-      const raw = localStorage.getItem(PRICING_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
+    return sessionCache.pricing;
   }
 
   async function apiFetch(path, options = {}) {
@@ -137,9 +119,6 @@
 
   window.FinanceAPI = {
     TOKEN_KEY,
-    USER_KEY,
-    SUBSCRIPTION_KEY,
-    PRICING_KEY,
     getToken,
     setSession,
     clearSession,

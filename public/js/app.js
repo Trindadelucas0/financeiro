@@ -2274,22 +2274,25 @@ async function exportPDF() {
 
   function initApp() {
     if (!window.FinanceAuth || !FinanceAuth.requireAuth()) return;
-    FinanceAuth.initAppAuth();
 
-    const page = document.body.dataset.page;
-    if (page === 'perfil') return;
+    FinanceAuth.initAppAuth().then(function (ok) {
+      if (!ok) return;
 
-    if (window.FinanceUI) FinanceUI.init();
+      const page = document.body.dataset.page;
+      if (page === 'perfil') return;
 
-    const modal = document.getElementById('modalDialog');
-    if (modal && window.FinanceUI) {
-      FinanceUI.bindModal(modal, function () { requestCloseModal(); });
-    }
-    bindModalDraftSync();
-    bindModalViewportSync();
-    bindChartLandscapeResize();
+      if (window.FinanceUI) FinanceUI.init();
 
-    loadState();
+      const modal = document.getElementById('modalDialog');
+      if (modal && window.FinanceUI) {
+        FinanceUI.bindModal(modal, function () { requestCloseModal(); });
+      }
+      bindModalDraftSync();
+      bindModalViewportSync();
+      bindChartLandscapeResize();
+
+      loadState();
+    });
   }
 
   var chartResizeTimer;

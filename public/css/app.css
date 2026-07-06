@@ -1759,8 +1759,24 @@ dialog.modal .type-picker.duracao-picker {
   color: var(--text);
 }
 
-.support-contact-link--whatsapp::before {
-  content: '💬 ';
+.support-contact-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: oklch(0.78 0.16 155 / 0.12);
+  color: oklch(0.78 0.16 155);
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.support-contact-icon:hover {
+  background: oklch(0.78 0.16 155 / 0.22);
+  color: var(--text);
+  border-color: oklch(0.78 0.16 155 / 0.45);
 }
 
 .support-contact-link--email::before {

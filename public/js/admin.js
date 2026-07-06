@@ -198,9 +198,10 @@
     }
   }
 
-  function initAdmin() {
-    if (!FinanceAuth.requireAdmin()) return;
-    FinanceAuth.initAppAuth();
+  async function initAdmin() {
+    if (!FinanceAuth.requireAuth()) return;
+    const ok = await FinanceAuth.initAppAuth();
+    if (!ok || !(await FinanceAuth.requireAdminAsync())) return;
 
     if (window.FinanceUI) FinanceUI.init();
 
