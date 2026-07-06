@@ -109,7 +109,7 @@
   }
 
   function hasActiveSubscription(user, subscription) {
-    if (user && user.role === 'admin') return true;
+    if (user && user.canManagePlatform) return true;
     return Boolean(subscription && subscription.isPro);
   }
 
@@ -342,7 +342,7 @@
   function requireAdmin() {
     if (!requireAuth()) return false;
     const user = getUser();
-    if (!user || user.role !== 'admin') {
+    if (!user || !user.canManagePlatform) {
       window.location.href = '/app/dashboard';
       return false;
     }
@@ -352,7 +352,7 @@
   async function requireAdminAsync() {
     if (!requireAuth()) return false;
     const user = getUser() || await refreshSession();
-    if (!user || user.role !== 'admin') {
+    if (!user || !user.canManagePlatform) {
       window.location.href = '/app/dashboard';
       return false;
     }

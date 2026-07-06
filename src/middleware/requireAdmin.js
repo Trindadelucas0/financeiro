@@ -1,9 +1,9 @@
 const { getPool } = require('../db/pool');
+const { canManagePlatform } = require('../config/adminAccess');
 
 /**
- * Exige que o usuário autenticado tenha role 'admin'.
+ * Exige admin da plataforma (role admin + e-mail do ADMIN_EMAIL no .env).
  * Deve ser usado após authJwt.
- * Valida o papel no banco para não confiar só no JWT.
  */
 async function requireAdmin(req, res, next) {
   if (!req.user) {
@@ -13,7 +13,7 @@ async function requireAdmin(req, res, next) {
   try {
     const pool = getPool();
     const { rows } = await pool.query(
-      'SELECT role, ativo FROM users WHERE id = $1 LIMIT 1',
+      'SELECT role, email, ativo FROM users WHERE id = $1 LIMIT 1',
       [req.user.id],
     );
 
@@ -25,7 +25,7 @@ async function requireAdmin(req, res, next) {
       return res.status(403).json({ error: 'Usuário desativado' });
     }
 
-    if (rows[0].role !== 'admin') {
+    if (!canManagePlatform({ role: rows[0].role, email: rows[0].email })) {
       return res.status(403).json({ error: 'Acesso restrito a administradores' });
     }
 

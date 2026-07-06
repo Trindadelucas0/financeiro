@@ -110,6 +110,11 @@ a.brand:focus-visible {
 
 .actions-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
+#adminLink[hidden],
+#adminClientsLink[hidden] {
+  display: none !important;
+}
+
 .topbar .actions-row .btn {
   height: 32px;
   min-height: 32px;
