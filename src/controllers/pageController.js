@@ -1,3 +1,24 @@
+const fs = require('fs');
+const path = require('path');
+const { getProPlanPricing } = require('../config/plan');
+
+const LANDING_SHOTS_DIR = path.join(__dirname, '../../public/images/landing');
+
+function getAppUrl() {
+  const port = process.env.PORT || 3001;
+  return (process.env.APP_URL || `http://localhost:${port}`).replace(/\/$/, '');
+}
+
+function landingShot(name) {
+  const base = path.join(LANDING_SHOTS_DIR, name);
+  for (const ext of ['.webp', '.png', '.jpg']) {
+    if (fs.existsSync(base + ext)) {
+      return `/images/landing/${name}${ext}`;
+    }
+  }
+  return null;
+}
+
 function loginPage(req, res) {
   res.render('auth/login', { title: 'Login' });
 }
@@ -35,7 +56,19 @@ function adminUsers(req, res) {
 }
 
 function landingPage(req, res) {
-  res.render('landing/index', { title: 'Home Finanças' });
+  const shots = {
+    dashboard: landingShot('dashboard-desktop'),
+    mobile: landingShot('dashboard-mobile'),
+    previsao: landingShot('previsao'),
+  };
+  const ogImagePath = landingShot('og-cover') || shots.dashboard || '/images/logo-home-financas.png';
+
+  res.render('landing/index', {
+    title: 'Home Finanças',
+    shots,
+    ogImage: `${getAppUrl()}${ogImagePath}`,
+    pricing: getProPlanPricing(),
+  });
 }
 
 function redirectApp(req, res) {

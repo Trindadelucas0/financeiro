@@ -1,0 +1,9 @@
+<% if (typeof src !== 'undefined' && src) { %>
+  <figure class="landing-shot">
+    <img src="<%= src %>" alt="<%= alt %>" loading="lazy" decoding="async" class="landing-shot-img">
+  </figure>
+<% } else { %>
+  <div class="landing-preview" aria-hidden="true">
+    <%- include(fallbackPartial) %>
+  </div>
+<% } %>
