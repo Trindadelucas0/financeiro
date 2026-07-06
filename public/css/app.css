@@ -1784,9 +1784,20 @@ dialog.modal .type-picker.duracao-picker {
 }
 
 .auth-footer {
-  width: min(100%, 520px);
-  margin: 24px auto 0;
-  padding: 0 16px calc(24px + var(--safe-bottom));
+  width: 100%;
+  margin: 0;
+  padding: 20px 0 calc(8px + var(--safe-bottom));
+  border-top: 1px solid var(--border);
+}
+
+.auth-shell {
+  width: 100%;
+  max-width: min(100%, 420px);
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 20px;
 }
 
 .loading-state {

@@ -30,11 +30,6 @@ function getProPlanPricing() {
     accessLabel: `${PRO_PLAN.accessDays} dias de acesso`,
     subline: `Pague ${priceShort} · use por ${PRO_PLAN.accessDays} dias`,
     paymentMethods: ['Pix', 'Cartão de crédito'],
-    accessMethods: [
-      { label: '30 dias de acesso', detail: 'Renove a cada 30 dias no perfil' },
-      { label: 'Web + PWA', detail: 'Painel no navegador ou instalado no celular' },
-      { label: 'Compra na landing', detail: 'Pague, receba login e entre no painel' },
-    ],
   };
 }
 

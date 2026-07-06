@@ -30,9 +30,6 @@
         <h1 class="mt-6 font-display text-balance text-[clamp(2rem,5vw,3.75rem)] font-bold leading-[1.08] tracking-[-0.03em] text-text sm:mt-8">
           Planilha no fim do mês? Nem pensar.
         </h1>
-        <p class="mt-5 max-w-[55ch] text-pretty text-base leading-relaxed text-muted sm:text-lg">
-          Receitas, despesas, parcelas e previsão num painel escuro, legível à noite — salvo entre acessos.
-        </p>
         <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
           <a href="#adquirir" data-scroll-acquire class="btn-ice w-full sm:w-auto">Adquirir acesso</a>
           <a href="/login" class="btn-ghost w-full sm:w-auto">Já tenho conta</a>
@@ -72,7 +69,7 @@
             <p class="mt-2 text-sm text-muted">Acesso pago obrigatório — renove no perfil quando expirar.</p>
           </div>
 
-          <div class="mt-10 grid gap-8 sm:grid-cols-2">
+          <div class="mt-10">
             <div>
               <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-2">Formas de pagamento</h3>
               <div class="mt-3 flex flex-wrap gap-2">
@@ -81,18 +78,6 @@
                 <% }); %>
               </div>
               <p class="mt-3 text-sm text-muted">Pagamento seguro via InfinitePay</p>
-            </div>
-
-            <div>
-              <h3 class="text-xs font-semibold uppercase tracking-wide text-muted-2">Formas de acesso</h3>
-              <ul class="mt-3 space-y-3">
-                <% pricing.accessMethods.forEach(function(item) { %>
-                <li class="landing-pricing-access-item">
-                  <span class="font-medium text-text"><%= item.label %></span>
-                  <span class="mt-0.5 block text-sm text-muted"><%= item.detail %></span>
-                </li>
-                <% }); %>
-              </ul>
             </div>
           </div>
 
@@ -130,7 +115,6 @@
     <div class="mx-auto max-w-6xl px-5 py-8 sm:px-8">
       <%- include('../partials/support-contact', { variant: 'landing' }) %>
       <div class="landing-footer-meta">
-        <p>Home Finanças · controle pessoal · PWA instalável</p>
         <a href="/login" class="landing-footer-login">Entrar</a>
       </div>
     </div>
