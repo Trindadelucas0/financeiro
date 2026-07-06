@@ -151,10 +151,7 @@
     var labels = payload.map(function (p) { return p.mesLabel; });
     var receitas = payload.map(function (p) { return p.receitas; });
     var despesas = payload.map(function (p) { return p.despesas; });
-    var lastThree = payload.slice(-4, -1);
-    var avgDesp = lastThree.length
-      ? lastThree.reduce(function (s, p) { return s + p.despesas; }, 0) / lastThree.length
-      : 0;
+    var saldos = payload.map(function (p) { return p.receitas - p.despesas; });
 
     track(new Chart(canvas, {
       type: 'bar',
@@ -164,26 +161,40 @@
           {
             label: 'Receitas',
             data: receitas,
-            backgroundColor: 'oklch(0.94 0.008 240 / 0.55)',
+            backgroundColor: 'oklch(0.94 0.008 240 / 0.65)',
+            borderColor: c.ice,
+            borderWidth: 1,
             borderRadius: 4,
-            barPercentage: 0.7,
+            barPercentage: 0.65,
+            categoryPercentage: 0.8,
+            order: 2,
           },
           {
             label: 'Despesas',
             data: despesas,
-            backgroundColor: c.red,
+            backgroundColor: 'oklch(0.72 0.14 25 / 0.75)',
+            borderColor: c.red,
+            borderWidth: 1,
             borderRadius: 4,
-            barPercentage: 0.7,
+            barPercentage: 0.65,
+            categoryPercentage: 0.8,
+            order: 3,
           },
           {
-            label: 'Média despesas (3m)',
-            data: labels.map(function () { return avgDesp; }),
+            label: 'Saldo',
+            data: saldos,
             type: 'line',
-            borderColor: c.muted2,
-            borderDash: [4, 4],
-            borderWidth: 1.5,
-            pointRadius: 0,
+            borderColor: c.green,
+            backgroundColor: 'transparent',
+            borderWidth: 2.5,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: saldos.map(function (v) { return v >= 0 ? c.green : c.red; }),
+            pointBorderColor: c.bg,
+            pointBorderWidth: 2,
+            tension: 0.25,
             fill: false,
+            order: 1,
           },
         ],
       },
@@ -192,6 +203,18 @@
         maintainAspectRatio: false,
         animation: reducedMotion() ? false : { duration: 400 },
         plugins: Object.assign({}, basePlugins(c), {
+          legend: {
+            display: true,
+            position: 'top',
+            align: 'end',
+            labels: {
+              color: c.muted,
+              font: { family: fontFamily(), size: 11 },
+              boxWidth: 10,
+              padding: 12,
+              usePointStyle: true,
+            },
+          },
           tooltip: {
             backgroundColor: c.surface3,
             titleColor: c.text,
@@ -216,7 +239,7 @@
               color: c.muted2,
               font: { family: monoFamily(), size: 10 },
               callback: function (v) {
-                return v >= 1000 ? 'R$ ' + (v / 1000).toFixed(0) + 'k' : formatBRL(v);
+                return v >= 1000 || v <= -1000 ? 'R$ ' + (v / 1000).toFixed(0) + 'k' : formatBRL(v);
               },
             },
           },
@@ -325,46 +348,74 @@
     if (!canvas || !forecast || !forecast.length) return;
     var c = getColors();
     var labels = forecast.map(function (f) { return f.mesLabel; });
+    var receitas = forecast.map(function (f) { return f.receitas; });
+    var despesas = forecast.map(function (f) { return f.despesas; });
     var saldos = forecast.map(function (f) { return f.saldo; });
 
     track(new Chart(canvas, {
-      type: 'line',
+      type: 'bar',
       data: {
         labels: labels,
-        datasets: [{
-          label: 'Saldo projetado',
-          data: saldos,
-          borderColor: c.ice,
-          backgroundColor: function (context) {
-            var chart = context.chart;
-            var ctx = chart.ctx;
-            var gradient = ctx.createLinearGradient(0, 0, 0, chart.height);
-            gradient.addColorStop(0, 'oklch(0.78 0.16 155 / 0.25)');
-            gradient.addColorStop(0.5, 'oklch(0.78 0.16 155 / 0.05)');
-            gradient.addColorStop(1, 'oklch(0.72 0.14 25 / 0.15)');
-            return gradient;
+        datasets: [
+          {
+            label: 'Receitas',
+            data: receitas,
+            backgroundColor: 'oklch(0.94 0.008 240 / 0.55)',
+            borderColor: c.ice,
+            borderWidth: 1,
+            borderRadius: 4,
+            barPercentage: 0.65,
+            categoryPercentage: 0.8,
+            order: 2,
           },
-          segment: {
-            borderColor: function (ctx) {
-              return ctx.p1.parsed.y >= 0 ? c.green : c.red;
-            },
+          {
+            label: 'Despesas',
+            data: despesas,
+            backgroundColor: 'oklch(0.72 0.14 25 / 0.7)',
+            borderColor: c.red,
+            borderWidth: 1,
+            borderRadius: 4,
+            barPercentage: 0.65,
+            categoryPercentage: 0.8,
+            order: 3,
           },
-          pointBackgroundColor: saldos.map(function (v, i) {
-            return i === 0 ? c.ice : (v >= 0 ? c.green : c.red);
-          }),
-          pointRadius: saldos.map(function (_, i) { return i === 0 ? 6 : 4; }),
-          pointBorderColor: c.bg,
-          pointBorderWidth: 2,
-          borderWidth: 2.5,
-          tension: 0.3,
-          fill: true,
-        }],
+          {
+            label: 'Saldo projetado',
+            data: saldos,
+            type: 'line',
+            borderColor: c.ice,
+            backgroundColor: 'transparent',
+            borderWidth: 2.5,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: saldos.map(function (v, i) {
+              return i === 0 ? c.ice : (v >= 0 ? c.green : c.red);
+            }),
+            pointBorderColor: c.bg,
+            pointBorderWidth: 2,
+            tension: 0.25,
+            fill: false,
+            order: 1,
+          },
+        ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         animation: reducedMotion() ? false : { duration: 450 },
         plugins: Object.assign({}, basePlugins(c), {
+          legend: {
+            display: true,
+            position: 'top',
+            align: 'end',
+            labels: {
+              color: c.muted,
+              font: { family: fontFamily(), size: 11 },
+              boxWidth: 10,
+              padding: 12,
+              usePointStyle: true,
+            },
+          },
           tooltip: {
             backgroundColor: c.surface3,
             titleColor: c.text,
@@ -372,13 +423,17 @@
             borderColor: c.border,
             borderWidth: 1,
             callbacks: {
-              afterTitle: function () { return ''; },
-              label: function (ctx) { return 'Saldo: ' + formatBRL(ctx.parsed.y); },
+              label: function (ctx) {
+                return ctx.dataset.label + ': ' + formatBRL(ctx.parsed.y);
+              },
               afterBody: function (items) {
                 if (!items.length) return [];
                 var idx = items[0].dataIndex;
                 var f = forecast[idx];
-                return ['Receitas: ' + formatBRL(f.receitas), 'Despesas: ' + formatBRL(f.despesas)];
+                if (items[0].dataset.label === 'Saldo projetado') {
+                  return ['Receitas: ' + formatBRL(f.receitas), 'Despesas: ' + formatBRL(f.despesas)];
+                }
+                return [];
               },
             },
           },
@@ -393,7 +448,9 @@
             ticks: {
               color: c.muted2,
               font: { family: monoFamily(), size: 10 },
-              callback: function (v) { return formatBRL(v); },
+              callback: function (v) {
+                return v >= 1000 || v <= -1000 ? 'R$ ' + (v / 1000).toFixed(0) + 'k' : formatBRL(v);
+              },
             },
           },
         },

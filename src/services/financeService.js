@@ -659,6 +659,15 @@ async function createEmprestimo(userId, data) {
 }
 
 async function updateEmprestimo(userId, id, data) {
+  if (data.mes) {
+    await assertPasswordIfPaid(userId, {
+      entidade: 'emprestimo',
+      itemId: id,
+      mes: data.mes,
+      password: data.password,
+    });
+  }
+
   const pool = getPool();
   const { rows } = await pool.query(
     `UPDATE emprestimos

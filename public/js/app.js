@@ -20,6 +20,7 @@
 
   let state = defaultState();
   let listFilters = { busca: '', categoria: '', status: 'todos' };
+  let listTipoTab = { receitas: 'todas', despesas: 'todas' };
   let modalCtx = { entidade: null, tipo: null, forma: null, duracaoTipo: 'indeterminado', editing: null, editingMes: null, paidPassword: null };
   let modalDraft = {};
   let modalSnapshot = null;
@@ -362,7 +363,7 @@ async function exportPDF() {
     const chave = chavePg(entidade, id, mes);
     const pg = getPg(chave);
     const inputId = 'file_' + chave.replace(/[^a-zA-Z0-9]/g, '_');
-    const editEnt = entidade === 'receita' ? 'receita' : 'despesa';
+    const editEnt = entidade === 'receita' ? 'receita' : entidade === 'emprestimo' ? 'emprestimo' : 'despesa';
     const statusLabel = entidade === 'receita' ? 'recebido em' : 'pago em';
     return (
       '<div class="pago-cell">' +
@@ -424,20 +425,54 @@ async function exportPDF() {
     return { total: itens.reduce(function (s, r) { return s + r.valorEfetivo; }, 0), itens: itens };
   }
 
+  function getParceladosMes(mes) {
+    return state.despesas
+      .filter(function (d) { return d.formaPagamento === 'parcelado' && despesaAtivaNoMes(d, mes); })
+      .map(function (d) { return Object.assign({}, d, { valorEfetivo: valorParcelaSimples(d) }); });
+  }
+
+  function getEmprestimosMes(mes) {
+    return state.emprestimos
+      .filter(function (e) { return estaAtivoParcela(e, mes); })
+      .map(function (e) {
+        return Object.assign({}, e, {
+          tipo: 'emprestimo',
+          formaPagamento: 'parcelado',
+          categoria: e.categoria || 'Empréstimo',
+          valorEfetivo: valorParcelaEmprestimo(e),
+        });
+      });
+  }
+
+  function getCompromissosMes(mes) {
+    const itens = getParceladosMes(mes).concat(getEmprestimosMes(mes));
+    return { total: itens.reduce(function (s, i) { return s + i.valorEfetivo; }, 0), itens: itens };
+  }
+
   function getDespesasMes(mes) {
     const desp = state.despesas.filter(function (d) { return despesaAtivaNoMes(d, mes); }).map(function (d) {
       return Object.assign({}, d, { valorEfetivo: valorEfetivoDespesa(d) });
     });
-    const emp = state.emprestimos.filter(function (e) { return estaAtivoParcela(e, mes); }).map(function (e) {
-      return Object.assign({}, e, {
-        tipo: 'emprestimo',
-        formaPagamento: 'parcelado',
-        categoria: e.categoria || 'Empréstimo',
-        valorEfetivo: valorParcelaEmprestimo(e),
-      });
-    });
-    const itens = desp.concat(emp);
+    const itens = desp.concat(getEmprestimosMes(mes));
     return { total: itens.reduce(function (s, d) { return s + d.valorEfetivo; }, 0), itens: itens };
+  }
+
+  function buildCompromissosTabPayload(mes) {
+    const data = getCompromissosMes(mes);
+    let pagoVal = 0;
+    let pendenteVal = 0;
+    data.itens.forEach(function (d) {
+      const chave = chavePg(entidadeDoItemDespesa(d), d.id, mes);
+      if (getPg(chave).pago) pagoVal += d.valorEfetivo;
+      else pendenteVal += d.valorEfetivo;
+    });
+    return {
+      total: data.total,
+      count: data.itens.length,
+      pagoVal: pagoVal,
+      pendenteVal: pendenteVal,
+      pctPago: data.total > 0 ? (pagoVal / data.total * 100) : 0,
+    };
   }
 
   function getCategoriaBreakdown(itens) {
@@ -562,38 +597,6 @@ async function exportPDF() {
     return cats;
   }
 
-  function buildReceitasTabPayload(mes) {
-    const data = getReceitasMes(mes);
-    const fixas = data.itens.filter(function (r) { return r.tipo === 'fixa'; }).reduce(function (s, r) { return s + r.valorEfetivo; }, 0);
-    return {
-      total: data.total,
-      count: data.itens.length,
-      fixas: fixas,
-      variaveis: data.total - fixas,
-      categorias: categoriasFromItens(data.itens),
-    };
-  }
-
-  function buildDespesasTabPayload(mes) {
-    const itens = getDespesasMes(mes).itens.filter(function (d) { return d.tipo !== 'emprestimo'; });
-    const total = itens.reduce(function (s, d) { return s + d.valorEfetivo; }, 0);
-    let pagoVal = 0;
-    let pendenteVal = 0;
-    itens.forEach(function (d) {
-      const chave = chavePg(entidadeDoItemDespesa(d), d.id, mes);
-      if (getPg(chave).pago) pagoVal += d.valorEfetivo;
-      else pendenteVal += d.valorEfetivo;
-    });
-    return {
-      total: total,
-      count: itens.length,
-      pagoVal: pagoVal,
-      pendenteVal: pendenteVal,
-      pctPago: total > 0 ? (pagoVal / total * 100) : 0,
-      categorias: categoriasFromItens(itens),
-    };
-  }
-
   function buildDashboardChartPayload() {
     const mes = state.currentMonth;
     const despesas = getDespesasMes(mes);
@@ -669,6 +672,45 @@ async function exportPDF() {
     return out.sort(function (a, b) { return a.diff - b.diff; });
   }
 
+  function passesTipoFilter(item, page) {
+    const tab = listTipoTab[page] || 'todas';
+    if (tab === 'todas') return true;
+    return item.tipo === tab;
+  }
+
+  function tipoTabEmptyMessage(page, tipoTab) {
+    const label = page === 'receitas' ? 'receita' : 'despesa';
+    if (tipoTab === 'fixa') return 'Nenhuma ' + label + ' fixa neste mês.';
+    if (tipoTab === 'variavel') return 'Nenhuma ' + label + ' variável neste mês.';
+    return 'Nenhum lançamento neste mês.';
+  }
+
+  function renderTipoSubTabs(page, allItens) {
+    const fixas = allItens.filter(function (i) { return i.tipo === 'fixa'; }).length;
+    const variaveis = allItens.filter(function (i) { return i.tipo === 'variavel'; }).length;
+    const counts = { todas: allItens.length, fixa: fixas, variavel: variaveis };
+    const active = listTipoTab[page] || 'todas';
+    const tabs = [
+      { key: 'todas', label: 'Todas' },
+      { key: 'fixa', label: 'Fixas' },
+      { key: 'variavel', label: 'Variáveis' },
+    ];
+    return (
+      '<nav class="list-sub-tabs" role="tablist" aria-label="Filtrar por tipo">' +
+      tabs.map(function (t) {
+        const isActive = active === t.key;
+        return (
+          '<button type="button" class="tab' + (isActive ? ' active' : '') + '" role="tab"' +
+          ' aria-selected="' + (isActive ? 'true' : 'false') + '"' +
+          ' onclick="setTipoTab(\'' + page + '\', \'' + t.key + '\')">' +
+          esc(t.label) + ' (' + counts[t.key] + ')' +
+          '</button>'
+        );
+      }).join('') +
+      '</nav>'
+    );
+  }
+
   function passesFilter(item, entidade, mes) {
     const f = listFilters;
     if (f.busca && !item.nome.toLowerCase().includes(f.busca.toLowerCase())) return false;
@@ -682,22 +724,26 @@ async function exportPDF() {
   }
 
   function renderFilterBar(categorias) {
-    return (
+    let html =
       '<div class="filter-bar">' +
-        '<input type="search" placeholder="Buscar por nome…" value="' + esc(listFilters.busca) + '" oninput="setFilter(\'busca\', this.value)" aria-label="Buscar">' +
+        '<input type="search" placeholder="Buscar por nome…" value="' + esc(listFilters.busca) + '" oninput="setFilter(\'busca\', this.value)" aria-label="Buscar">';
+    if (categorias) {
+      html +=
         '<select onchange="setFilter(\'categoria\', this.value)" aria-label="Filtrar categoria">' +
           '<option value="">Todas categorias</option>' +
           categorias.map(function (c) {
             return '<option value="' + esc(c) + '" ' + (listFilters.categoria === c ? 'selected' : '') + '>' + esc(c) + '</option>';
           }).join('') +
-        '</select>' +
+        '</select>';
+    }
+    html +=
         '<select onchange="setFilter(\'status\', this.value)" aria-label="Filtrar status">' +
           '<option value="todos"' + (listFilters.status === 'todos' ? ' selected' : '') + '>Todos status</option>' +
           '<option value="pago"' + (listFilters.status === 'pago' ? ' selected' : '') + '>Pagos/recebidos</option>' +
           '<option value="pendente"' + (listFilters.status === 'pendente' ? ' selected' : '') + '>Pendentes</option>' +
         '</select>' +
-      '</div>'
-    );
+      '</div>';
+    return html;
   }
 
   function updateHeroAndHeader() {
@@ -984,55 +1030,61 @@ async function exportPDF() {
     );
   }
 
-  function renderTabSummaryReceitas(mes) {
-    const payload = buildReceitasTabPayload(mes);
-    if (payload.count === 0) {
-      return (
-        '<div class="panel tab-summary">' +
-          '<div class="panel-head"><h3>Resumo — ' + monthLabel(mes) + '</h3></div>' +
-          '<div class="chart-empty tab-summary-empty">Nenhum lançamento neste mês.</div>' +
-        '</div>'
-      );
-    }
+  function renderFluxoFooter(receitas, despesas, recAnt, despAnt, saldo, saldoAnt) {
     return (
-      '<div class="panel tab-summary">' +
-        '<div class="panel-head"><h3>Resumo — ' + monthLabel(mes) + '</h3></div>' +
-        '<div class="tab-summary-kpis">' +
-          '<span>Total <span class="highlight mono">' + formatBRL(payload.total) + '</span></span>' +
-          '<span>' + payload.count + ' lançamento(s)</span>' +
-          '<span>Fixas <span class="highlight mono">' + formatBRL(payload.fixas) + '</span></span>' +
-          '<span>Variáveis <span class="highlight mono">' + formatBRL(payload.variaveis) + '</span></span>' +
+      '<div class="chart-fluxo-footer">' +
+        '<div class="chart-fluxo-stat">' +
+          '<span class="chart-fluxo-label">Receitas</span>' +
+          '<span class="chart-fluxo-value mono val-pos">' + formatBRL(receitas.total) + '</span>' +
+          renderDelta(receitas.total, recAnt.total, false) +
         '</div>' +
-        '<div class="tab-summary-breakdown">' +
-          renderDonutLegend(payload.categorias, 'receita') +
+        '<div class="chart-fluxo-stat">' +
+          '<span class="chart-fluxo-label">Despesas</span>' +
+          '<span class="chart-fluxo-value mono val-neg">' + formatBRL(despesas.total) + '</span>' +
+          renderDelta(despesas.total, despAnt.total, true) +
+        '</div>' +
+        '<div class="chart-fluxo-stat chart-fluxo-stat-saldo">' +
+          '<span class="chart-fluxo-label">Saldo</span>' +
+          '<span class="chart-fluxo-value mono ' + (saldo >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(saldo) + '</span>' +
+          renderDelta(saldo, saldoAnt, false) +
         '</div>' +
       '</div>'
     );
   }
 
-  function renderTabSummaryDespesas(mes) {
-    const payload = buildDespesasTabPayload(mes);
-    if (payload.count === 0) {
+  function renderOverdueRow(item, mobile) {
+    if (mobile) {
       return (
-        '<div class="panel tab-summary">' +
-          '<div class="panel-head"><h3>Resumo — ' + monthLabel(mes) + '</h3></div>' +
-          '<div class="chart-empty tab-summary-empty">Nenhum lançamento neste mês.</div>' +
+        '<div class="m-card m-card-overdue">' +
+          '<div class="m-card-head"><strong>' + esc(item.nome) + '</strong><span class="mono val-neg">' + formatBRL(item.valor) + '</span></div>' +
+          '<div class="m-card-row"><span class="tag">' + monthLabelShort(item.mes) + '</span><span class="pending-badge">atrasado</span></div>' +
+          '<div class="m-card-actions"><button type="button" class="btn btn-primary btn-sm" onclick="togglePago(\'' + item.chave + '\')">Marcar pago</button></div>' +
         '</div>'
       );
     }
     return (
-      '<div class="panel tab-summary">' +
-        '<div class="panel-head"><h3>Resumo — ' + monthLabel(mes) + '</h3></div>' +
-        '<div class="tab-summary-kpis">' +
-          '<span>Total <span class="highlight mono">' + formatBRL(payload.total) + '</span></span>' +
-          '<span>' + payload.count + ' lançamento(s)</span>' +
-          '<span>Pago <span class="highlight mono">' + formatBRL(payload.pagoVal) + '</span></span>' +
-          '<span>Pendente <span class="highlight mono" style="color:var(--red)">' + formatBRL(payload.pendenteVal) + '</span></span>' +
+      '<div class="pending-row overdue">' +
+        '<div class="pending-name">' + esc(item.nome) + '<small>' + monthLabelShort(item.mes) + '</small></div>' +
+        '<span class="pending-venc">atrasado</span>' +
+        '<span class="pending-val val-neg">' + formatBRL(item.valor) + '</span>' +
+        '<span class="pending-badge">atrasado</span>' +
+        '<button type="button" class="btn btn-primary btn-sm" onclick="togglePago(\'' + item.chave + '\')">Pagar</button>' +
+      '</div>'
+    );
+  }
+
+  function renderOverduePanel(atrasados) {
+    if (!atrasados.length) return '';
+    const totalAtraso = atrasados.reduce(function (s, a) { return s + a.valor; }, 0);
+    return (
+      '<div class="panel panel-overdue dash-reveal">' +
+        '<div class="panel-head">' +
+          '<h3>Em atraso</h3>' +
+          '<span class="panel-hint-pill pending-total">' + atrasados.length + ' · ' + formatBRL(totalAtraso) + '</span>' +
         '</div>' +
-        '<div class="paid-track tab-summary-paid"><div class="paid-fill" style="--paid-scale:' + (payload.pctPago / 100).toFixed(4) + '"></div></div>' +
-        '<div class="tab-summary-paid-meta">' + payload.pctPago.toFixed(0) + '% pago neste mês</div>' +
-        '<div class="tab-summary-breakdown">' +
-          renderDonutLegend(payload.categorias, 'despesa') +
+        '<div class="overdue-scroll pending-scroll" role="region" aria-label="Lista de itens em atraso">' +
+          '<div class="pending-list">' + atrasados.map(function (a) { return renderOverdueRow(a, false); }).join('') + '</div>' +
+          '<div class="pending-cards">' + atrasados.map(function (a) { return renderOverdueRow(a, true); }).join('') + '</div>' +
         '</div>' +
       '</div>'
     );
@@ -1114,7 +1166,8 @@ async function exportPDF() {
         '<div class="panel-head"><h3>Fluxo mensal</h3><span class="panel-hint-pill">7 meses</span></div>' +
         (fluxoEmpty
           ? renderChartEmpty('Cadastre receitas e despesas para ver o gráfico.', true)
-          : '<div class="chart-wrap chart-fluxo"><canvas id="chartFluxo" role="img" aria-label="Gráfico de receitas e despesas"></canvas></div>') +
+          : '<div class="chart-wrap chart-fluxo"><canvas id="chartFluxo" role="img" aria-label="Gráfico de receitas e despesas"></canvas></div>' +
+            renderFluxoFooter(receitas, despesas, recAnt, despAnt, saldo, saldoAnt)) +
       '</div>' +
       '<div class="grid-3 dash-reveal">' +
         '<div class="panel">' +
@@ -1122,7 +1175,10 @@ async function exportPDF() {
           (pagoVal === 0 && pendenteVal === 0
             ? renderChartEmpty('Sem despesas neste mês.', true)
             : renderPaidProgress(pctPago, formatBRL(pagoVal) + ' pago · pendente ' + formatBRL(pendenteVal)) +
-              '<div class="chart-wrap chart-donut"><canvas id="chartPagamentos" role="img" aria-label="Gráfico de pagamentos"></canvas></div>' +
+              '<div class="chart-wrap chart-donut chart-donut-wrap">' +
+                '<canvas id="chartPagamentos" role="img" aria-label="Gráfico de pagamentos"></canvas>' +
+                '<div class="chart-donut-center mono">' + pctPago.toFixed(0) + '%<small>pago</small></div>' +
+              '</div>' +
               '<div class="chart-caption">Pendente: <b class="mono val-neg">' + formatBRL(pendenteVal) + '</b> · ' + pendCount + ' item(ns)</div>') +
         '</div>' +
         '<div class="panel">' +
@@ -1141,12 +1197,7 @@ async function exportPDF() {
           }).join('')) +
         '</div>' +
       '</div>' +
-      (atrasados.length > 0 ? (
-        '<div class="panel panel-overdue dash-reveal"><div class="panel-head"><h3>Em atraso</h3><span class="panel-hint-pill">' + atrasados.length + ' item(ns)</span></div>' +
-        atrasados.map(function (a) {
-          return '<div class="alert danger"><span class="ic">⏰</span><span>' + esc(a.nome) + ' — ' + monthLabelShort(a.mes) + ' — ' + formatBRL(a.valor) + '</span><button type="button" class="alert-action" onclick="togglePago(\'' + a.chave + '\')">marcar pago</button></div>';
-        }).join('') + '</div>'
-      ) : '') +
+      renderOverduePanel(atrasados) +
       '<div class="panel chart-panel chart-panel-proj dash-reveal">' +
         '<div class="panel-head"><h3>Projeção — próximos 6 meses</h3><span class="panel-hint-pill">receitas fixas + compromissos</span></div>' +
         (chartPayload.forecast.every(function (f) { return f.receitas === 0 && f.despesas === 0; })
@@ -1169,9 +1220,10 @@ async function exportPDF() {
     return '<span class="tag tag-variavel">Variável (à vista)</span>';
   }
 
-  function renderItemTable(items, mes, entidade, tipo) {
+  function renderItemTable(items, mes, entidade, tipo, emptyMessage) {
     if (items.length === 0) {
-      return '<div class="empty-state">Nenhum lançamento neste mês.<div class="empty-action"><button type="button" class="btn btn-primary btn-sm" onclick="openModal()">+ Novo lançamento</button></div></div>';
+      const msg = emptyMessage || 'Nenhum lançamento neste mês.';
+      return '<div class="empty-state">' + esc(msg) + '<div class="empty-action"><button type="button" class="btn btn-primary btn-sm" onclick="openModal()">+ Novo lançamento</button></div></div>';
     }
 
     const isReceita = tipo === 'receita';
@@ -1196,22 +1248,103 @@ async function exportPDF() {
 
   function renderReceitas() {
     const mes = state.currentMonth;
-    const itens = getReceitasMes(mes).itens.filter(function (r) { return passesFilter(r, 'receita', mes); });
+    const allItens = getReceitasMes(mes).itens;
+    const tipoTab = listTipoTab.receitas || 'todas';
+    const itens = allItens
+      .filter(function (r) { return passesTipoFilter(r, 'receitas'); })
+      .filter(function (r) { return passesFilter(r, 'receita', mes); });
     return (
       '<div class="section-title-row"><h2>Receitas — ' + monthLabel(mes) + '</h2></div>' +
-      renderTabSummaryReceitas(mes) +
-      '<div class="panel">' + renderFilterBar(CATEGORIAS_RECEITA) + renderItemTable(itens, mes, 'receita', 'receita') + '</div>'
+      '<div class="panel">' +
+        renderTipoSubTabs('receitas', allItens) +
+        renderFilterBar(CATEGORIAS_RECEITA) +
+        renderItemTable(itens, mes, 'receita', 'receita', tipoTabEmptyMessage('receitas', tipoTab)) +
+      '</div>'
     );
   }
 
   function renderDespesas() {
     const mes = state.currentMonth;
-    const itens = getDespesasMes(mes).itens.filter(function (d) { return d.tipo !== 'emprestimo' && passesFilter(d, 'despesa', mes); });
+    const allItens = getDespesasMes(mes).itens.filter(function (d) { return d.tipo !== 'emprestimo'; });
+    const tipoTab = listTipoTab.despesas || 'todas';
+    const itens = allItens
+      .filter(function (d) { return passesTipoFilter(d, 'despesas'); })
+      .filter(function (d) { return passesFilter(d, 'despesa', mes); });
     return (
       '<div class="section-title-row"><h2>Despesas — ' + monthLabel(mes) + '</h2></div>' +
-      renderTabSummaryDespesas(mes) +
-      '<div class="panel">' + renderFilterBar(CATEGORIAS_DESPESA) + renderItemTable(itens, mes, 'despesa', 'despesa') + '</div>'
+      '<div class="panel">' +
+        renderTipoSubTabs('despesas', allItens) +
+        renderFilterBar(CATEGORIAS_DESPESA) +
+        renderItemTable(itens, mes, 'despesa', 'despesa', tipoTabEmptyMessage('despesas', tipoTab)) +
+      '</div>'
     );
+  }
+
+  function renderTabSummaryCompromissos(mes) {
+    const payload = buildCompromissosTabPayload(mes);
+    if (payload.count === 0) {
+      return (
+        '<div class="panel compromisso-mes-panel">' +
+          '<div class="panel-head"><h3>Parcelas do mês</h3><span class="hint">' + monthLabel(mes) + '</span></div>' +
+          '<div class="empty-state">Nenhuma parcela ativa neste mês.</div>' +
+        '</div>'
+      );
+    }
+    return (
+      '<div class="panel compromisso-mes-panel">' +
+        '<div class="panel-head"><h3>Parcelas do mês</h3><span class="hint">' + monthLabel(mes) + '</span></div>' +
+        '<div class="compromisso-mes-kpis">' +
+          '<span>Total <strong class="mono">' + formatBRL(payload.total) + '</strong></span>' +
+          '<span>' + payload.count + ' parcela(s)</span>' +
+          '<span>Pago <strong class="mono">' + formatBRL(payload.pagoVal) + '</strong></span>' +
+          '<span>Pendente <strong class="mono val-neg">' + formatBRL(payload.pendenteVal) + '</strong></span>' +
+        '</div>' +
+        renderPaidProgress(payload.pctPago, payload.pctPago.toFixed(0) + '% pago · pendente ' + formatBRL(payload.pendenteVal)) +
+      '</div>'
+    );
+  }
+
+  function renderCompromissoMesTable(items, mes) {
+    if (items.length === 0) {
+      return (
+        '<div class="empty-state">Nenhuma parcela neste mês com os filtros atuais.' +
+          '<div class="empty-action"><button type="button" class="btn btn-primary btn-sm" onclick="openModal()">+ Novo lançamento</button></div>' +
+        '</div>'
+      );
+    }
+
+    const rows = items.map(function (item) {
+      const pgEnt = entidadeDoItemDespesa(item);
+      const tipoTag = item.tipo === 'emprestimo'
+        ? '<span class="tag tag-parcelado">Empréstimo · parcela ' + (item.numParcelas - parcelasRestantes(item, mes) + 1) + '/' + item.numParcelas + '</span>'
+        : renderTipoTag(item, mes, false);
+      const vencTag = item.diaVencimento ? '<span class="tag tag-venc">dia ' + item.diaVencimento + '</span>' : '';
+      const arrKey = item.tipo === 'emprestimo' ? 'emprestimos' : 'despesas';
+      const editEnt = item.tipo === 'emprestimo' ? 'emprestimo' : 'despesa';
+      return '<tr><td>' + esc(item.nome) + ' ' + vencTag + '</td><td>' + tipoTag + '</td><td class="mono val-neg">' + formatBRL(item.valorEfetivo) + '</td><td>' + renderPagoCell(pgEnt, item.id, mes) + '</td><td class="row-actions"><button type="button" class="icon-btn" aria-label="Editar" onclick="editItem(\'' + editEnt + '\',\'' + item.id + '\',\'' + mes + '\')">✎</button><button type="button" class="icon-btn danger" aria-label="Excluir" onclick="removeItem(\'' + arrKey + '\',\'' + item.id + '\',\'' + editEnt + '\')">✕</button></td></tr>';
+    }).join('');
+
+    const mobileCards = items.map(function (item) {
+      const pgEnt = entidadeDoItemDespesa(item);
+      const tipoTag = item.tipo === 'emprestimo'
+        ? '<span class="tag tag-parcelado">Empréstimo · parcela ' + (item.numParcelas - parcelasRestantes(item, mes) + 1) + '/' + item.numParcelas + '</span>'
+        : renderTipoTag(item, mes, false);
+      const arrKey = item.tipo === 'emprestimo' ? 'emprestimos' : 'despesas';
+      const editEnt = item.tipo === 'emprestimo' ? 'emprestimo' : 'despesa';
+      return (
+        '<div class="m-card">' +
+          '<div class="m-card-head"><strong>' + esc(item.nome) + '</strong><span class="mono val-neg">' + formatBRL(item.valorEfetivo) + '</span></div>' +
+          '<div class="m-card-row"><span>' + tipoTag + '</span></div>' +
+          '<div class="m-card-row">' + renderPagoCell(pgEnt, item.id, mes) + '</div>' +
+          '<div class="m-card-actions">' +
+            '<button type="button" class="btn btn-ghost btn-sm" onclick="editItem(\'' + editEnt + '\',\'' + item.id + '\',\'' + mes + '\')">Editar</button>' +
+            '<button type="button" class="btn btn-danger-ghost btn-sm" onclick="removeItem(\'' + arrKey + '\',\'' + item.id + '\',\'' + editEnt + '\')">Excluir</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+
+    return '<div class="table-wrap"><table><thead><tr><th>Nome</th><th>Tipo</th><th>Valor</th><th>Status</th><th></th></tr></thead><tbody>' + rows + '</tbody></table><div class="mobile-cards">' + mobileCards + '</div></div>';
   }
 
   function renderCompromissoTable(items, entidade, isEmp) {
@@ -1237,8 +1370,27 @@ async function exportPDF() {
 
   function renderCompromissos() {
     const mes = state.currentMonth;
+    const allItens = getCompromissosMes(mes).itens;
+    const itens = allItens.filter(function (item) {
+      return passesFilter(item, entidadeDoItemDespesa(item), mes);
+    });
     const parcelados = state.despesas.filter(function (d) { return d.formaPagamento === 'parcelado'; });
-    return '<div class="section-title-row"><h2>Parcelas &amp; Empréstimos</h2></div><div class="panel" style="margin-bottom:16px;"><div class="panel-head"><h3>Compras parceladas</h3><span class="hint">' + monthLabelShort(mes) + '</span></div>' + renderCompromissoTable(parcelados, 'despesa', false) + '</div><div class="panel"><div class="panel-head"><h3>Empréstimos</h3><span class="hint">juros simplificado</span></div>' + renderCompromissoTable(state.emprestimos, 'emprestimo', true) + '</div>';
+    return (
+      '<div class="section-title-row"><h2>Parcelas &amp; Empréstimos — ' + monthLabel(mes) + '</h2></div>' +
+      renderTabSummaryCompromissos(mes) +
+      '<div class="panel compromisso-mes-panel">' +
+        '<div class="panel-head"><h3>Pagamento das parcelas</h3><span class="hint">' + monthLabelShort(mes) + '</span></div>' +
+        renderFilterBar(null) +
+        renderCompromissoMesTable(itens, mes) +
+      '</div>' +
+      '<div class="panel compromisso-contract-panel">' +
+        '<div class="panel-head"><h3>Visão do contrato</h3><span class="hint">progresso total</span></div>' +
+        '<div class="panel-subhead"><h4>Compras parceladas</h4></div>' +
+        renderCompromissoTable(parcelados, 'despesa', false) +
+        '<div class="panel-subhead"><h4>Empréstimos</h4><span class="hint">juros simplificado</span></div>' +
+        renderCompromissoTable(state.emprestimos, 'emprestimo', true) +
+      '</div>'
+    );
   }
 
   function renderOrcamentos() {
@@ -1318,6 +1470,12 @@ async function exportPDF() {
 
   function setFilter(key, val) {
     listFilters[key] = val;
+    render();
+  }
+
+  function setTipoTab(page, tipo) {
+    if (listTipoTab[page] === tipo) return;
+    listTipoTab[page] = tipo;
     render();
   }
 
@@ -1431,12 +1589,13 @@ async function exportPDF() {
     if (!item) return;
 
     let paidPassword = null;
-    if ((entidade === 'receita' || entidade === 'despesa') && isPagoNoMes(entidade, id, editMes)) {
+    const pgEnt = entidade === 'receita' ? 'receita' : entidade === 'emprestimo' ? 'emprestimo' : 'despesa';
+    if ((entidade === 'receita' || entidade === 'despesa' || entidade === 'emprestimo') && isPagoNoMes(pgEnt, id, editMes)) {
       paidPassword = await requirePasswordForPaid({
         title: 'Confirmar senha',
         message: entidade === 'receita'
           ? 'Este lançamento já foi recebido. Digite sua senha para editar.'
-          : 'Este lançamento já foi pago. Digite sua senha para editar.',
+          : 'Esta parcela já foi paga. Digite sua senha para editar.',
       });
       if (!paidPassword) return;
     }
@@ -1828,7 +1987,7 @@ async function exportPDF() {
       payload = { nome: base.nome, categoria: 'Empréstimo', mesInicio: val('f_mes'), valorTotal: Number(val('f_valorTotal')), juros: Number(val('f_juros') || 0), numParcelas: Number(val('f_numParcelas')), diaVencimento: diaVencimento };
     }
 
-    if (c.editing && c.paidPassword && (c.entidade === 'receita' || c.entidade === 'despesa')) {
+    if (c.editing && c.paidPassword && (c.entidade === 'receita' || c.entidade === 'despesa' || c.entidade === 'emprestimo')) {
       payload.mes = c.editingMes || state.currentMonth;
       payload.password = c.paidPassword;
     }
@@ -1899,6 +2058,7 @@ async function exportPDF() {
   window.editItem = editItem;
   window.removeItem = removeItem;
   window.setFilter = setFilter;
+  window.setTipoTab = setTipoTab;
   window.togglePago = togglePago;
   window.anexarComprovante = anexarComprovante;
   window.verComprovante = verComprovante;
