@@ -2144,3 +2144,59 @@ dialog.modal .type-picker.duracao-picker {
 
 .profile-section-account .panel-head h3 { color: var(--ice); }
 
+.profile-section-plan .panel-head {
+  align-items: center;
+}
+
+.plan-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border: 1px solid var(--border);
+}
+
+.plan-badge-free {
+  color: var(--muted);
+  background: var(--surface-2);
+}
+
+.plan-badge-pro {
+  color: var(--green);
+  background: oklch(0.22 0.04 150 / 0.35);
+  border-color: oklch(0.55 0.12 150 / 0.35);
+}
+
+.plan-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 0 0 14px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.plan-status {
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--text);
+}
+
+.plan-price {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.plan-renewal,
+.plan-trial-hint {
+  color: var(--muted-2);
+}
+
+.profile-section-plan .btn {
+  margin-top: 2px;
+}
+
