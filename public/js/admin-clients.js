@@ -33,6 +33,9 @@
 
   function clientStatus(client) {
     const sub = client.subscription || {};
+    if (sub.isLifetime || client.accessGrantType === 'lifetime') {
+      return { label: 'Vitalício', pill: 'active' };
+    }
     if (sub.isPro) {
       if (sub.renewalDueSoon) {
         return { label: 'Vence em ' + sub.daysUntilExpiry + ' dia(s)', pill: 'warning' };
@@ -90,7 +93,7 @@
       '</div>' +
 
       '<div class="section-title-row"><h2>Clientes</h2><button type="button" class="btn btn-primary btn-sm" onclick="openClientModal()">+ Novo cliente</button></div>' +
-      '<p class="hint admin-clients-hint">Cadastre quem paga direto para você. O acesso Pro dura 30 dias; renove registrando o pagamento mensal.</p>' +
+      '<p class="hint admin-clients-hint">Cadastre quem paga direto para você. Escolha vitalício ou 30 dias grátis; depois renove com &quot;Registrar pagamento&quot;.</p>' +
       '<div class="panel"><div class="table-wrap"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Status</th><th>Vencimento</th><th>Cadastro</th><th></th></tr></thead><tbody>' +
       (clients.length === 0
         ? '<tr><td colspan="6"><div class="empty-state">Nenhum cliente manual cadastrado.</div></td></tr>'
@@ -101,9 +104,13 @@
             '<td>' + esc(c.nome) + '</td>' +
             '<td>' + esc(c.email) + '</td>' +
             '<td><span class="status-pill ' + esc(st.pill) + '">' + esc(st.label) + '</span></td>' +
-            '<td class="mono">' + esc(formatDate(sub.currentPeriodEnd)) + '</td>' +
+            '<td class="mono">' + esc(sub.isLifetime ? 'Vitalício' : formatDate(sub.currentPeriodEnd)) + '</td>' +
             '<td class="mono">' + esc(formatDate(c.createdAt)) + '</td>' +
-            '<td class="row-actions"><button type="button" class="btn btn-primary btn-sm" onclick="registerPayment(\'' + c.id + '\')">Registrar pagamento</button></td>' +
+            '<td class="row-actions">' +
+              (sub.isLifetime
+                ? '<span class="hint">—</span>'
+                : '<button type="button" class="btn btn-primary btn-sm" onclick="registerPayment(\'' + c.id + '\')">Registrar pagamento</button>') +
+            '</td>' +
           '</tr>';
         }).join('')) +
       '</tbody></table></div></div>';
@@ -166,7 +173,12 @@
         '<div class="field"><label for="c_nome">Nome</label><input id="c_nome" type="text" required autocomplete="name"></div>' +
         '<div class="field"><label for="c_email">E-mail</label><input id="c_email" type="email" required autocomplete="email"></div>' +
         '<div class="field"><label for="c_password">Senha <span class="hint">(opcional — gerada automaticamente se vazio)</span></label><input id="c_password" type="password" minlength="6" autocomplete="new-password"></div>' +
-        '<p class="hint">O primeiro mês já entra como pago (+30 dias de acesso Pro).</p>' +
+        '<fieldset class="field admin-access-grant">' +
+          '<legend class="admin-access-grant-legend">Tipo de acesso</legend>' +
+          '<label class="admin-access-option"><input type="radio" name="c_access_grant" value="trial" checked> 30 dias grátis</label>' +
+          '<label class="admin-access-option"><input type="radio" name="c_access_grant" value="lifetime"> Vitalício</label>' +
+        '</fieldset>' +
+        '<p class="hint">No primeiro login, a pessoa verá a mensagem de boas-vindas e definirá uma nova senha.</p>' +
         '<div class="modal-actions"><button type="button" class="btn btn-ghost" onclick="requestCloseClientModal()">Cancelar</button><button type="submit" class="btn btn-primary" id="clientSubmitBtn">Criar cliente</button></div>' +
       '</form>';
 
@@ -183,6 +195,7 @@
         const body = {
           nome: document.getElementById('c_nome').value.trim(),
           email: document.getElementById('c_email').value.trim(),
+          accessGrant: (document.querySelector('input[name="c_access_grant"]:checked') || {}).value || 'trial',
         };
         const passwordVal = document.getElementById('c_password').value;
         if (passwordVal) body.password = passwordVal;
@@ -193,8 +206,10 @@
 
         if (data.tempPassword) {
           toast('Cliente criado. Senha temporária: ' + data.tempPassword, 'success');
+        } else if (data.accessGrant === 'lifetime') {
+          toast('Cliente criado com acesso vitalício');
         } else {
-          toast('Cliente criado com acesso Pro por 30 dias');
+          toast('Cliente criado com 30 dias grátis');
         }
       } catch (err) {
         toast(err.message, 'error');

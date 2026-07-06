@@ -57,9 +57,49 @@
     const loginForm = document.getElementById('loginForm');
     const forceForm = document.getElementById('forcePasswordForm');
     const subtitle = document.getElementById('loginSubtitle');
+    const checkoutWelcome = document.getElementById('checkoutWelcome');
     if (loginForm) loginForm.hidden = true;
     if (forceForm) forceForm.hidden = false;
     if (subtitle) subtitle.hidden = true;
+    if (checkoutWelcome) checkoutWelcome.hidden = true;
+  }
+
+  function showWelcomeGrantModal(grantType) {
+    return new Promise(function (resolve) {
+      const dialog = document.getElementById('welcomeGrantDialog');
+      const title = document.getElementById('welcomeGrantTitle');
+      const message = document.getElementById('welcomeGrantMessage');
+      const okBtn = document.getElementById('welcomeGrantOk');
+
+      if (!dialog || !title || !message || !okBtn) {
+        resolve();
+        return;
+      }
+
+      if (grantType === 'lifetime') {
+        title.textContent = 'Acesso vitalício liberado!';
+        message.textContent = 'Você recebeu acesso vitalício ao painel. Agora defina sua senha pessoal para continuar.';
+      } else {
+        title.textContent = 'Você ganhou 30 dias grátis!';
+        message.textContent = 'Seu acesso Pro está liberado por 30 dias. Defina sua senha para entrar no painel.';
+      }
+
+      function closeModal() {
+        okBtn.removeEventListener('click', onOk);
+        dialog.removeEventListener('cancel', onOk);
+        if (dialog.open) dialog.close();
+        resolve();
+      }
+
+      function onOk(e) {
+        if (e) e.preventDefault();
+        closeModal();
+      }
+
+      okBtn.addEventListener('click', onOk);
+      dialog.addEventListener('cancel', onOk);
+      dialog.showModal();
+    });
   }
 
   function hasActiveSubscription(user, subscription) {
@@ -104,6 +144,9 @@
     setSession(data.token, data.user, data.subscription || null, data.pricing || null);
 
     if (data.user && data.user.mustChangePassword) {
+      if (data.welcomeGrant) {
+        await showWelcomeGrantModal(data.welcomeGrant);
+      }
       showForcePasswordForm();
       return data;
     }

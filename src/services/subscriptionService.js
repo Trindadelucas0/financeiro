@@ -139,12 +139,43 @@ async function grantProAccess(userId, days = PRO_ACCESS_DAYS) {
   return rows[0].subscription_current_period_end;
 }
 
+async function grantLifetimeAccess(userId) {
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `UPDATE users
+     SET plan = 'pro',
+         subscription_status = 'lifetime',
+         subscription_current_period_end = NULL,
+         access_grant_type = 'lifetime'
+     WHERE id = $1
+     RETURNING subscription_current_period_end`,
+    [userId],
+  );
+
+  if (rows.length === 0) {
+    const err = new Error('Usuário não encontrado');
+    err.status = 404;
+    throw err;
+  }
+
+  return null;
+}
+
+function resolveWelcomeGrant(user) {
+  if (!user || !user.must_change_password) return null;
+  if (user.access_grant_type === 'trial') return 'trial';
+  if (user.access_grant_type === 'lifetime') return 'lifetime';
+  return null;
+}
+
 module.exports = {
   mapSubscription,
   getSubscription,
   isProUser,
   getUserPaymentContext,
   grantProAccess,
+  grantLifetimeAccess,
+  resolveWelcomeGrant,
   computeDaysUntilExpiry,
   PRO_ACCESS_DAYS,
   RENEWAL_REMINDER_DAYS,

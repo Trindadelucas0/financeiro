@@ -57,8 +57,15 @@ async function login(identifier, password) {
 
   const token = signToken(payload);
   const subscription = subscriptionService.mapSubscription(user);
+  const welcomeGrant = subscriptionService.resolveWelcomeGrant(user);
 
-  return { token, user: mapUser(user), subscription, pricing: getProPlanPricing() };
+  return {
+    token,
+    user: mapUser(user),
+    subscription,
+    pricing: getProPlanPricing(),
+    welcomeGrant,
+  };
 }
 
 async function getMe(userId) {
