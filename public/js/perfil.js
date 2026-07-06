@@ -294,7 +294,7 @@
   }
 
   function canUseFullProfile(user, subscription) {
-    if (user && user.role === 'admin') return true;
+    if (user && user.canManagePlatform) return true;
     return Boolean(subscription && subscription.isPro);
   }
 
@@ -467,7 +467,7 @@
             '</section>'
           : '') +
 
-        (user.role === 'admin' ? renderAdminUsersSection() + renderAdminFeedbackSection() : '') +
+        (user.canManagePlatform ? renderAdminUsersSection() + renderAdminFeedbackSection() : '') +
 
         '<section class="panel profile-section">' +
           '<div class="panel-head"><h3>Alterar senha</h3></div>' +
@@ -514,7 +514,7 @@
 
     view.setAttribute('aria-busy', 'false');
     bindProfileEvents(user);
-    if (user.role === 'admin') bindAdminEvents();
+    if (user.canManagePlatform) bindAdminEvents();
     updatePwaUi();
 
     const checkoutBtn = document.getElementById('planCheckoutBtn');
