@@ -719,14 +719,6 @@ async function exportPDF() {
       previsao: renderPrevisao,
     };
     view.innerHTML = (map[tab] || renderDashboard)();
-    if ((tab === 'receitas' || tab === 'despesas') && window.FinanceCharts) {
-      requestAnimationFrame(function () {
-        window.FinanceCharts.initListTab(
-          tab,
-          tab === 'receitas' ? buildReceitasTabPayload(state.currentMonth) : buildDespesasTabPayload(state.currentMonth),
-        );
-      });
-    }
   }
 
   function renderChartEmpty(message, withCta) {
@@ -899,8 +891,10 @@ async function exportPDF() {
     const listHtml = pendentes.length === 0
       ? '<div class="pending-empty">Nenhuma conta pendente este mês.</div>'
       : (
-        '<div class="pending-list">' + pendentes.map(function (p) { return renderPendingBillRow(p, false); }).join('') + '</div>' +
-        '<div class="pending-cards">' + pendentes.map(function (p) { return renderPendingBillRow(p, true); }).join('') + '</div>'
+        '<div class="pending-scroll" role="region" aria-label="Lista de contas pendentes">' +
+          '<div class="pending-list">' + pendentes.map(function (p) { return renderPendingBillRow(p, false); }).join('') + '</div>' +
+          '<div class="pending-cards">' + pendentes.map(function (p) { return renderPendingBillRow(p, true); }).join('') + '</div>' +
+        '</div>'
       );
     const headMeta = pendentes.length
       ? '<span class="panel-hint-pill pending-total">' + pendentes.length + ' · ' + formatBRL(totalPend) + '</span>'
@@ -956,8 +950,7 @@ async function exportPDF() {
           '<span>Fixas <span class="highlight mono">' + formatBRL(payload.fixas) + '</span></span>' +
           '<span>Variáveis <span class="highlight mono">' + formatBRL(payload.variaveis) + '</span></span>' +
         '</div>' +
-        '<div class="tab-summary-grid">' +
-          '<div class="chart-wrap chart-mini"><canvas id="chartReceitasTab" role="img" aria-label="Receitas por categoria"></canvas></div>' +
+        '<div class="tab-summary-breakdown">' +
           renderDonutLegend(payload.categorias, 'receita') +
         '</div>' +
       '</div>'
@@ -985,8 +978,7 @@ async function exportPDF() {
         '</div>' +
         '<div class="paid-track tab-summary-paid"><div class="paid-fill" style="--paid-scale:' + (payload.pctPago / 100).toFixed(4) + '"></div></div>' +
         '<div class="tab-summary-paid-meta">' + payload.pctPago.toFixed(0) + '% pago neste mês</div>' +
-        '<div class="tab-summary-grid">' +
-          '<div class="chart-wrap chart-mini"><canvas id="chartDespesasTab" role="img" aria-label="Despesas por categoria"></canvas></div>' +
+        '<div class="tab-summary-breakdown">' +
           renderDonutLegend(payload.categorias, 'despesa') +
         '</div>' +
       '</div>'
@@ -1306,23 +1298,31 @@ async function exportPDF() {
     { value: 'emprestimo', label: 'Empréstimo', shortLabel: 'Emprést.', icon: '%', desc: 'Parcelas com juros', iconClass: 'loan' },
   ];
 
-  function entityRailItem(item, c, locked) {
+  function entityOptBtn(item, c, locked) {
     const active = c.entidade === item.value;
     const itemLocked = locked && !active;
-    const cls = 'modal-rail-item' + (active ? ' active' : '') + (itemLocked ? ' locked' : '');
+    const cls = 'type-opt entity-opt' + (active ? ' active' : '') + (itemLocked ? ' locked' : '');
     const clickAttr = itemLocked ? '' : ' onclick="setEntidade(\'' + item.value + '\')"';
-    const ariaCurrent = active ? ' aria-current="true"' : '';
+    const ariaSelected = active ? ' aria-selected="true"' : ' aria-selected="false"';
     const disabled = itemLocked ? ' disabled' : '';
     return (
-      '<button type="button" class="' + cls + '" data-value="' + esc(item.value) + '"' + clickAttr + ariaCurrent + disabled + '>' +
-      '<span class="modal-rail-icon ' + item.iconClass + '" aria-hidden="true">' + item.icon + '</span>' +
-      '<span class="modal-rail-label">' + esc(item.shortLabel || item.label) + '</span>' +
+      '<button type="button" class="' + cls + '" role="tab" data-value="' + esc(item.value) + '"' + clickAttr + ariaSelected + disabled + '>' +
+      '<span class="entity-opt-icon modal-rail-icon ' + item.iconClass + '" aria-hidden="true">' + item.icon + '</span>' +
+      '<span class="entity-opt-copy">' +
+      '<span class="t-title">' + esc(item.label) + '</span>' +
+      '<span class="t-desc">' + esc(item.desc) + '</span>' +
+      '</span>' +
       '</button>'
     );
   }
 
-  function buildEntityRailHtml(c, locked) {
-    return ENTITY_RAIL.map(function (item) { return entityRailItem(item, c, locked); }).join('');
+  function buildEntityPickerHtml(c, locked) {
+    return (
+      '<p class="picker-label">O que é</p>' +
+      '<div class="type-picker modal-type-picker entity-picker" role="tablist" aria-label="Tipo de lançamento">' +
+      ENTITY_RAIL.map(function (item) { return entityOptBtn(item, c, locked); }).join('') +
+      '</div>'
+    );
   }
 
   function buildPickersHtml(c, locked) {
@@ -1348,7 +1348,7 @@ async function exportPDF() {
   function buildMainPanelHtml(c, locked) {
     let html = '';
     if (!c.entidade) {
-      html += '<p class="modal-panel-empty">Escolha um tipo acima para continuar.</p>';
+      html += '<p class="modal-panel-empty">Selecione um tipo para continuar.</p>';
       return html;
     }
     html += buildPickersHtml(c, locked);
@@ -1481,7 +1481,7 @@ async function exportPDF() {
     const dialog = document.getElementById('modalDialog');
     if (!dialog) return;
     const field = dialog.querySelector(
-      'input:not([type="hidden"]):not([readonly]), select, textarea, button.modal-rail-item:not(.locked):not([disabled]), button.type-opt:not(.locked):not([disabled])',
+      'input:not([type="hidden"]):not([readonly]), select, textarea, button.entity-opt:not(.locked):not([disabled]), button.type-opt:not(.locked):not([disabled])',
     );
     if (field) field.focus();
   }
@@ -1678,8 +1678,7 @@ async function exportPDF() {
       '<button type="button" class="modal-close" aria-label="Fechar" onclick="requestCloseModal()">×</button></div>' +
       '<p class="modal-sub">' + subCopy + '</p>' +
       '<div class="modal-shell">' +
-      '<nav class="modal-type-rail" aria-label="Tipo de lançamento">' + buildEntityRailHtml(c, locked) + '</nav>' +
-      '<div class="modal-panel"><div class="modal-scroll">' + panelHtml + '</div></div>' +
+      '<div class="modal-panel"><div class="modal-scroll">' + buildEntityPickerHtml(c, locked) + panelHtml + '</div></div>' +
       '</div>';
 
     if (pronto) {

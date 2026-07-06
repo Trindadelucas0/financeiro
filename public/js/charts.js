@@ -277,59 +277,6 @@
     'oklch(0.38 0.04 25)',
   ];
 
-  var CAT_COLORS_RECEITA = [
-    'oklch(0.94 0.008 240)',
-    'oklch(0.78 0.16 155)',
-    'oklch(0.62 0.008 240)',
-    'oklch(0.52 0.01 240)',
-    'oklch(0.21 0 0)',
-    'oklch(0.17 0 0)',
-  ];
-
-  function initTabDonut(id, categorias, palette) {
-    var canvas = getCanvas(id);
-    if (!canvas || !categorias || !categorias.length) return;
-    var c = getColors();
-    var colors = palette === 'receita' ? CAT_COLORS_RECEITA : CAT_COLORS;
-
-    track(new Chart(canvas, {
-      type: 'doughnut',
-      data: {
-        labels: categorias.map(function (cat) { return cat.label; }),
-        datasets: [{
-          data: categorias.map(function (cat) { return cat.valor; }),
-          backgroundColor: categorias.map(function (_, i) { return colors[i % colors.length]; }),
-          borderColor: c.bg,
-          borderWidth: 2,
-          hoverOffset: 3,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '72%',
-        animation: reducedMotion() ? false : { duration: 350 },
-        plugins: Object.assign({}, basePlugins(c), {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: c.surface3,
-            titleColor: c.text,
-            bodyColor: c.muted,
-            borderColor: c.border,
-            borderWidth: 1,
-            callbacks: {
-              label: function (ctx) {
-                var total = categorias.reduce(function (s, cat) { return s + cat.valor; }, 0);
-                var pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(0) : 0;
-                return ctx.label + ': ' + formatBRL(ctx.parsed) + ' (' + pct + '%)';
-              },
-            },
-          },
-        }),
-      },
-    }));
-  }
-
   function initDonutCategorias(id, categorias) {
     var canvas = getCanvas(id);
     if (!canvas || !categorias || !categorias.length) return;
@@ -454,17 +401,6 @@
     }));
   }
 
-  function initListTab(tab, payload) {
-    destroy();
-    if (!payload || typeof Chart === 'undefined') return;
-    if (tab === 'receitas' && payload.categorias && payload.categorias.length) {
-      initTabDonut('chartReceitasTab', payload.categorias, 'receita');
-    }
-    if (tab === 'despesas' && payload.categorias && payload.categorias.length) {
-      initTabDonut('chartDespesasTab', payload.categorias, 'despesa');
-    }
-  }
-
   function resize() {
     instances.forEach(function (c) {
       if (c && typeof c.resize === 'function') c.resize();
@@ -492,5 +428,5 @@
     }
   }
 
-  window.FinanceCharts = { init: init, initListTab: initListTab, destroy: destroy, resize: resize, formatBRL: formatBRL };
+  window.FinanceCharts = { init: init, destroy: destroy, resize: resize, formatBRL: formatBRL };
 })();

@@ -356,17 +356,8 @@
     display: none;
   }
 
-  .layout-mobile-bank dialog.modal .modal-type-rail {
-    padding: 0 12px 8px;
-    border: none;
-  }
-
   .layout-mobile-bank dialog.modal .modal-scroll {
     padding: 8px 12px 12px;
-  }
-
-  .layout-mobile-bank dialog.modal .modal-rail-item {
-    min-height: 40px;
   }
 
   .layout-mobile-bank dialog.modal .modal-panel-empty {
