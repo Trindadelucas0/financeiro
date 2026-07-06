@@ -52,8 +52,38 @@
     if (subtitle) subtitle.hidden = true;
   }
 
+  function hasActiveSubscription(user, subscription) {
+    if (user && user.role === 'admin') return true;
+    return Boolean(subscription && subscription.isPro);
+  }
+
+  function redirectToPaywallIfNeeded() {
+    const user = getUser();
+    const subscription = getSubscription();
+    if (hasActiveSubscription(user, subscription)) return false;
+
+    const path = window.location.pathname;
+    if (path === '/app/perfil' || path.startsWith('/app/perfil')) return false;
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('checkout') === 'success') return false;
+
+    window.location.href = '/app/perfil?assinatura=expirada';
+    return true;
+  }
+
+  function goToAppHome() {
+    const user = getUser();
+    const subscription = getSubscription();
+    if (hasActiveSubscription(user, subscription)) {
+      window.location.href = '/app/dashboard';
+    } else {
+      window.location.href = '/app/perfil?assinatura=expirada';
+    }
+  }
+
   function goToDashboard() {
-    window.location.href = '/app/dashboard';
+    goToAppHome();
   }
 
   async function login(identifier, password) {
@@ -195,6 +225,7 @@
       if (data && data.user) {
         setSession(token, data.user, data.subscription || null, data.pricing || null);
         updateUserUi(data.user);
+        redirectToPaywallIfNeeded();
         return data.user;
       }
     } catch {
@@ -325,6 +356,8 @@
     if (!requireAuth()) return;
     updateUserUi(getUser());
 
+    if (redirectToPaywallIfNeeded()) return;
+
     refreshSession();
 
     const logoutBtn = document.getElementById('logoutBtn');
@@ -349,5 +382,8 @@
     displayName,
     updateUserUi,
     getSubscription,
+    hasActiveSubscription,
+    redirectToPaywallIfNeeded,
+    goToAppHome,
   };
 })();

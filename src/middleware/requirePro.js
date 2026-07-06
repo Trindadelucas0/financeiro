@@ -5,8 +5,8 @@ async function requirePro(req, res, next) {
     const isPro = await subscriptionService.isProUser(req.user.id);
     if (!isPro) {
       return res.status(402).json({
-        error: 'Recurso disponível no plano Pro',
-        code: 'PRO_REQUIRED',
+        error: 'Assinatura expirada ou inativa',
+        code: 'SUBSCRIPTION_REQUIRED',
         upgradeUrl: '/app/perfil',
       });
     }

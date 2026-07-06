@@ -114,6 +114,15 @@ async function main() {
     } catch (e) { fail('Export PDF admin', e); }
   }
 
+  // 5.1 Dashboard admin sem pagamento
+  if (adminToken) {
+    try {
+      const { status } = await request('/api/finance/dashboard', { token: adminToken });
+      assert(status === 200, `esperado 200, got ${status}`);
+      pass('Dashboard liberado para admin (200)');
+    } catch (e) { fail('Dashboard admin', e); }
+  }
+
   // 5.5 Reset usuário teste para free (execuções anteriores deixam Pro)
   try {
     const { getPool } = require('../src/db/pool');
@@ -137,14 +146,30 @@ async function main() {
     pass('Login usuário free');
   } catch (e) { fail('Login usuário free', e); }
 
-  // 7. PDF bloqueado free
+  // 7. Painel bloqueado sem assinatura
+  if (userToken) {
+    try {
+      const { status, data } = await request('/api/finance/dashboard', { token: userToken });
+      assert(status === 402, `esperado 402, got ${status}`);
+      assert(
+        data.code === 'SUBSCRIPTION_REQUIRED' || data.code === 'PRO_REQUIRED',
+        'code SUBSCRIPTION_REQUIRED',
+      );
+      pass('Dashboard bloqueado sem assinatura (402)');
+    } catch (e) { fail('Dashboard bloqueado sem assinatura', e); }
+  }
+
+  // 7.1 PDF bloqueado sem assinatura
   if (userToken) {
     try {
       const { status, data } = await request('/api/finance/export/pdf', { token: userToken });
       assert(status === 402, `esperado 402, got ${status}`);
-      assert(data.code === 'PRO_REQUIRED', 'code PRO_REQUIRED');
-      pass('PDF bloqueado para free (402)');
-    } catch (e) { fail('PDF bloqueado free', e); }
+      assert(
+        data.code === 'SUBSCRIPTION_REQUIRED' || data.code === 'PRO_REQUIRED',
+        'code SUBSCRIPTION_REQUIRED',
+      );
+      pass('PDF bloqueado sem assinatura (402)');
+    } catch (e) { fail('PDF bloqueado sem assinatura', e); }
   }
 
   // 8. Checkout InfinitePay gera URL
@@ -179,19 +204,40 @@ async function main() {
       const me = await request('/api/auth/me', { token: userToken });
       assert(me.data.subscription.isPro, 'deveria ser Pro após grant');
       pass('Liberação Pro (30 dias) + /api/auth/me confirma');
-      await pool.end();
     } catch (e) { fail('Liberação Pro simulada', e); }
   }
 
-  // 10. PDF liberado após Pro
+  // 10. Painel e PDF liberados após Pro
   if (userToken) {
     try {
+      const dash = await request('/api/finance/dashboard', { token: userToken });
+      assert(dash.status === 200, `dashboard status ${dash.status}`);
       const res = await fetch(`${BASE}/api/finance/export/pdf`, {
         headers: { Authorization: `Bearer ${userToken}` },
       });
-      assert(res.status === 200, `status ${res.status}`);
-      pass('Export PDF liberado após Pro (200)');
-    } catch (e) { fail('Export PDF após Pro', e); }
+      assert(res.status === 200, `pdf status ${res.status}`);
+      pass('Dashboard e PDF liberados após assinatura (200)');
+    } catch (e) { fail('Painel após assinatura', e); }
+  }
+
+  // 10.1 Bloqueio após expiração simulada
+  if (userToken) {
+    try {
+      const { getPool } = require('../src/db/pool');
+      const pool = getPool();
+      await pool.query(
+        `UPDATE users
+         SET subscription_current_period_end = NOW() - INTERVAL '1 day'
+         WHERE email = 'testpay@local.dev'`,
+      );
+      const { status, data } = await request('/api/finance/dashboard', { token: userToken });
+      assert(status === 402, `esperado 402 após expirar, got ${status}`);
+      assert(
+        data.code === 'SUBSCRIPTION_REQUIRED' || data.code === 'PRO_REQUIRED',
+        'code SUBSCRIPTION_REQUIRED',
+      );
+      pass('Dashboard bloqueado após expiração (402)');
+    } catch (e) { fail('Bloqueio após expiração', e); }
   }
 
   // 11. Webhook endpoint responde

@@ -115,6 +115,20 @@
         err.status = res.status;
         err.payload = payload;
       }
+
+      if (res.status === 402) {
+        const code = isJson && payload ? payload.code : null;
+        if (code === 'SUBSCRIPTION_REQUIRED' || code === 'PRO_REQUIRED') {
+          const path = window.location.pathname;
+          const params = new URLSearchParams(window.location.search);
+          const onPaywall = path === '/app/perfil' || path.startsWith('/app/perfil');
+          const checkoutFlow = params.get('checkout') === 'success';
+          if (!onPaywall && !checkoutFlow) {
+            window.location.href = '/app/perfil?assinatura=expirada';
+          }
+        }
+      }
+
       throw err;
     }
 

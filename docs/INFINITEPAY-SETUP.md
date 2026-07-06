@@ -17,9 +17,10 @@ Este guia lista os passos manuais para habilitar pagamentos via InfinitePay Chec
 
 ## Modelo de cobrança
 
-- **R$ 9,90** por **30 dias** de acesso Pro
-- Sem trial, sem assinatura recorrente automática
-- Ao expirar, o usuário volta ao plano Gratuito e pode **Renovar acesso** no perfil
+- **R$ 9,90** por **30 dias** de acesso ao painel
+- Sem plano gratuito — acesso exige pagamento ativo
+- Admin usa o app sem pagar
+- Ao expirar, o painel bloqueia e o usuário **renova manualmente** no perfil (Pix ou cartão)
 
 ---
 
@@ -128,10 +129,10 @@ npm start
 
 1. Acesse [https://cashome.avadesk.com.br/login](https://cashome.avadesk.com.br/login)
 2. Vá em **Meu perfil**
-3. Clique **Liberar acesso — R$ 9,90**
+3. Clique **Renovar acesso — R$ 9,90**
 4. Complete o checkout InfinitePay (Pix ou cartão)
-5. Volte ao app → badge **Pro** e data de validade (+30 dias)
-6. Exporte o **relatório PDF** — deve baixar sem erro 402
+5. Volte ao app → badge **Ativo** e data de validade (+30 dias)
+6. O painel completo e o **relatório PDF** voltam a funcionar
 
 #### Local
 
@@ -161,17 +162,17 @@ LIMIT 5;
 - `INFINITEPAY_HANDLE` vazio no `.env`
 - Reinicie o servidor após preencher
 
-### Checkout abre mas plano continua Gratuito
+### Checkout abre mas assinatura continua inativa
 
 - Pagamento ainda não confirmado — aguarde e recarregue o perfil
 - Em dev, o redirect com `order_nsu` na URL dispara `/api/payments/confirm`
 - Em produção, confira se o webhook está acessível
 
-### Exportar PDF retorna erro de plano Pro
+### Painel ou PDF retornam erro de assinatura
 
 - Acesso expirou (`subscription_current_period_end` no passado)
-- Faça logout/login ou abra perfil
-- Admin sempre tem acesso Pro
+- Faça logout/login ou abra perfil e renove
+- Admin sempre tem acesso liberado
 
 ### Erro na API InfinitePay
 
@@ -191,7 +192,8 @@ LIMIT 5;
 | `GET` | `/api/payments/welcome` | Credenciais pós-pagamento da landing |
 | `POST` | `/api/payments/confirm` | Confirma pagamento no redirect (perfil) |
 | `POST` | `/api/payments/webhook` | Notificação InfinitePay |
-| `GET` | `/api/finance/export/pdf` | PDF (requer Pro) |
+| `GET` | `/api/finance/export/pdf` | PDF (requer assinatura ativa) |
+| `GET` | `/api/finance/*` | Painel financeiro (requer assinatura ativa) |
 
 ---
 

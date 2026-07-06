@@ -6,6 +6,7 @@ const { requirePro } = require('../middleware/requirePro');
 const router = express.Router();
 
 router.use(authJwt);
+router.use(requirePro);
 
 router.get('/settings', financeController.getSettings);
 router.put('/settings', financeController.putSettings);
@@ -33,6 +34,6 @@ router.put('/orcamentos', financeController.putOrcamentos);
 
 router.get('/dashboard', financeController.getDashboard);
 router.get('/previsao', financeController.getPrevisao);
-router.get('/export/pdf', requirePro, financeController.exportPdf);
+router.get('/export/pdf', financeController.exportPdf);
 
 module.exports = router;

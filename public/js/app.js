@@ -190,8 +190,8 @@ async function exportPDF() {
       } catch {
         payload = null;
       }
-      if (payload && payload.code === 'PRO_REQUIRED') {
-        toast('Relatório PDF disponível no plano Pro. Vá em Meu perfil para liberar o acesso.', 'error');
+      if (payload && (payload.code === 'SUBSCRIPTION_REQUIRED' || payload.code === 'PRO_REQUIRED')) {
+        toast('Assinatura expirada ou inativa. Vá em Meu perfil para renovar.', 'error');
         setTimeout(function () {
           window.location.href = '/app/perfil';
         }, 1800);

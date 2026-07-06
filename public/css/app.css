@@ -1440,6 +1440,86 @@ dialog.modal .type-picker.duracao-picker {
   font-weight: 500;
   color: var(--muted-2);
 }
+
+/* Projeção — painel dashboard */
+.forecast-panel .panel-head {
+  align-items: flex-start;
+  gap: 12px;
+}
+.forecast-panel-title h3 { margin: 0 0 4px; }
+.forecast-panel-desc {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.45;
+  max-width: 52ch;
+}
+.forecast-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.forecast-summary-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.forecast-summary-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+.forecast-summary-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+}
+.forecast-summary-of {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted-2);
+}
+.forecast-panel .forecast-strip {
+  margin-top: 4px;
+  margin-bottom: 4px;
+  padding: 16px 4px 4px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+.fc-node--current {
+  background: var(--surface-2);
+  border: 1px solid var(--ice-dim);
+  border-radius: 12px;
+  padding: 10px 6px 8px;
+  margin: -10px -6px -8px;
+}
+.fc-node--current .fc-month {
+  color: var(--ice);
+  font-weight: 600;
+}
+.forecast-footnote {
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--muted-2);
+  line-height: 1.5;
+}
+.forecast-footnote-link {
+  color: var(--ice);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.forecast-footnote-link:hover { text-decoration: underline; }
+
 .budget-summary-progress { margin-bottom: 16px; }
 .budget-list {
   display: flex;
@@ -1595,6 +1675,10 @@ dialog.modal .type-picker.duracao-picker {
 
 @media (max-width: 768px) {
   .budget-summary {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .forecast-summary {
     grid-template-columns: 1fr;
     gap: 10px;
   }
@@ -1870,7 +1954,7 @@ dialog.modal .type-picker.duracao-picker {
   min-height: 180px;
 }
 .chart-wrap.chart-fluxo { height: 280px; min-height: 220px; }
-.chart-wrap.chart-proj { height: 260px; min-height: 220px; }
+.chart-wrap.chart-proj { height: 280px; min-height: 220px; }
 .chart-wrap.chart-sm { height: 200px; }
 .chart-wrap.chart-donut { height: 200px; min-height: 160px; }
 .chart-donut-wrap { position: relative; }
@@ -2427,6 +2511,33 @@ dialog.modal .type-picker.duracao-picker {
   color: var(--green);
   background: oklch(0.22 0.04 150 / 0.35);
   border-color: oklch(0.55 0.12 150 / 0.35);
+}
+
+.plan-badge-expired {
+  color: var(--amber, #e8b86d);
+  background: oklch(0.24 0.04 75 / 0.35);
+  border-color: oklch(0.55 0.1 75 / 0.35);
+}
+
+.profile-paywall-banner {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid oklch(0.55 0.1 75 / 0.35);
+  background: oklch(0.22 0.03 75 / 0.25);
+}
+
+.profile-paywall-title {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.profile-paywall-detail {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
 }
 
 .plan-meta {

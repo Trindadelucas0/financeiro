@@ -267,43 +267,72 @@
     }
   }
 
-  function planStatusLabel(status) {
-    if (status === 'active') return 'Ativo';
+  function planStatusLabel(status, isPro) {
+    if (isPro) return 'Ativo';
     if (status === 'expired') return 'Expirado';
-    return status || 'Gratuito';
+    return 'Acesso necessário';
+  }
+
+  function isSubscriptionBannerVisible() {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('assinatura') === 'expirada';
+  }
+
+  function renderSubscriptionBanner(subscription) {
+    if (!isSubscriptionBannerVisible() && subscription && subscription.isPro) return '';
+    if (subscription && subscription.isPro) return '';
+
+    const expired = subscription && subscription.status === 'expired';
+    const title = expired ? 'Sua assinatura expirou' : 'Acesso necessário';
+    const detail = expired
+      ? 'Renove para voltar ao painel financeiro.'
+      : 'Pague para liberar o painel completo por 30 dias.';
+
+    return (
+      '<div class="profile-paywall-banner" role="status">' +
+        '<p class="profile-paywall-title">' + esc(title) + '</p>' +
+        '<p class="profile-paywall-detail">' + esc(detail) + '</p>' +
+      '</div>'
+    );
+  }
+
+  function canUseFullProfile(user, subscription) {
+    if (user && user.role === 'admin') return true;
+    return Boolean(subscription && subscription.isPro);
   }
 
   function renderPlanSection(subscription, pricing) {
     const sub = subscription || { plan: 'free', status: null, isPro: false };
     const price = (pricing && pricing.label) || 'R$ 9,90 · 30 dias';
-    const access = (pricing && pricing.accessLabel) || '30 dias de acesso';
     const fullLabel = (pricing && pricing.subline) || price;
     const isPro = Boolean(sub.isPro);
-    const badgeClass = isPro ? 'plan-badge plan-badge-pro' : 'plan-badge plan-badge-free';
-    const badgeText = isPro ? 'Pro' : 'Gratuito';
+    const badgeClass = isPro ? 'plan-badge plan-badge-pro' : 'plan-badge plan-badge-expired';
+    const badgeText = isPro ? 'Ativo' : (sub.status === 'expired' ? 'Expirado' : 'Inativo');
     const renewal = sub.currentPeriodEnd ? formatPlanDate(sub.currentPeriodEnd) : '';
+    const priceShort = (pricing && pricing.priceShort) || 'R$ 9,90';
 
     let body = '';
     if (isPro) {
       body =
-        '<p class="profile-hint">Acesso Pro ativo — relatório PDF, previsão e recursos premium liberados.</p>' +
+        '<p class="profile-hint">Acesso ativo — painel completo, relatório PDF e previsão liberados.</p>' +
         '<p class="plan-meta">' +
-          '<span class="plan-status">' + esc(planStatusLabel(sub.status)) + '</span>' +
+          '<span class="plan-status">' + esc(planStatusLabel(sub.status, true)) + '</span>' +
           (renewal ? '<span class="plan-renewal">Válido até ' + esc(renewal) + '</span>' : '') +
         '</p>' +
         '<button type="button" class="btn btn-primary btn-sm" id="planCheckoutBtn">Renovar acesso</button>';
     } else {
       body =
-        '<p class="profile-hint">' + esc(price) + '. Libere PDF, previsão e recursos Pro.</p>' +
+        '<p class="profile-hint">' + esc(price) + '. Renove para continuar usando o painel.</p>' +
         '<p class="plan-meta">' +
           '<span class="plan-price">' + esc(fullLabel) + '</span>' +
         '</p>' +
-        '<button type="button" class="btn btn-primary btn-sm" id="planCheckoutBtn">Liberar acesso — ' + esc((pricing && pricing.priceShort) || 'R$ 9,90') + '</button>';
+        '<button type="button" class="btn btn-primary btn-sm" id="planCheckoutBtn">Renovar acesso — ' + esc(priceShort) + '</button>';
     }
 
     return (
+      renderSubscriptionBanner(sub) +
       '<section class="panel profile-section profile-section-plan">' +
-        '<div class="panel-head"><h3>Plano</h3><span class="' + badgeClass + '">' + badgeText + '</span></div>' +
+        '<div class="panel-head"><h3>Assinatura</h3><span class="' + badgeClass + '">' + badgeText + '</span></div>' +
         body +
       '</section>'
     );
@@ -330,7 +359,7 @@
       if (btn) {
         btn.disabled = false;
         const pricing = getPricing();
-        btn.textContent = subIsPro() ? 'Renovar acesso' : ('Liberar acesso — ' + ((pricing && pricing.priceShort) || 'R$ 9,90'));
+        btn.textContent = subIsPro() ? 'Renovar acesso' : ('Renovar acesso — ' + ((pricing && pricing.priceShort) || 'R$ 9,90'));
       }
     }
   }
@@ -381,6 +410,10 @@
         if (data) {
           setSession(getToken(), data.user, data.subscription || null, data.pricing || null);
         }
+        if (data && data.subscription && data.subscription.isPro) {
+          window.location.href = '/app/dashboard';
+          return;
+        }
       } catch (_) { /* ignore */ }
     } else if (checkout === 'cancel') {
       toast('Checkout cancelado', 'error');
@@ -403,6 +436,7 @@
 
     originalUsername = user.username || '';
     usernameOk = true;
+    const fullAccess = canUseFullProfile(user, subscription);
 
     view.innerHTML =
       '<div class="profile-page">' +
@@ -416,23 +450,25 @@
 
         renderPlanSection(subscription, pricing) +
 
-        '<section class="panel profile-section profile-section-account">' +
-          '<div class="panel-head"><h3>Nome de usuário</h3><span class="panel-hint-pill">login</span></div>' +
-          '<p class="profile-hint">Escolha um nome único para entrar no app (com ou sem @). Não pode repetir.</p>' +
-          '<form id="profileForm" class="profile-form">' +
-            '<div class="field field-username">' +
-              '<label for="pf_username">Nome de usuário</label>' +
-              '<div class="username-input-wrap">' +
-                '<span class="username-prefix" aria-hidden="true">@</span>' +
-                '<input id="pf_username" type="text" required maxlength="30" pattern="[a-zA-Z0-9_]{3,30}" value="' + esc(user.username) + '" autocapitalize="off" autocomplete="username" aria-describedby="usernameStatus">' +
-              '</div>' +
-              '<p class="username-status same" id="usernameStatus">Seu nome de usuário atual</p>' +
-            '</div>' +
-            '<div class="field"><label for="pf_nome">Nome de exibição</label>' +
-            '<input id="pf_nome" type="text" required maxlength="255" value="' + esc(user.nome) + '"></div>' +
-            '<button type="submit" class="btn btn-primary btn-sm" id="profileSaveBtn">Salvar conta</button>' +
-          '</form>' +
-        '</section>' +
+        (fullAccess
+          ? '<section class="panel profile-section profile-section-account">' +
+              '<div class="panel-head"><h3>Nome de usuário</h3><span class="panel-hint-pill">login</span></div>' +
+              '<p class="profile-hint">Escolha um nome único para entrar no app (com ou sem @). Não pode repetir.</p>' +
+              '<form id="profileForm" class="profile-form">' +
+                '<div class="field field-username">' +
+                  '<label for="pf_username">Nome de usuário</label>' +
+                  '<div class="username-input-wrap">' +
+                    '<span class="username-prefix" aria-hidden="true">@</span>' +
+                    '<input id="pf_username" type="text" required maxlength="30" pattern="[a-zA-Z0-9_]{3,30}" value="' + esc(user.username) + '" autocapitalize="off" autocomplete="username" aria-describedby="usernameStatus">' +
+                  '</div>' +
+                  '<p class="username-status same" id="usernameStatus">Seu nome de usuário atual</p>' +
+                '</div>' +
+                '<div class="field"><label for="pf_nome">Nome de exibição</label>' +
+                '<input id="pf_nome" type="text" required maxlength="255" value="' + esc(user.nome) + '"></div>' +
+                '<button type="submit" class="btn btn-primary btn-sm" id="profileSaveBtn">Salvar conta</button>' +
+              '</form>' +
+            '</section>'
+          : '') +
 
         (user.role === 'admin' ? renderAdminUsersSection() + renderAdminFeedbackSection() : '') +
 
@@ -449,26 +485,30 @@
           '</form>' +
         '</section>' +
 
-        '<section class="panel profile-section pwa-install-banner" id="pwaSection">' +
-          '<div class="panel-head"><h3>Instalar app</h3></div>' +
-          '<p class="profile-hint" id="pwaHint"></p>' +
-          '<button type="button" class="btn btn-primary btn-sm" id="pwaInstallBtn" hidden>Instalar no dispositivo</button>' +
-        '</section>' +
+        (fullAccess
+          ? '<section class="panel profile-section pwa-install-banner" id="pwaSection">' +
+              '<div class="panel-head"><h3>Instalar app</h3></div>' +
+              '<p class="profile-hint" id="pwaHint"></p>' +
+              '<button type="button" class="btn btn-primary btn-sm" id="pwaInstallBtn" hidden>Instalar no dispositivo</button>' +
+            '</section>'
+          : '') +
 
-        '<section class="panel profile-section">' +
-          '<div class="panel-head"><h3>Enviar sugestão</h3></div>' +
-          '<form id="feedbackForm" class="profile-form">' +
-            '<div class="field"><label for="fb_tipo">Tipo</label>' +
-            '<select id="fb_tipo" required>' +
-              '<option value="sugestao">Sugestão de melhoria</option>' +
-              '<option value="bug">Reportar problema</option>' +
-              '<option value="outro">Outro</option>' +
-            '</select></div>' +
-            '<div class="field"><label for="fb_msg">Mensagem</label>' +
-            '<textarea id="fb_msg" rows="4" required minlength="10" maxlength="2000" placeholder="Descreva sua ideia ou o que podemos melhorar…"></textarea></div>' +
-            '<button type="submit" class="btn btn-primary btn-sm" id="feedbackBtn">Enviar</button>' +
-          '</form>' +
-        '</section>' +
+        (fullAccess
+          ? '<section class="panel profile-section">' +
+              '<div class="panel-head"><h3>Enviar sugestão</h3></div>' +
+              '<form id="feedbackForm" class="profile-form">' +
+                '<div class="field"><label for="fb_tipo">Tipo</label>' +
+                '<select id="fb_tipo" required>' +
+                  '<option value="sugestao">Sugestão de melhoria</option>' +
+                  '<option value="bug">Reportar problema</option>' +
+                  '<option value="outro">Outro</option>' +
+                '</select></div>' +
+                '<div class="field"><label for="fb_msg">Mensagem</label>' +
+                '<textarea id="fb_msg" rows="4" required minlength="10" maxlength="2000" placeholder="Descreva sua ideia ou o que podemos melhorar…"></textarea></div>' +
+                '<button type="submit" class="btn btn-primary btn-sm" id="feedbackBtn">Enviar</button>' +
+              '</form>' +
+            '</section>'
+          : '') +
 
         '<div class="profile-actions">' +
           '<button type="button" class="btn btn-ghost" id="profileLogoutBtn">Sair da conta</button>' +
@@ -495,45 +535,48 @@
 
   function bindProfileEvents(user) {
     const usernameInput = document.getElementById('pf_username');
+    const profileForm = document.getElementById('profileForm');
 
-    usernameInput.addEventListener('input', function () {
-      const cleaned = normalizeUsernameInput(usernameInput.value);
-      if (usernameInput.value !== cleaned) usernameInput.value = cleaned;
-      scheduleUsernameCheck(cleaned);
-    });
+    if (usernameInput && profileForm) {
+      usernameInput.addEventListener('input', function () {
+        const cleaned = normalizeUsernameInput(usernameInput.value);
+        if (usernameInput.value !== cleaned) usernameInput.value = cleaned;
+        scheduleUsernameCheck(cleaned);
+      });
 
-    usernameInput.addEventListener('blur', function () {
-      checkUsernameAvailability(usernameInput.value);
-    });
+      usernameInput.addEventListener('blur', function () {
+        checkUsernameAvailability(usernameInput.value);
+      });
 
-    document.getElementById('profileForm').addEventListener('submit', async function (e) {
-      e.preventDefault();
-      if (!usernameOk) {
-        toast('Escolha um nome de usuário disponível', 'error');
-        return;
-      }
+      profileForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        if (!usernameOk) {
+          toast('Escolha um nome de usuário disponível', 'error');
+          return;
+        }
 
-      const btn = document.getElementById('profileSaveBtn');
-      btn.disabled = true;
-      btn.textContent = 'Salvando…';
-      try {
-        const data = await apiFetch('/api/auth/me', {
-          method: 'PATCH',
-          body: {
-            nome: document.getElementById('pf_nome').value.trim(),
-            username: normalizeUsernameInput(document.getElementById('pf_username').value),
-          },
-        });
-        setSession(getToken(), data.user, getSubscription());
-        if (window.FinanceAuth) FinanceAuth.updateUserUi(data.user);
-        renderProfile(data.user, getSubscription(), getPricing());
-        toast('Conta salva');
-      } catch (err) {
-        toast(err.message, 'error');
-        btn.disabled = !usernameOk;
-        btn.textContent = 'Salvar conta';
-      }
-    });
+        const btn = document.getElementById('profileSaveBtn');
+        btn.disabled = true;
+        btn.textContent = 'Salvando…';
+        try {
+          const data = await apiFetch('/api/auth/me', {
+            method: 'PATCH',
+            body: {
+              nome: document.getElementById('pf_nome').value.trim(),
+              username: normalizeUsernameInput(document.getElementById('pf_username').value),
+            },
+          });
+          setSession(getToken(), data.user, getSubscription());
+          if (window.FinanceAuth) FinanceAuth.updateUserUi(data.user);
+          renderProfile(data.user, getSubscription(), getPricing());
+          toast('Conta salva');
+        } catch (err) {
+          toast(err.message, 'error');
+          btn.disabled = !usernameOk;
+          btn.textContent = 'Salvar conta';
+        }
+      });
+    }
 
     document.getElementById('passwordForm').addEventListener('submit', async function (e) {
       e.preventDefault();
@@ -564,28 +607,31 @@
       }
     });
 
-    document.getElementById('feedbackForm').addEventListener('submit', async function (e) {
-      e.preventDefault();
-      const btn = document.getElementById('feedbackBtn');
-      btn.disabled = true;
-      btn.textContent = 'Enviando…';
-      try {
-        await apiFetch('/api/feedback', {
-          method: 'POST',
-          body: {
-            tipo: document.getElementById('fb_tipo').value,
-            mensagem: document.getElementById('fb_msg').value.trim(),
-          },
-        });
-        document.getElementById('feedbackForm').reset();
-        toast('Sugestão enviada. Obrigado!');
-      } catch (err) {
-        toast(err.message, 'error');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Enviar';
-      }
-    });
+    const feedbackForm = document.getElementById('feedbackForm');
+    if (feedbackForm) {
+      feedbackForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const btn = document.getElementById('feedbackBtn');
+        btn.disabled = true;
+        btn.textContent = 'Enviando…';
+        try {
+          await apiFetch('/api/feedback', {
+            method: 'POST',
+            body: {
+              tipo: document.getElementById('fb_tipo').value,
+              mensagem: document.getElementById('fb_msg').value.trim(),
+            },
+          });
+          document.getElementById('feedbackForm').reset();
+          toast('Sugestão enviada. Obrigado!');
+        } catch (err) {
+          toast(err.message, 'error');
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Enviar';
+        }
+      });
+    }
 
     const pwaBtn = document.getElementById('pwaInstallBtn');
     if (pwaBtn) {

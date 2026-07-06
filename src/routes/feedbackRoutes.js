@@ -1,6 +1,7 @@
 const express = require('express');
 const profileController = require('../controllers/profileController');
 const { authJwt } = require('../middleware/authJwt');
+const { requirePro } = require('../middleware/requirePro');
 const { createRateLimit } = require('../utils/rateLimit');
 
 const router = express.Router();
@@ -11,6 +12,6 @@ const feedbackLimiter = createRateLimit({
   message: { error: 'Limite de envios atingido. Tente novamente em alguns minutos.' },
 });
 
-router.post('/', authJwt, feedbackLimiter, profileController.createFeedback);
+router.post('/', authJwt, requirePro, feedbackLimiter, profileController.createFeedback);
 
 module.exports = router;
