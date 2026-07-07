@@ -106,11 +106,23 @@
     </div>
   </dialog>
 
+  <dialog class="modal auth-welcome-dialog" id="dailyGreetingDialog" aria-labelledby="dailyGreetingTitle" aria-describedby="dailyGreetingSubtitle">
+    <div class="modal-inner">
+      <h3 id="dailyGreetingTitle"></h3>
+      <p class="modal-confirm-msg" id="dailyGreetingSubtitle">Que bom ter você de volta.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-primary" id="dailyGreetingOk">Continuar</button>
+      </div>
+    </div>
+  </dialog>
+
   <div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
 
   <script src="/js/api.js"></script>
   <script src="/js/auth.js"></script>
+  <script src="/js/dailyGreeting.js"></script>
   <script src="/js/pwa.js"></script>
+  <script src="/js/pushNotifications.js"></script>
   <script src="/js/renewalReminder.js"></script>
   <% if (page !== 'perfil') { %>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>

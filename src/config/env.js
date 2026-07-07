@@ -65,6 +65,15 @@ function loadEnv() {
       model: (process.env.GEMINI_MODEL || 'gemini-2.0-flash').trim(),
       enabled: Boolean((process.env.GEMINI_API_KEY || '').trim()),
     },
+    vapid: {
+      publicKey: (process.env.VAPID_PUBLIC_KEY || '').trim(),
+      privateKey: (process.env.VAPID_PRIVATE_KEY || '').trim(),
+      subject: (process.env.VAPID_SUBJECT || 'mailto:suporte@homefinancas.com').trim(),
+      enabled: Boolean(
+        (process.env.VAPID_PUBLIC_KEY || '').trim()
+        && (process.env.VAPID_PRIVATE_KEY || '').trim(),
+      ),
+    },
   };
 }
 

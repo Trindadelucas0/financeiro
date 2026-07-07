@@ -1,4 +1,4 @@
-const CACHE_NAME = 'financeiro-pwa-v19';
+const CACHE_NAME = 'financeiro-pwa-v20';
 const OFFLINE_URL = '/offline.html';
 const STATIC_ASSETS = [
   '/css/tokens.css',
@@ -9,6 +9,8 @@ const STATIC_ASSETS = [
   '/js/api.js',
   '/js/auth.js',
   '/js/pwa.js',
+  '/js/pushNotifications.js',
+  '/js/renewalReminder.js',
   '/js/app.js',
   '/js/perfil.js',
   '/js/admin.js',
@@ -41,6 +43,46 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+});
+
+self.addEventListener('push', (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (_) {
+    data = { title: 'Home Finanças', body: event.data ? event.data.text() : '' };
+  }
+
+  const title = data.title || 'Home Finanças';
+  const options = {
+    body: data.body || '',
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-192.png',
+    tag: data.tag || 'home-financas',
+    data: { url: data.url || '/app/dashboard' },
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/app/dashboard';
+  const absoluteUrl = new URL(url, self.location.origin).href;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(absoluteUrl);
+      }
+      return undefined;
+    }),
+  );
 });
 
 self.addEventListener('activate', (event) => {

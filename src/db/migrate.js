@@ -222,6 +222,46 @@ DO $$ BEGIN
     CHECK (access_grant_type IS NULL OR access_grant_type IN ('trial', 'lifetime', 'paid'));
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  user_agent TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id);
+
+CREATE TABLE IF NOT EXISTS notification_preferences (
+  user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  vencimentos BOOLEAN NOT NULL DEFAULT TRUE,
+  atrasados BOOLEAN NOT NULL DEFAULT TRUE,
+  orcamento BOOLEAN NOT NULL DEFAULT TRUE,
+  assinatura BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS notification_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  dedup_key VARCHAR(120) NOT NULL,
+  type VARCHAR(20) NOT NULL,
+  title VARCHAR(120) NOT NULL,
+  body TEXT NOT NULL,
+  sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (user_id, dedup_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_log_user_sent ON notification_log(user_id, sent_at);
+
+ALTER TABLE notification_preferences
+  ADD COLUMN IF NOT EXISTS timezone VARCHAR(64) NOT NULL DEFAULT 'America/Sao_Paulo';
+
+ALTER TABLE notification_preferences
+  ADD COLUMN IF NOT EXISTS saudacoes BOOLEAN NOT NULL DEFAULT TRUE;
 `;
 
 async function backfillUsernames(client) {

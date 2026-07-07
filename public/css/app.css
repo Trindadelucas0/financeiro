@@ -2570,6 +2570,34 @@ dialog.modal .type-picker.duracao-picker {
   line-height: 1.5;
 }
 
+.push-prefs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.push-pref-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.push-pref-row input {
+  accent-color: var(--ice);
+}
+
+.profile-hint-sub {
+  margin-top: -6px;
+  font-size: 12px;
+  color: var(--muted-2);
+}
+
 .profile-actions {
   margin-top: 8px;
   padding-top: 8px;
@@ -2768,5 +2796,82 @@ dialog.modal .type-picker.duracao-picker {
 
 .profile-section-plan .btn {
   margin-top: 2px;
+}
+
+.profile-device-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.profile-device-group .profile-section {
+  margin-bottom: 0;
+}
+
+.profile-admin-zone {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.profile-admin-zone-label {
+  margin: 0 0 14px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.push-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.admin-users-list-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.admin-users-search {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.admin-users-search:focus {
+  outline: none;
+  border-color: var(--ice);
+  box-shadow: 0 0 0 2px var(--ice-glow);
+}
+
+.admin-users-expand-btn {
+  margin-top: 10px;
+}
+
+.admin-user-row {
+  transition: background 0.15s ease;
+}
+
+.admin-user-row:hover {
+  background: oklch(0.94 0.008 240 / 0.06);
+}
+
+@media (max-width: 480px) {
+  .admin-user-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
 }
 

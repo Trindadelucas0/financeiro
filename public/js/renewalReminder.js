@@ -2,7 +2,6 @@
   'use strict';
 
   const notifiedKeys = new Set();
-  let permissionAsked = false;
 
   function storageKey(periodEnd) {
     return 'renewal_notified_' + String(periodEnd || '');
@@ -13,9 +12,14 @@
     return 'Sua assinatura expira em ' + days + ' dias. Renove em Meu perfil.';
   }
 
-  function maybeNotify(sub) {
+  async function maybeNotify(sub) {
     if (!sub || !sub.renewalDueSoon || !sub.currentPeriodEnd) return;
     if (!('Notification' in window)) return;
+
+    if (window.FinancePush && typeof FinancePush.isPushActive === 'function') {
+      const pushActive = await FinancePush.isPushActive();
+      if (pushActive) return;
+    }
 
     const key = storageKey(sub.currentPeriodEnd);
     if (notifiedKeys.has(key)) return;
@@ -33,14 +37,6 @@
 
     if (Notification.permission === 'granted') {
       show();
-      return;
-    }
-
-    if (Notification.permission === 'default' && !permissionAsked) {
-      permissionAsked = true;
-      Notification.requestPermission().then(function (permission) {
-        if (permission === 'granted') show();
-      });
     }
   }
 

@@ -13,7 +13,8 @@ const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
 const MARGIN = 48;
 const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
-const PAGE_BOTTOM = PAGE_HEIGHT - MARGIN - 24;
+const FOOTER_HEIGHT = 40;
+const PAGE_BOTTOM = PAGE_HEIGHT - MARGIN - FOOTER_HEIGHT;
 
 let pageCount = 0;
 
@@ -21,12 +22,33 @@ function resetPageState() {
   pageCount = 0;
 }
 
+function resetTextCursor(doc, y = doc.y) {
+  doc.x = MARGIN;
+  doc.y = y;
+}
+
 function ensureSpace(doc, needed = 60) {
   if (doc.y + needed > PAGE_BOTTOM) {
     doc.addPage();
     pageCount += 1;
     doc.y = MARGIN;
+    resetTextCursor(doc, MARGIN);
   }
+}
+
+function drawContinuationBand(doc, report) {
+  const bandH = 28;
+  doc.save();
+  doc.font('Helvetica-Bold').fontSize(9).fillColor(COLORS.black)
+    .text('Home Finanças', MARGIN, MARGIN);
+  doc.font('Helvetica').fontSize(8).fillColor(COLORS.muted)
+    .text(report.mesLabel, MARGIN + 200, MARGIN, { width: CONTENT_WIDTH - 200, align: 'right' });
+  doc.moveTo(MARGIN, MARGIN + bandH - 4)
+    .lineTo(PAGE_WIDTH - MARGIN, MARGIN + bandH - 4)
+    .strokeColor(COLORS.border).stroke();
+  doc.restore();
+  doc.y = MARGIN + bandH;
+  resetTextCursor(doc, doc.y);
 }
 
 function drawHeaderBand(doc, report) {
@@ -97,34 +119,41 @@ function drawKpiCards(doc, report) {
 }
 
 function drawExecutiveBox(doc, report) {
-  ensureSpace(doc, 70);
   const insights = report.aiInsights || {};
   const title = report.aiEnabled ? 'Resumo executivo' : 'Resumo do mês';
   const text = insights.resumoExecutivo || '';
+  doc.font('Helvetica').fontSize(9);
+  const textH = doc.heightOfString(text, { width: CONTENT_WIDTH - 20, lineGap: 2 });
+  const boxH = Math.max(40, textH + 20);
 
+  ensureSpace(doc, boxH + 36);
+  resetTextCursor(doc);
   doc.font('Helvetica-Bold').fontSize(11).fillColor(COLORS.black).text(title);
   doc.moveDown(0.3);
   doc.save();
   const boxY = doc.y;
-  doc.roundedRect(MARGIN, boxY, CONTENT_WIDTH, 52, 4).fillColor('#f0f9ff').fill();
-  doc.strokeColor('#bfdbfe').roundedRect(MARGIN, boxY, CONTENT_WIDTH, 52, 4).stroke();
+  doc.roundedRect(MARGIN, boxY, CONTENT_WIDTH, boxH, 4).fillColor('#f0f9ff').fill();
+  doc.strokeColor('#bfdbfe').roundedRect(MARGIN, boxY, CONTENT_WIDTH, boxH, 4).stroke();
   doc.fillColor('#1e3a5f').font('Helvetica').fontSize(9)
     .text(text, MARGIN + 10, boxY + 10, { width: CONTENT_WIDTH - 20, lineGap: 2 });
   doc.restore();
-  doc.y = boxY + 60;
+  doc.y = boxY + boxH + 8;
+  resetTextCursor(doc, doc.y);
 
   if (report.aiEnabled && insights.generatedAt) {
     const genDate = new Date(insights.generatedAt).toLocaleString('pt-BR');
     doc.font('Helvetica').fontSize(7).fillColor(COLORS.muted)
       .text(`Análise gerada em ${genDate} — válida por 24h`, MARGIN, doc.y);
     doc.moveDown(0.6);
+    resetTextCursor(doc, doc.y);
   }
 }
 
 function sectionTitle(doc, title) {
   ensureSpace(doc, 44);
+  resetTextCursor(doc);
   doc.moveDown(0.4);
-  doc.font('Helvetica-Bold').fontSize(11).fillColor(COLORS.black).text(title);
+  doc.font('Helvetica-Bold').fontSize(11).fillColor(COLORS.black).text(title, MARGIN, doc.y, { width: CONTENT_WIDTH });
   doc.moveDown(0.25);
   doc.moveTo(MARGIN, doc.y).lineTo(PAGE_WIDTH - MARGIN, doc.y).strokeColor(COLORS.border).stroke();
   doc.moveDown(0.35);
@@ -140,6 +169,7 @@ function drawTable(doc, cols, rows, emptyMsg) {
 
   const drawHeader = () => {
     ensureSpace(doc, 28);
+    resetTextCursor(doc);
     const headerY = doc.y;
     let x = MARGIN;
     doc.font('Helvetica-Bold').fontSize(8).fillColor('#444444');
@@ -150,6 +180,7 @@ function drawTable(doc, cols, rows, emptyMsg) {
     doc.y = headerY + 14;
     doc.moveTo(MARGIN, doc.y).lineTo(PAGE_WIDTH - MARGIN, doc.y).strokeColor(COLORS.border).stroke();
     doc.moveDown(0.2);
+    resetTextCursor(doc, doc.y);
   };
 
   drawHeader();
@@ -160,7 +191,11 @@ function drawTable(doc, cols, rows, emptyMsg) {
       align: cols[i].align || 'left',
     }));
     const rowH = Math.max(...cellHeights, 10) + 6;
+    const prevY = doc.y;
     ensureSpace(doc, rowH + 4);
+    if (doc.y === MARGIN && prevY !== MARGIN) {
+      drawHeader();
+    }
 
     const rowY = doc.y;
     if (rowIdx % 2 === 1) {
@@ -192,23 +227,26 @@ function bulletList(doc, items) {
   doc.moveDown(0.3);
 }
 
+function drawCenteredFooterLine(doc, text, y) {
+  const w = doc.widthOfString(text);
+  doc.text(text, (PAGE_WIDTH - w) / 2, y, { lineBreak: false });
+}
+
 function drawPageFooters(doc) {
   const range = doc.bufferedPageRange();
+  const totalPages = range.count;
+  const disclaimer1 = 'Relatório gerado automaticamente com base nos lançamentos cadastrados.';
+  const disclaimer2 = 'Não constitui assessoria financeira profissional.';
+
   for (let i = range.start; i < range.start + range.count; i++) {
     doc.switchToPage(i);
-    doc.font('Helvetica').fontSize(7).fillColor('#999999')
-      .text(
-        `Página ${i + 1} de ${range.count} · Home Finanças`,
-        MARGIN,
-        PAGE_HEIGHT - 36,
-        { width: CONTENT_WIDTH, align: 'center' },
-      );
-    doc.text(
-      'Relatório gerado automaticamente com base nos lançamentos cadastrados. Não constitui assessoria financeira profissional.',
-      MARGIN,
-      PAGE_HEIGHT - 26,
-      { width: CONTENT_WIDTH, align: 'center' },
-    );
+    doc.save();
+    const pageNum = i - range.start + 1;
+    doc.font('Helvetica').fontSize(7).fillColor('#999999');
+    drawCenteredFooterLine(doc, `Página ${pageNum} de ${totalPages} · Home Finanças`, PAGE_HEIGHT - 36);
+    drawCenteredFooterLine(doc, disclaimer1, PAGE_HEIGHT - 26);
+    drawCenteredFooterLine(doc, disclaimer2, PAGE_HEIGHT - 18);
+    doc.restore();
   }
 }
 
@@ -231,22 +269,23 @@ function generateMonthlyReportPdf(report) {
 
     const fluxoY = doc.y;
     drawGroupedBarChart(doc, MARGIN, fluxoY, CONTENT_WIDTH, 130, report.charts.fluxo);
-    doc.y = fluxoY + 150;
+    resetTextCursor(doc, fluxoY + 150);
 
     // —— Página 2: composição ——
     doc.addPage();
     pageCount += 1;
     doc.y = MARGIN;
+    drawContinuationBand(doc, report);
     sectionTitle(doc, 'Composição e pagamentos');
 
     const catEndY = drawHorizontalBars(doc, MARGIN, doc.y, CONTENT_WIDTH, 160, report.charts.categorias);
-    doc.y = catEndY + 8;
+    resetTextCursor(doc, catEndY + 8);
 
     const payEndY = drawPaymentSplit(doc, MARGIN, doc.y, CONTENT_WIDTH, 80, report.charts.pagamentos);
-    doc.y = payEndY + 8;
+    resetTextCursor(doc, payEndY + 8);
 
     const lineEndY = drawLineForecast(doc, MARGIN, doc.y, CONTENT_WIDTH, 110, report.charts.forecast);
-    doc.y = lineEndY + 8;
+    resetTextCursor(doc, lineEndY + 8);
 
     sectionTitle(doc, 'Projeção mensal');
     drawTable(
@@ -270,6 +309,7 @@ function generateMonthlyReportPdf(report) {
     doc.addPage();
     pageCount += 1;
     doc.y = MARGIN;
+    drawContinuationBand(doc, report);
     sectionTitle(doc, 'Alertas e pendências');
 
     if (report.alerts?.length) {
@@ -346,21 +386,24 @@ function generateMonthlyReportPdf(report) {
     doc.addPage();
     pageCount += 1;
     doc.y = MARGIN;
+    drawContinuationBand(doc, report);
 
     const budgetEndY = drawBudgetBars(doc, MARGIN, doc.y, CONTENT_WIDTH, report.categorias);
-    doc.y = budgetEndY + 12;
+    resetTextCursor(doc, budgetEndY + 12);
 
     if (report.saldoConta > 0) {
       doc.font('Helvetica').fontSize(9).fillColor(COLORS.muted)
-        .text(`Saldo em conta informado: ${formatBRL(report.saldoConta)}`);
+        .text(`Saldo em conta informado: ${formatBRL(report.saldoConta)}`, MARGIN, doc.y, { width: CONTENT_WIDTH });
       doc.moveDown(0.5);
+      resetTextCursor(doc, doc.y);
     }
 
     if (report.previsao.length > 0) {
       const last = report.previsao[report.previsao.length - 1];
       doc.font('Helvetica').fontSize(9).fillColor(COLORS.muted)
-        .text(`Saldo acumulado projetado (${last.mes}): ${formatBRL(last.cumulativo)}`);
+        .text(`Saldo acumulado projetado (${last.mes}): ${formatBRL(last.cumulativo)}`, MARGIN, doc.y, { width: CONTENT_WIDTH });
       doc.moveDown(0.8);
+      resetTextCursor(doc, doc.y);
     }
 
     const insights = report.aiInsights || {};

@@ -50,6 +50,7 @@ function drawGroupedBarChart(doc, x, y, w, h, fluxo) {
   doc.font('Helvetica').fontSize(7).fillColor(COLORS.green).text('■ Receitas', x + 8, chartY + 6);
   doc.fillColor(COLORS.red).text('■ Despesas', x + 70, chartY + 6);
   doc.restore();
+  doc.x = x;
 
   return chartY + chartH + 8;
 }
@@ -59,6 +60,7 @@ function drawHorizontalBars(doc, x, y, w, h, categorias) {
   const items = categorias.filter((c) => c.valor > 0);
   if (items.length === 0) {
     doc.font('Helvetica').fontSize(9).fillColor(COLORS.muted).text('Sem despesas no mês.', x, cy + 4);
+    doc.x = x;
     return cy + 24;
   }
 
@@ -78,6 +80,7 @@ function drawHorizontalBars(doc, x, y, w, h, categorias) {
     rowY += rowH;
   });
 
+  doc.x = x;
   return rowY + 4;
 }
 
@@ -87,6 +90,7 @@ function drawPaymentSplit(doc, x, y, w, h, pagamentos) {
   const total = pagoVal + pendenteVal;
   if (total <= 0) {
     doc.font('Helvetica').fontSize(9).fillColor(COLORS.muted).text('Sem despesas cadastradas.', x, cy + 4);
+    doc.x = x;
     return cy + 24;
   }
 
@@ -102,6 +106,7 @@ function drawPaymentSplit(doc, x, y, w, h, pagamentos) {
   doc.font('Helvetica').fontSize(8).fillColor(COLORS.muted)
     .text(`Pago: ${formatShortBRL(pagoVal)}  ·  Pendente: ${formatShortBRL(pendenteVal)}`, x, barY + barH + 24);
 
+  doc.x = x;
   return barY + barH + 44;
 }
 
@@ -162,6 +167,7 @@ function drawBudgetBars(doc, x, y, w, categorias) {
   if (withBudget.length === 0) {
     doc.font('Helvetica').fontSize(9).fillColor(COLORS.muted)
       .text('Nenhum orçamento definido para este mês.', x, cy + 4);
+    doc.x = x;
     return cy + 24;
   }
 
@@ -185,6 +191,7 @@ function drawBudgetBars(doc, x, y, w, categorias) {
     rowY += rowH;
   });
 
+  doc.x = x;
   return rowY + 4;
 }
 

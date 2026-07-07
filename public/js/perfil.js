@@ -6,6 +6,8 @@
   let usernameOk = true;
   let usernameCheckTimer = null;
   let originalUsername = '';
+  let adminUsersCache = [];
+  let adminUsersExpanded = false;
 
   function esc(s) {
     return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -121,8 +123,12 @@
           '<button type="submit" class="btn btn-primary btn-sm" id="adminCreateBtn">Criar usuário</button>' +
         '</form>' +
         '<div class="admin-users-list-wrap">' +
-          '<h4 class="admin-users-title">Usuários cadastrados</h4>' +
+          '<div class="admin-users-list-head">' +
+            '<h4 class="admin-users-title" id="adminUsersTitle">Usuários cadastrados</h4>' +
+            '<input type="search" id="adminUsersSearch" class="admin-users-search" placeholder="Buscar por nome, @username ou e-mail" autocomplete="off">' +
+          '</div>' +
           '<div id="adminUsersList" class="admin-users-list"><p class="profile-hint">Carregando…</p></div>' +
+          '<button type="button" class="btn btn-ghost btn-sm admin-users-expand-btn" id="adminUsersExpandBtn" hidden>Mostrar todos</button>' +
         '</div>' +
       '</section>'
     );
@@ -179,35 +185,74 @@
     }
   }
 
+  function renderAdminUsersList(users, query, expanded) {
+    const el = document.getElementById('adminUsersList');
+    const titleEl = document.getElementById('adminUsersTitle');
+    const expandBtn = document.getElementById('adminUsersExpandBtn');
+    if (!el) return;
+
+    const q = String(query || '').trim().toLowerCase();
+    const filtered = (users || []).filter(function (u) {
+      if (!q) return true;
+      return (
+        String(u.nome || '').toLowerCase().includes(q)
+        || String(u.username || '').toLowerCase().includes(q)
+        || String(u.email || '').toLowerCase().includes(q)
+      );
+    });
+
+    if (titleEl) {
+      titleEl.textContent = 'Usuários cadastrados (' + (users || []).length + ')';
+    }
+
+    if (filtered.length === 0) {
+      el.innerHTML = '<p class="profile-hint">' + (q ? 'Nenhum usuário encontrado.' : 'Nenhum usuário cadastrado.') + '</p>';
+      if (expandBtn) expandBtn.hidden = true;
+      return;
+    }
+
+    const limit = expanded || q ? filtered.length : 5;
+    const visible = filtered.slice(0, limit);
+
+    el.innerHTML =
+      '<ul class="admin-users-ul">' +
+      visible.map(function (u) {
+        return (
+          '<li class="admin-user-row">' +
+            '<div class="admin-user-main">' +
+              '<strong>' + esc(u.nome) + '</strong>' +
+              '<span class="mono admin-user-handle">@' + esc(u.username) + '</span>' +
+            '</div>' +
+            '<div class="admin-user-meta">' +
+              '<span>' + esc(u.email) + '</span>' +
+              '<span class="status-pill ' + (u.ativo !== false ? 'active' : 'inactive') + '">' +
+                (u.ativo !== false ? 'Ativo' : 'Inativo') +
+              '</span>' +
+            '</div>' +
+          '</li>'
+        );
+      }).join('') +
+      '</ul>';
+
+    if (expandBtn) {
+      const hiddenCount = filtered.length - visible.length;
+      if (!q && hiddenCount > 0 && !expanded) {
+        expandBtn.hidden = false;
+        expandBtn.textContent = 'Mostrar todos (' + filtered.length + ')';
+      } else {
+        expandBtn.hidden = true;
+      }
+    }
+  }
+
   async function loadAdminUsersList() {
     const el = document.getElementById('adminUsersList');
     if (!el) return;
     try {
       const data = await apiFetch('/api/admin/users');
-      const users = data.users || [];
-      if (users.length === 0) {
-        el.innerHTML = '<p class="profile-hint">Nenhum usuário cadastrado.</p>';
-        return;
-      }
-      el.innerHTML =
-        '<ul class="admin-users-ul">' +
-        users.map(function (u) {
-          return (
-            '<li class="admin-user-row">' +
-              '<div class="admin-user-main">' +
-                '<strong>' + esc(u.nome) + '</strong>' +
-                '<span class="mono admin-user-handle">@' + esc(u.username) + '</span>' +
-              '</div>' +
-              '<div class="admin-user-meta">' +
-                '<span>' + esc(u.email) + '</span>' +
-                '<span class="status-pill ' + (u.ativo !== false ? 'active' : 'inactive') + '">' +
-                  (u.ativo !== false ? 'Ativo' : 'Inativo') +
-                '</span>' +
-              '</div>' +
-            '</li>'
-          );
-        }).join('') +
-        '</ul>';
+      adminUsersCache = data.users || [];
+      const searchEl = document.getElementById('adminUsersSearch');
+      renderAdminUsersList(adminUsersCache, searchEl ? searchEl.value : '', adminUsersExpanded);
     } catch (err) {
       el.innerHTML = '<p class="username-status err">' + esc(err.message) + '</p>';
     }
@@ -241,6 +286,7 @@
 
         await apiFetch('/api/admin/users', { method: 'POST', body: body });
         form.reset();
+        adminUsersExpanded = false;
         toast('Usuário criado');
         loadAdminUsersList();
       } catch (err) {
@@ -250,6 +296,21 @@
         btn.textContent = 'Criar usuário';
       }
     });
+
+    const searchEl = document.getElementById('adminUsersSearch');
+    if (searchEl) {
+      searchEl.addEventListener('input', function () {
+        renderAdminUsersList(adminUsersCache, searchEl.value, adminUsersExpanded);
+      });
+    }
+
+    const expandBtn = document.getElementById('adminUsersExpandBtn');
+    if (expandBtn) {
+      expandBtn.addEventListener('click', function () {
+        adminUsersExpanded = true;
+        renderAdminUsersList(adminUsersCache, searchEl ? searchEl.value : '', true);
+      });
+    }
 
     loadAdminUsersList();
     loadAdminFeedbackList();
@@ -312,10 +373,9 @@
     if (isPro) {
       body =
         '<p class="profile-hint">Acesso ativo — painel completo, relatório PDF e previsão liberados.</p>' +
-        '<p class="plan-meta">' +
-          '<span class="plan-status">' + esc(planStatusLabel(sub.status, true)) + '</span>' +
-          (renewal ? '<span class="plan-renewal">Válido até ' + esc(renewal) + '</span>' : '') +
-        '</p>' +
+        (renewal
+          ? '<p class="plan-meta"><span class="plan-renewal">Válido até ' + esc(renewal) + '</span></p>'
+          : '') +
         '<button type="button" class="btn btn-primary btn-sm" id="planCheckoutBtn">Renovar acesso</button>';
     } else {
       body =
@@ -441,6 +501,7 @@
           '<div class="profile-avatar" aria-hidden="true">' + esc(initials(user.nome)) + '</div>' +
           '<div class="profile-identity">' +
             '<h1>Minha conta</h1>' +
+            (user.username ? '<p class="profile-username mono">@' + esc(user.username) + '</p>' : '') +
             '<p class="profile-email">' + esc(user.email) + '</p>' +
           '</div>' +
         '</header>' +
@@ -467,8 +528,6 @@
             '</section>'
           : '') +
 
-        (user.canManagePlatform ? renderAdminUsersSection() + renderAdminFeedbackSection() : '') +
-
         '<section class="panel profile-section">' +
           '<div class="panel-head"><h3>Alterar senha</h3></div>' +
           '<form id="passwordForm" class="profile-form">' +
@@ -483,11 +542,40 @@
         '</section>' +
 
         (fullAccess
-          ? '<section class="panel profile-section pwa-install-banner" id="pwaSection">' +
-              '<div class="panel-head"><h3>Instalar app</h3></div>' +
-              '<p class="profile-hint" id="pwaHint"></p>' +
-              '<button type="button" class="btn btn-primary btn-sm" id="pwaInstallBtn" hidden>Instalar no dispositivo</button>' +
-            '</section>'
+          ? '<div class="profile-device-group">' +
+              '<section class="panel profile-section pwa-install-banner" id="pwaSection">' +
+                '<div class="panel-head"><h3>Instalar app</h3></div>' +
+                '<p class="profile-hint" id="pwaHint"></p>' +
+                '<button type="button" class="btn btn-primary btn-sm" id="pwaInstallBtn" hidden>Instalar no dispositivo</button>' +
+              '</section>' +
+              '<section class="panel profile-section" id="pushSection">' +
+                '<div class="panel-head"><h3>Notificações</h3></div>' +
+                '<p class="profile-hint" id="pushHint"></p>' +
+                '<p class="profile-hint profile-hint-sub" id="pushGreetingHint" hidden></p>' +
+                '<p class="profile-hint profile-hint-sub" id="pushTimezoneHint" hidden></p>' +
+                '<div class="push-actions">' +
+                  '<button type="button" class="btn btn-primary btn-sm" id="pushEnableBtn" hidden>Ativar notificações</button>' +
+                  '<button type="button" class="btn btn-ghost btn-sm" id="pushDisableBtn" hidden>Desativar notificações</button>' +
+                '</div>' +
+                '<div class="push-prefs" id="pushPrefs" hidden>' +
+                  '<label class="push-pref-row">' +
+                    '<input type="checkbox" id="pushPrefSaudacoes" checked> Saudações do dia' +
+                  '</label>' +
+                  '<label class="push-pref-row">' +
+                    '<input type="checkbox" id="pushPrefVencimentos" checked> Contas a vencer' +
+                  '</label>' +
+                  '<label class="push-pref-row">' +
+                    '<input type="checkbox" id="pushPrefAtrasados" checked> Contas atrasadas' +
+                  '</label>' +
+                  '<label class="push-pref-row">' +
+                    '<input type="checkbox" id="pushPrefOrcamento" checked> Orçamento' +
+                  '</label>' +
+                  '<label class="push-pref-row">' +
+                    '<input type="checkbox" id="pushPrefAssinatura" checked> Assinatura' +
+                  '</label>' +
+                '</div>' +
+              '</section>' +
+            '</div>'
           : '') +
 
         (fullAccess
@@ -507,6 +595,14 @@
             '</section>'
           : '') +
 
+        (user.canManagePlatform
+          ? '<div class="profile-admin-zone">' +
+              '<p class="profile-admin-zone-label">Administração</p>' +
+              renderAdminUsersSection() +
+              renderAdminFeedbackSection() +
+            '</div>'
+          : '') +
+
         '<div class="profile-actions">' +
           '<button type="button" class="btn btn-ghost" id="profileLogoutBtn">Sair da conta</button>' +
         '</div>' +
@@ -516,6 +612,7 @@
     bindProfileEvents(user);
     if (user.canManagePlatform) bindAdminEvents();
     updatePwaUi();
+    updatePushUi().catch(function () { /* handled in updatePushUi */ });
 
     const checkoutBtn = document.getElementById('planCheckoutBtn');
     if (checkoutBtn) checkoutBtn.addEventListener('click', startCheckout);
@@ -528,6 +625,81 @@
 
     hint.textContent = FinancePWA.getInstallHint();
     if (btn) btn.hidden = !FinancePWA.canInstall();
+  }
+
+  async function updatePushUi() {
+    const section = document.getElementById('pushSection');
+    if (!section || !window.FinancePush) return;
+
+    const hint = document.getElementById('pushHint');
+    const greetingHint = document.getElementById('pushGreetingHint');
+    const timezoneHint = document.getElementById('pushTimezoneHint');
+    const enableBtn = document.getElementById('pushEnableBtn');
+    const disableBtn = document.getElementById('pushDisableBtn');
+    const prefsBox = document.getElementById('pushPrefs');
+
+    try {
+      const status = await FinancePush.loadStatus();
+      if (hint) hint.textContent = status.hint || FinancePush.getSupportHint();
+
+      const canSubscribe = status.supported && status.pushEnabled && status.permission !== 'denied';
+      const isActive = status.subscribed && status.preferences && status.preferences.enabled;
+
+      if (enableBtn) enableBtn.hidden = !canSubscribe || isActive;
+      if (disableBtn) disableBtn.hidden = !isActive;
+      if (prefsBox) prefsBox.hidden = !isActive;
+
+      if (greetingHint && window.FinancePush.getGreetingHint) {
+        greetingHint.textContent = FinancePush.getGreetingHint();
+        greetingHint.hidden = !isActive;
+      }
+
+      if (timezoneHint && status.preferences && status.preferences.timezone) {
+        timezoneHint.textContent = 'Fuso: ' + status.preferences.timezone;
+        timezoneHint.hidden = !isActive;
+      } else if (timezoneHint) {
+        timezoneHint.hidden = true;
+      }
+
+      if (status.preferences) {
+        const map = {
+          pushPrefSaudacoes: status.preferences.saudacoes,
+          pushPrefVencimentos: status.preferences.vencimentos,
+          pushPrefAtrasados: status.preferences.atrasados,
+          pushPrefOrcamento: status.preferences.orcamento,
+          pushPrefAssinatura: status.preferences.assinatura,
+        };
+        Object.keys(map).forEach(function (id) {
+          const el = document.getElementById(id);
+          if (el) el.checked = Boolean(map[id]);
+        });
+      }
+    } catch (err) {
+      if (hint) hint.textContent = err.message || 'Não foi possível carregar notificações.';
+      if (enableBtn) enableBtn.hidden = true;
+      if (disableBtn) disableBtn.hidden = true;
+      if (prefsBox) prefsBox.hidden = true;
+      if (greetingHint) greetingHint.hidden = true;
+      if (timezoneHint) timezoneHint.hidden = true;
+    }
+  }
+
+  function bindPushPrefToggles() {
+    const ids = ['pushPrefSaudacoes', 'pushPrefVencimentos', 'pushPrefAtrasados', 'pushPrefOrcamento', 'pushPrefAssinatura'];
+    const keys = ['saudacoes', 'vencimentos', 'atrasados', 'orcamento', 'assinatura'];
+
+    ids.forEach(function (id, idx) {
+      const el = document.getElementById(id);
+      if (!el || !window.FinancePush) return;
+      el.addEventListener('change', async function () {
+        try {
+          await FinancePush.savePreferences({ [keys[idx]]: el.checked });
+        } catch (err) {
+          toast(err.message, 'error');
+          el.checked = !el.checked;
+        }
+      });
+    });
   }
 
   function bindProfileEvents(user) {
@@ -639,6 +811,45 @@
         updatePwaUi();
       });
     }
+
+    const pushEnableBtn = document.getElementById('pushEnableBtn');
+    if (pushEnableBtn) {
+      pushEnableBtn.addEventListener('click', async function () {
+        if (!window.FinancePush) return;
+        pushEnableBtn.disabled = true;
+        pushEnableBtn.textContent = 'Ativando…';
+        try {
+          await FinancePush.subscribe();
+          toast('Notificações ativadas');
+          await updatePushUi();
+        } catch (err) {
+          toast(err.message, 'error');
+          await updatePushUi();
+        } finally {
+          pushEnableBtn.disabled = false;
+          pushEnableBtn.textContent = 'Ativar notificações';
+        }
+      });
+    }
+
+    const pushDisableBtn = document.getElementById('pushDisableBtn');
+    if (pushDisableBtn) {
+      pushDisableBtn.addEventListener('click', async function () {
+        if (!window.FinancePush) return;
+        pushDisableBtn.disabled = true;
+        try {
+          await FinancePush.unsubscribe();
+          toast('Notificações desativadas');
+          await updatePushUi();
+        } catch (err) {
+          toast(err.message, 'error');
+        } finally {
+          pushDisableBtn.disabled = false;
+        }
+      });
+    }
+
+    bindPushPrefToggles();
 
     document.getElementById('profileLogoutBtn').addEventListener('click', function () {
       if (window.FinanceAuth) FinanceAuth.logout();

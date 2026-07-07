@@ -470,6 +470,11 @@
     }
 
     if (redirectToPaywallIfNeeded()) return false;
+
+    if (window.FinanceDailyGreeting) {
+      FinanceDailyGreeting.maybeShow(user);
+    }
+
     return true;
   }
 
