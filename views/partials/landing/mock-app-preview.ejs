@@ -1,0 +1,82 @@
+<div class="landing-app-chrome" aria-hidden="true">
+  <div class="landing-app-dots">
+    <span class="landing-app-dot"></span>
+    <span class="landing-app-dot"></span>
+    <span class="landing-app-dot landing-app-dot-active"></span>
+  </div>
+  <span class="landing-app-chrome-title font-mono">home-financas · jul/2026</span>
+</div>
+
+<div class="mock-dashboard-stack">
+  <%- include('mock-bento-hero') %>
+
+  <div class="landing-app-panels">
+    <div class="panel mock-pending-panel">
+      <div class="panel-head">
+        <h3>Contas do mês</h3>
+        <span class="panel-hint-pill pending-ok">3 pendentes</span>
+      </div>
+
+      <div class="mock-paid-progress" aria-hidden="true">
+        <div class="mock-paid-progress-track">
+          <div class="mock-paid-progress-fill" style="width: 68%"></div>
+        </div>
+        <p class="mock-paid-progress-label mono">68% pagas · R$&nbsp;519,90 ainda falta</p>
+      </div>
+
+      <ul class="mock-pending-list">
+        <li>
+          <span class="mock-pending-name">Aluguel</span>
+          <span class="mock-pending-date mono">10/07</span>
+          <span class="mock-pending-val mono val-neg">R$&nbsp;1.100</span>
+          <span class="mock-pending-status mock-pending-status--ok">Pago</span>
+        </li>
+        <li>
+          <span class="mock-pending-name">Internet</span>
+          <span class="mock-pending-date mono">15/07</span>
+          <span class="mock-pending-val mono val-neg">R$&nbsp;99,90</span>
+          <span class="mock-pending-status">Pendente</span>
+        </li>
+        <li>
+          <span class="mock-pending-name">Cartão · 3/12</span>
+          <span class="mock-pending-date mono">18/07</span>
+          <span class="mock-pending-val mono val-neg">R$&nbsp;420,00</span>
+          <span class="mock-pending-status">Pendente</span>
+        </li>
+        <li>
+          <span class="mock-pending-name">Salário</span>
+          <span class="mock-pending-date mono">05/07</span>
+          <span class="mock-pending-val mono val-pos">+ R$&nbsp;3.200</span>
+          <span class="mock-pending-status mock-pending-status--ok">Recebido</span>
+        </li>
+      </ul>
+    </div>
+
+    <div class="panel mock-previsao-panel mock-previsao-panel--compact">
+      <div class="panel-head">
+        <h3>Previsão</h3>
+        <span class="panel-hint-pill pending-ok">Positiva</span>
+      </div>
+
+      <div class="mock-previsao-summary">
+        <div class="mock-previsao-kpi">
+          <span class="label">Sobra no dia 30</span>
+          <span class="value mono val-pos">R$&nbsp;847,30</span>
+        </div>
+        <div class="mock-previsao-kpi">
+          <span class="label">Próximo mês</span>
+          <span class="value mono val-pos">R$&nbsp;920</span>
+        </div>
+      </div>
+
+      <div class="mock-previsao-next">
+        <p class="mock-previsao-next-sub">Sem fórmula. Sem planilha. Só o número que importa.</p>
+      </div>
+
+      <ul class="mock-previsao-list">
+        <li><span class="mock-previsao-date mono">18/07</span><span>Cartão</span><span class="mono val-neg">R$&nbsp;420</span></li>
+        <li><span class="mock-previsao-date mono">05/08</span><span>Salário</span><span class="mono val-pos">+ R$&nbsp;3.200</span></li>
+      </ul>
+    </div>
+  </div>
+</div>

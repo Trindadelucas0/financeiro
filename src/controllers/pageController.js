@@ -60,16 +60,10 @@ function adminClients(req, res) {
 }
 
 function landingPage(req, res) {
-  const shots = {
-    dashboard: landingShot('dashboard-desktop'),
-    mobile: landingShot('dashboard-mobile'),
-    previsao: landingShot('previsao'),
-  };
-  const ogImagePath = landingShot('og-cover') || shots.dashboard || '/images/logo-home-financas.png';
+  const ogImagePath = landingShot('og-cover') || '/images/logo-home-financas.png';
 
   res.render('landing/index', {
     title: 'Home Finanças',
-    shots,
     appUrl: getAppUrl(),
     ogImage: `${getAppUrl()}${ogImagePath}`,
     pricing: getProPlanPricing(),

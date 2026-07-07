@@ -1,140 +1,290 @@
 <!DOCTYPE html>
+
 <html lang="pt-BR">
+
 <head>
+
   <%- include('../partials/landing-head') %>
-  <title>Home Finanças — Seu mês em um painel</title>
+
+  <title>Home Finanças — Sem planilha no início do mês</title>
+
 </head>
+
 <body class="min-h-dvh">
+
   <a href="#conteudo" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-[10px] focus:bg-ice focus:px-4 focus:py-2 focus:text-ice-ink">
+
     Ir para o conteúdo
+
   </a>
 
+
+
   <header id="landingNav" class="sticky top-0 z-20 transition-colors duration-180" style="transition-timing-function: var(--ease-out-quart);">
+
     <div class="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
+
       <a href="/" class="flex items-center gap-3" aria-label="Home Finanças — início">
+
         <%- include('../partials/brand-logo', { logoSize: 'sm' }) %>
+
       </a>
+
       <nav class="flex items-center gap-3" aria-label="Navegação principal">
+
         <a href="/login" class="btn-ghost hidden px-4 py-2 sm:inline-flex">Entrar</a>
-        <a href="#adquirir" data-scroll-acquire class="btn-ice px-4 py-2 text-sm sm:px-6 sm:py-3">Adquirir</a>
+
+        <a href="#adquirir" data-scroll-acquire class="btn-ice btn-ice--nav px-4 py-2 text-sm sm:px-6 sm:py-3">Adquirir</a>
+
       </nav>
+
     </div>
+
   </header>
 
+
+
   <main id="conteudo">
+
     <!-- Hero -->
-    <section class="mx-auto max-w-6xl px-5 pb-16 pt-10 sm:px-8 sm:pb-24 sm:pt-16 lg:pb-28">
-      <div class="landing-reveal is-visible max-w-xl">
-        <%- include('../partials/brand-logo', { logoSize: 'hero' }) %>
 
-        <h1 class="mt-6 font-display text-balance text-[clamp(2rem,5vw,3.75rem)] font-bold leading-[1.08] tracking-[-0.03em] text-text sm:mt-8">
-          Planilha no fim do mês? Nem pensar.
+    <section class="landing-hero mx-auto max-w-6xl px-5 pb-16 pt-10 sm:px-8 sm:pb-24 sm:pt-16 lg:pb-28">
+
+      <div class="landing-hero-glow" aria-hidden="true"></div>
+
+      <div class="landing-hero-inner landing-reveal is-visible max-w-xl">
+
+        <div class="landing-hero-stagger landing-hero-stagger-1">
+
+          <%- include('../partials/brand-logo', { logoSize: 'hero' }) %>
+
+        </div>
+
+
+
+        <h1 class="landing-hero-title landing-hero-stagger landing-hero-stagger-2 mt-6 font-display text-balance text-[clamp(2rem,5vw,3.75rem)] font-bold leading-[1.08] tracking-[-0.03em] text-text sm:mt-8">
+
+          Planilha no início do mês? Nem pensar.
+
         </h1>
-        <p class="landing-hero-sub mt-4 text-base text-muted sm:mt-5">
+
+        <p class="landing-hero-sub landing-hero-stagger landing-hero-stagger-3 mt-4 text-base text-muted sm:mt-5">
+
           Receitas, despesas e parcelas num painel só.
+
         </p>
-        <div class="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+
+        <div class="landing-hero-stagger landing-hero-stagger-4 mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+
           <a href="#adquirir" data-scroll-acquire class="btn-ice w-full sm:w-auto">Adquirir acesso</a>
+
           <a href="/login" class="btn-ghost w-full sm:w-auto">Já tenho conta</a>
+
         </div>
+
       </div>
+
     </section>
 
-    <!-- Showcase -->
+
+
+    <!-- Showcase — preview do app (HTML, sem gráficos) -->
+
     <section class="landing-showcase" aria-labelledby="showcase-titulo">
-      <div class="landing-showcase-inner px-5 text-center sm:px-8">
-        <h2 id="showcase-titulo" class="sr-only">Preview do painel</h2>
-        <div class="landing-reveal min-w-0">
-          <%- include('../partials/landing/screenshot-slot', {
-            src: typeof shots !== 'undefined' ? shots.dashboard : null,
-            alt: 'Dashboard Home Finanças — saldo, receitas e despesas',
-            fallbackPartial: 'mock-bento'
-          }) %>
+
+      <div class="landing-showcase-inner px-5 sm:px-8">
+
+        <h2 id="showcase-titulo" class="landing-showcase-headline font-display text-balance">Seu mês inteiro, num painel só.</h2>
+
+        <div class="landing-showcase-stage landing-reveal">
+
+          <div class="landing-app-frame">
+
+            <%- include('../partials/landing/screenshot-slot', {
+
+              src: null,
+
+              alt: 'Home Finanças — saldo, contas e previsão do mês',
+
+              fallbackPartial: 'mock-app-preview',
+
+              previewModifier: 'landing-preview--app'
+
+            }) %>
+
+          </div>
+
         </div>
-        <p class="landing-showcase-caption landing-reveal mt-6 text-sm font-normal text-muted-2">
-          Saldo, receitas e despesas no mesmo olhar — valores abaixo são fictícios para demonstração.
-        </p>
+
       </div>
+
     </section>
+
+
 
     <!-- Pricing & access -->
+
     <% if (typeof pricing !== 'undefined' && pricing) { %>
+
     <section id="adquirir" class="landing-pricing border-t border-border" aria-labelledby="preco-titulo">
+
       <div class="mx-auto max-w-6xl px-5 sm:px-8">
+
         <div class="landing-reveal landing-pricing-layout">
-          <div class="landing-pricing-offer">
+
+          <div class="landing-pricing-offer landing-pricing-card">
+
             <div class="landing-pricing-hero">
+
               <p id="preco-titulo" class="landing-pricing-amount"><%= pricing.priceShort %></p>
+
             </div>
+
+
 
             <ul class="landing-pricing-features" aria-label="O que está incluso">
+
               <li>
+
                 <svg class="landing-pricing-check" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.5L6.5 11.5L12.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+
                 Dashboard completo — receitas, despesas, parcelas e orçamentos
+
               </li>
+
               <li>
+
                 <svg class="landing-pricing-check" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.5L6.5 11.5L12.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+
                 Relatório PDF do mês
+
               </li>
+
               <li>
+
                 <svg class="landing-pricing-check" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.5L6.5 11.5L12.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+
                 Previsão de saldo e alertas
+
               </li>
+
               <li>
+
                 <svg class="landing-pricing-check" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3.5 8.5L6.5 11.5L12.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+
                 PWA no celular
+
               </li>
+
             </ul>
 
+
+
             <div class="landing-pricing-trust">
+
               <div class="landing-pricing-pills">
+
                 <% pricing.paymentMethods.forEach(function(method) { %>
+
                 <span class="landing-pricing-pill"><%= method %></span>
+
                 <% }); %>
+
               </div>
+
               <p class="landing-pricing-secure">
+
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3.5 6V4.25a3.5 3.5 0 017 0V6M2.5 6h9a1 1 0 011 1v4.5a1 1 0 01-1 1h-9a1 1 0 01-1-1V7a1 1 0 011-1z" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg>
+
                 Pagamento seguro via InfinitePay
+
               </p>
+
             </div>
+
           </div>
+
+
 
           <div class="landing-pricing-checkout">
+
             <h3 class="landing-pricing-checkout-title">Começar agora</h3>
+
             <form id="acquireForm" class="landing-acquire-form" novalidate>
+
               <div class="landing-acquire-field">
+
                 <label for="acquireNome">Nome completo</label>
+
                 <input id="acquireNome" name="nome" type="text" required autocomplete="name" placeholder="Seu nome">
+
               </div>
+
               <div class="landing-acquire-field">
+
                 <label for="acquireEmail">E-mail</label>
+
                 <input id="acquireEmail" name="email" type="email" required autocomplete="email" placeholder="voce@email.com">
+
               </div>
+
               <p id="acquireError" class="landing-acquire-error" hidden role="alert"></p>
+
               <div class="landing-acquire-actions">
+
                 <button type="submit" id="acquireSubmit" class="btn-ice w-full" data-label="Adquirir — <%= pricing.priceShort %>">
+
                   Adquirir — <%= pricing.priceShort %>
+
                 </button>
+
                 <a href="/login" class="landing-acquire-link">Já tenho conta</a>
+
               </div>
+
             </form>
+
           </div>
+
         </div>
+
       </div>
+
     </section>
+
     <% } %>
+
   </main>
 
+
+
   <footer class="border-t border-border">
+
     <div class="mx-auto max-w-6xl px-5 py-8 sm:px-8">
-      <%- include('../partials/support-contact', { variant: 'landing' }) %>
-      <div class="landing-footer-meta">
-        <a href="/login" class="landing-footer-login">Entrar</a>
+
+      <div class="landing-footer-panel">
+
+        <%- include('../partials/support-contact', { variant: 'landing' }) %>
+
       </div>
+
+      <div class="landing-footer-meta">
+
+        <a href="/login" class="landing-footer-login">Entrar</a>
+
+      </div>
+
     </div>
+
   </footer>
 
+
+
   <script src="/js/landing.js"></script>
+
   <script src="/js/landing-checkout.js"></script>
+
 </body>
+
 </html>
+
