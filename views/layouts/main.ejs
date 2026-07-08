@@ -51,6 +51,10 @@
     </nav>
 
     <div class="mobile-only">
+      <div class="mobile-tip-banner" id="mobileTipBanner" hidden role="status">
+        <p>Use o menu <strong>Mais</strong> para Parcelas, Orçamentos, Previsão e PDF.</p>
+        <button type="button" class="mobile-tip-dismiss" id="mobileTipDismiss" aria-label="Fechar dica">×</button>
+      </div>
       <%- include('../partials/hero-balance') %>
     </div>
     <% } %>
@@ -73,6 +77,72 @@
   <%- include('../partials/bottom-nav', { page }) %>
 
   <% if (page !== 'perfil') { %>
+  <button type="button" class="fab-mobile mobile-only" onclick="openModal()" aria-label="Novo lançamento">+</button>
+
+  <dialog class="modal mais-sheet" id="maisSheetDialog" aria-labelledby="maisSheetTitle">
+    <div class="modal-inner">
+      <div class="modal-grab" aria-hidden="true"></div>
+      <h3 id="maisSheetTitle" class="mais-sheet-title">Mais opções</h3>
+      <nav class="mais-sheet-list" aria-label="Seções adicionais">
+        <a href="/app/compromissos" class="mais-sheet-item">
+          <span class="mais-sheet-icon" aria-hidden="true">⧉</span>
+          <span class="mais-sheet-body">
+            <strong>Parcelas &amp; Empréstimos</strong>
+            <span>Contratos, parcelas do mês e progresso</span>
+          </span>
+        </a>
+        <a href="/app/orcamentos" class="mais-sheet-item">
+          <span class="mais-sheet-icon" aria-hidden="true">◎</span>
+          <span class="mais-sheet-body">
+            <strong>Orçamentos &amp; Saldo</strong>
+            <span>Tetos por categoria e saldo em conta</span>
+          </span>
+        </a>
+        <a href="/app/previsao" class="mais-sheet-item">
+          <span class="mais-sheet-icon" aria-hidden="true">↗</span>
+          <span class="mais-sheet-body">
+            <strong>Previsão</strong>
+            <span>Projeção dos próximos 12 meses</span>
+          </span>
+        </a>
+        <button type="button" class="mais-sheet-item" onclick="exportPDF(); FinanceUI.closeMaisSheet();">
+          <span class="mais-sheet-icon" aria-hidden="true">↓</span>
+          <span class="mais-sheet-body">
+            <strong>Relatório PDF</strong>
+            <span>Baixar relatório do mês atual</span>
+          </span>
+        </button>
+      </nav>
+      <button type="button" class="btn btn-ghost btn-block mais-sheet-close" id="maisSheetClose">Fechar</button>
+    </div>
+  </dialog>
+
+  <dialog class="modal saldo-sheet" id="saldoSheetDialog" aria-labelledby="saldoSheetTitle">
+    <div class="modal-inner saldo-sheet-inner">
+      <div class="modal-grab" aria-hidden="true"></div>
+      <h3 id="saldoSheetTitle" class="saldo-sheet-title">Saldo em conta</h3>
+      <p class="saldo-sheet-desc" id="saldoSheetDesc"></p>
+      <p class="saldo-sheet-preview mono" id="saldoSheetPreview" hidden></p>
+      <form id="saldoSheetForm" class="saldo-sheet-form">
+        <div class="field saldo-sheet-field">
+          <label for="saldoSheetValor" id="saldoSheetValorLabel" class="saldo-sheet-label">Valor</label>
+          <div class="saldo-sheet-value-wrap">
+            <span class="saldo-sheet-currency mono" aria-hidden="true">R$</span>
+            <input id="saldoSheetValor" class="saldo-sheet-value-input mono" type="text" inputmode="decimal" autocomplete="off" placeholder="0,00" required>
+          </div>
+        </div>
+        <div class="field saldo-sheet-field" id="saldoSheetDescricaoField" hidden>
+          <label for="saldoSheetDescricao" class="saldo-sheet-label">Descrição (opcional)</label>
+          <input id="saldoSheetDescricao" class="saldo-sheet-desc-input" type="text" placeholder="Ex.: Salário, PIX, transferência" maxlength="80">
+        </div>
+        <div class="saldo-sheet-actions">
+          <button type="submit" class="btn btn-primary btn-block" id="saldoSheetSubmit">Salvar</button>
+          <button type="button" class="btn btn-ghost btn-block" id="saldoSheetCancel">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
   <dialog class="modal modal-launch" id="modalDialog" aria-labelledby="modalTitle">
     <div class="modal-inner">
       <div id="modalBody" class="modal-body"></div>

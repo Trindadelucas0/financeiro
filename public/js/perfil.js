@@ -360,23 +360,35 @@
   }
 
   function renderPlanSection(subscription, pricing) {
-    const sub = subscription || { plan: 'free', status: null, isPro: false };
+    const sub = subscription || { plan: 'free', status: null, isPro: false, isTrial: false };
     const price = (pricing && pricing.label) || 'R$ 9,90 · 30 dias';
     const fullLabel = (pricing && pricing.subline) || price;
     const isPro = Boolean(sub.isPro);
+    const isTrial = Boolean(sub.isTrial);
     const badgeClass = isPro ? 'plan-badge plan-badge-pro' : 'plan-badge plan-badge-expired';
-    const badgeText = isPro ? 'Ativo' : (sub.status === 'expired' ? 'Expirado' : 'Inativo');
+    const badgeText = isPro
+      ? (isTrial ? 'Trial' : 'Ativo')
+      : (sub.status === 'expired' ? 'Expirado' : 'Inativo');
     const renewal = sub.currentPeriodEnd ? formatPlanDate(sub.currentPeriodEnd) : '';
     const priceShort = (pricing && pricing.priceShort) || 'R$ 9,90';
 
     let body = '';
     if (isPro) {
-      body =
-        '<p class="profile-hint">Acesso ativo — painel completo, relatório PDF e previsão liberados.</p>' +
-        (renewal
-          ? '<p class="plan-meta"><span class="plan-renewal">Válido até ' + esc(renewal) + '</span></p>'
-          : '') +
-        '<button type="button" class="btn btn-primary btn-sm" id="planCheckoutBtn">Renovar acesso</button>';
+      if (isTrial) {
+        body =
+          '<p class="profile-hint">Trial ativo — painel completo liberado durante o período de teste.</p>' +
+          (renewal
+            ? '<p class="plan-meta"><span class="plan-trial-hint">Seu trial termina em ' + esc(renewal) + ' — depois renove por ' + esc(priceShort) + '</span></p>'
+            : '') +
+          '<button type="button" class="btn btn-primary btn-sm" id="planCheckoutBtn">Assinar agora — ' + esc(priceShort) + '</button>';
+      } else {
+        body =
+          '<p class="profile-hint">Acesso ativo — painel completo, relatório PDF e previsão liberados.</p>' +
+          (renewal
+            ? '<p class="plan-meta"><span class="plan-renewal">Válido até ' + esc(renewal) + '</span></p>'
+            : '') +
+          '<button type="button" class="btn btn-primary btn-sm" id="planCheckoutBtn">Renovar acesso</button>';
+      }
     } else {
       body =
         '<p class="profile-hint">' + esc(price) + '. Renove para continuar usando o painel.</p>' +
@@ -431,27 +443,40 @@
     const transactionNsu = params.get('transaction_nsu');
     const slug = params.get('slug');
 
-    if (!orderNsu) return false;
+    if (!orderNsu) return { ok: false, subscription: null };
 
-    try {
-      const data = await apiFetch('/api/payments/confirm', {
-        method: 'POST',
-        body: {
-          order_nsu: orderNsu,
-          transaction_nsu: transactionNsu || undefined,
-          slug: slug || undefined,
-        },
-      });
-      if (data && data.subscription) {
-        setSession(getToken(), getUser(), data.subscription, data.pricing || getPricing());
+    const body = {
+      order_nsu: orderNsu,
+      transaction_nsu: transactionNsu || undefined,
+      slug: slug || undefined,
+    };
+
+    const maxAttempts = 10;
+    const intervalMs = 3000;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        const data = await apiFetch('/api/payments/confirm', {
+          method: 'POST',
+          body: body,
+        });
+        if (data && data.subscription) {
+          setSession(getToken(), getUser(), data.subscription, data.pricing || getPricing());
+        }
+        return { ok: true, subscription: data && data.subscription ? data.subscription : null };
+      } catch (err) {
+        if (err.status === 402 && attempt < maxAttempts - 1) {
+          await new Promise(function (resolve) { setTimeout(resolve, intervalMs); });
+          continue;
+        }
+        if (err.status !== 402) {
+          toast(err.message || 'Não foi possível confirmar o pagamento', 'error');
+        }
+        return { ok: false, subscription: null };
       }
-      return true;
-    } catch (err) {
-      if (err.status !== 402) {
-        toast(err.message || 'Não foi possível confirmar o pagamento', 'error');
-      }
-      return false;
     }
+
+    return { ok: false, subscription: null };
   }
 
   async function handleCheckoutQuery() {
@@ -461,17 +486,21 @@
 
     if (checkout === 'success') {
       toast('Pagamento recebido! Confirmando seu acesso…');
-      await confirmPaymentFromRedirect(params);
+      const result = await confirmPaymentFromRedirect(params);
       try {
         const data = await apiFetch('/api/auth/me');
         if (data) {
           setSession(getToken(), data.user, data.subscription || null, data.pricing || null);
         }
-        if (data && data.subscription && data.subscription.isPro) {
+        const subscription = (data && data.subscription) || result.subscription;
+        if (subscription && subscription.isPro) {
           window.location.href = '/app/dashboard';
           return;
         }
       } catch (_) { /* ignore */ }
+      if (!result.ok) {
+        toast('Pagamento ainda em confirmação. Atualize a página em alguns segundos.', 'error');
+      }
     } else if (checkout === 'cancel') {
       toast('Checkout cancelado', 'error');
     }

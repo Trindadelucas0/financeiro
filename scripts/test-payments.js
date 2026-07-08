@@ -63,8 +63,77 @@ async function main() {
     const html = await res.text();
     assert(html.includes('30 dias') || html.includes('R$'), 'copy de preço na landing');
     assert(html.includes('acquireForm') || html.includes('Adquirir'), 'formulário de compra na landing');
-    pass('Landing carrega com preço e compra');
+    assert(html.includes('/cadastro'), 'link para cadastro na landing');
+    pass('Landing carrega com preço, compra e cadastro');
   } catch (e) { fail('Landing', e); }
+
+  // 2.7 Página de cadastro
+  try {
+    const res = await fetch(`${BASE}/cadastro`);
+    assert(res.status === 200, `status ${res.status}`);
+    const html = await res.text();
+    assert(html.includes('registerForm'), 'formulário de cadastro');
+    assert(html.includes('7 dias'), 'copy de trial no cadastro');
+    pass('Página /cadastro carrega');
+  } catch (e) { fail('Página /cadastro', e); }
+
+  // 2.8 Registro público com trial
+  let trialToken;
+  const trialEmail = `trial-${Date.now()}@local.dev`;
+  try {
+    const { status, data } = await request('/api/auth/register', {
+      method: 'POST',
+      body: { nome: 'Usuário Trial', email: trialEmail, password: 'Trial@123' },
+    });
+    assert(status === 201, `status ${status}: ${data?.error}`);
+    assert(data.token, 'token retornado');
+    assert(data.subscription.isPro === true, 'deveria ser Pro no trial');
+    assert(data.subscription.isTrial === true, 'deveria ser trial');
+    assert(data.subscription.daysUntilExpiry <= 7, 'trial <= 7 dias');
+    assert(data.subscription.daysUntilExpiry >= 6, 'trial >= 6 dias');
+    trialToken = data.token;
+    pass('Registro público com trial de 7 dias');
+  } catch (e) { fail('Registro público trial', e); }
+
+  // 2.9 Registro duplicado
+  try {
+    const { status } = await request('/api/auth/register', {
+      method: 'POST',
+      body: { nome: 'Usuário Trial', email: trialEmail, password: 'Trial@123' },
+    });
+    assert(status === 409, `esperado 409, got ${status}`);
+    pass('Registro duplicado retorna 409');
+  } catch (e) { fail('Registro duplicado', e); }
+
+  // 2.10 Trial acessa dashboard
+  if (trialToken) {
+    try {
+      const { status } = await request('/api/finance/dashboard', { token: trialToken });
+      assert(status === 200, `esperado 200, got ${status}`);
+      pass('Dashboard liberado durante trial (200)');
+    } catch (e) { fail('Dashboard durante trial', e); }
+  }
+
+  // 2.11 Trial expirado bloqueado
+  if (trialToken) {
+    try {
+      const { getPool } = require('../src/db/pool');
+      const pool = getPool();
+      await pool.query(
+        `UPDATE users
+         SET subscription_current_period_end = NOW() - INTERVAL '1 day'
+         WHERE email = $1`,
+        [trialEmail],
+      );
+      const { status, data } = await request('/api/finance/dashboard', { token: trialToken });
+      assert(status === 402, `esperado 402, got ${status}`);
+      assert(
+        data.code === 'SUBSCRIPTION_REQUIRED' || data.code === 'PRO_REQUIRED',
+        'code SUBSCRIPTION_REQUIRED',
+      );
+      pass('Dashboard bloqueado após trial expirado (402)');
+    } catch (e) { fail('Bloqueio após trial expirado', e); }
+  }
 
   // 2.5 Guest checkout sem auth
   let guestOrderNsu;

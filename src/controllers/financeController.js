@@ -1,5 +1,7 @@
 const financeService = require('../services/financeService');
 const { buildMonthlyReport, enrichReportWithAi } = require('../services/reportService');
+const { getPool } = require('../db/pool');
+const emailService = require('../services/emailService');
 
 function getReportPdfService() {
   return require('../services/reportPdfService');
@@ -7,6 +9,15 @@ function getReportPdfService() {
 
 function userId(req) {
   return req.user.id;
+}
+
+async function getUserEmailInfo(id) {
+  const pool = getPool();
+  const { rows } = await pool.query(
+    'SELECT nome, email FROM users WHERE id = $1',
+    [id],
+  );
+  return rows[0] || null;
 }
 
 async function getSettings(req, res, next) {
@@ -20,8 +31,10 @@ async function getSettings(req, res, next) {
 
 async function putSettings(req, res, next) {
   try {
-    const settings = await financeService.updateSettings(userId(req), req.body);
-    return res.json({ settings });
+    const result = await financeService.updateSettings(userId(req), req.body);
+    const settings = result.settings || result;
+    const movimento = result.movimento || null;
+    return res.json({ settings, movimento });
   } catch (err) {
     return next(err);
   }
@@ -146,8 +159,33 @@ async function listPagamentos(req, res, next) {
 
 async function upsertPagamento(req, res, next) {
   try {
-    const pagamento = await financeService.upsertPagamento(userId(req), req.body);
-    return res.json({ pagamento });
+    const result = await financeService.upsertPagamento(userId(req), req.body);
+    const { settings, movimento, ...pagamento } = result;
+    return res.json({ pagamento, settings: settings || null, movimento: movimento || null });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function postSaldoEntrada(req, res, next) {
+  try {
+    const result = await financeService.registrarEntradaSaldo(userId(req), req.body);
+    return res.json({
+      settings: result.settings,
+      movimento: result.movimento || null,
+    });
+  } catch (err) {
+    return next(err);
+  }
+}
+
+async function getSaldoMovimentos(req, res, next) {
+  try {
+    const movimentos = await financeService.listSaldoMovimentos(userId(req), {
+      mes: req.query.mes,
+      limit: req.query.limit,
+    });
+    return res.json({ movimentos });
   } catch (err) {
     return next(err);
   }
@@ -194,10 +232,25 @@ async function getPrevisao(req, res, next) {
 
 async function exportPdf(req, res, next) {
   try {
+    const uid = userId(req);
     const mes = req.query.mes || financeService.monthKeyOf(new Date());
-    const report = await buildMonthlyReport(userId(req), mes);
-    await enrichReportWithAi(report, userId(req));
+    const report = await buildMonthlyReport(uid, mes);
+    await enrichReportWithAi(report, uid);
     const pdf = await getReportPdfService().generateMonthlyReportPdf(report);
+
+    getUserEmailInfo(uid).then(function (userRow) {
+      if (!userRow || !userRow.email) return null;
+      return emailService.sendReportPdfEmail({
+        to: userRow.email,
+        nome: userRow.nome || report.userName,
+        mes,
+        mesLabel: report.mesLabel,
+        pdfBuffer: pdf,
+      });
+    }).catch(function (err) {
+      console.error('[email] Falha ao enviar relatório PDF:', err.message);
+    });
+
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="relatorio-financeiro-${mes}.pdf"`);
     return res.send(pdf);
@@ -223,6 +276,8 @@ module.exports = {
   deleteEmprestimo,
   listPagamentos,
   upsertPagamento,
+  postSaldoEntrada,
+  getSaldoMovimentos,
   getOrcamentos,
   putOrcamentos,
   getDashboard,

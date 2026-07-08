@@ -175,6 +175,91 @@
     return data;
   }
 
+  const CHECKOUT_PENDING_KEY = 'financeiro_checkout_pending';
+  const CHECKOUT_POLL_ATTEMPTS = 10;
+  const CHECKOUT_POLL_INTERVAL_MS = 3000;
+
+  function saveCheckoutPending(payload) {
+    sessionStorage.setItem(CHECKOUT_PENDING_KEY, JSON.stringify(payload));
+  }
+
+  function loadCheckoutPending() {
+    try {
+      const raw = sessionStorage.getItem(CHECKOUT_PENDING_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function clearCheckoutPending() {
+    sessionStorage.removeItem(CHECKOUT_PENDING_KEY);
+  }
+
+  function ensureCheckoutRetryBtn(onRetry) {
+    let btn = document.getElementById('checkoutRetryBtn');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.id = 'checkoutRetryBtn';
+      btn.className = 'btn btn-ghost btn-sm';
+      btn.textContent = 'Tentar novamente';
+      const welcome = document.getElementById('checkoutWelcome');
+      if (welcome) welcome.appendChild(btn);
+    }
+    btn.hidden = false;
+    btn.onclick = onRetry;
+  }
+
+  function hideCheckoutRetryBtn() {
+    const btn = document.getElementById('checkoutRetryBtn');
+    if (btn) btn.hidden = true;
+  }
+
+  async function fetchWelcomeCredentials(payload) {
+    const query = new URLSearchParams({ order_nsu: payload.orderNsu });
+    if (payload.transactionNsu) query.set('transaction_nsu', payload.transactionNsu);
+    if (payload.slug) query.set('slug', payload.slug);
+    return apiFetch('/api/payments/welcome?' + query.toString());
+  }
+
+  async function pollWelcomeCheckout(payload) {
+    const welcome = document.getElementById('checkoutWelcome');
+    if (welcome) welcome.hidden = false;
+
+    for (let attempt = 0; attempt < CHECKOUT_POLL_ATTEMPTS; attempt++) {
+      try {
+        const data = await fetchWelcomeCredentials(payload);
+        renderWelcome(data);
+        if (!data.pending) {
+          clearCheckoutPending();
+          cleanCheckoutQuery();
+          hideCheckoutRetryBtn();
+          return data;
+        }
+      } catch (err) {
+        if (attempt === CHECKOUT_POLL_ATTEMPTS - 1) {
+          renderWelcome({
+            pending: true,
+            message: err.message || 'Não foi possível confirmar o pagamento.',
+          });
+          ensureCheckoutRetryBtn(function () { pollWelcomeCheckout(payload); });
+          return null;
+        }
+      }
+      if (attempt < CHECKOUT_POLL_ATTEMPTS - 1) {
+        await new Promise(function (resolve) { setTimeout(resolve, CHECKOUT_POLL_INTERVAL_MS); });
+      }
+    }
+
+    renderWelcome({
+      pending: true,
+      message: 'Pagamento ainda em confirmação. Tente novamente em instantes ou fale com o suporte.',
+    });
+    ensureCheckoutRetryBtn(function () { pollWelcomeCheckout(payload); });
+    return null;
+  }
+
   function cleanCheckoutQuery() {
     const params = new URLSearchParams(window.location.search);
     if (!params.get('checkout')) return;
@@ -235,46 +320,22 @@
 
   async function handleCheckoutSuccess() {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('checkout') !== 'success') return;
+    let pending = null;
 
-    const orderNsu = params.get('order_nsu');
-    if (!orderNsu) return;
-
-    const transactionNsu = params.get('transaction_nsu');
-    const slug = params.get('slug');
-
-    async function fetchWelcome() {
-      const query = new URLSearchParams({ order_nsu: orderNsu });
-      if (transactionNsu) query.set('transaction_nsu', transactionNsu);
-      if (slug) query.set('slug', slug);
-      return apiFetch('/api/payments/welcome?' + query.toString());
+    if (params.get('checkout') === 'success' && params.get('order_nsu')) {
+      pending = {
+        orderNsu: params.get('order_nsu'),
+        transactionNsu: params.get('transaction_nsu') || null,
+        slug: params.get('slug') || null,
+      };
+      saveCheckoutPending(pending);
+    } else {
+      pending = loadCheckoutPending();
     }
 
-    try {
-      const data = await fetchWelcome();
-      renderWelcome(data);
+    if (!pending || !pending.orderNsu) return;
 
-      if (data.pending) {
-        setTimeout(async function () {
-          try {
-            const retry = await fetchWelcome();
-            renderWelcome(retry);
-          } catch (err) {
-            const hint = document.getElementById('checkoutWelcomeHint');
-            if (hint) hint.textContent = err.message || 'Não foi possível confirmar o pagamento.';
-          }
-        }, 2500);
-      }
-    } catch (err) {
-      const welcome = document.getElementById('checkoutWelcome');
-      const hint = document.getElementById('checkoutWelcomeHint');
-      if (welcome) welcome.hidden = false;
-      if (hint) {
-        hint.textContent = err.message || 'Não foi possível carregar os dados do pagamento.';
-      }
-    } finally {
-      cleanCheckoutQuery();
-    }
+    await pollWelcomeCheckout(pending);
   }
 
   async function refreshSession() {
@@ -310,10 +371,12 @@
         topbar.hidden = true;
       } else if (sub && sub.renewalDueSoon) {
         const days = sub.daysUntilExpiry || 0;
+        const expiryLabel = sub.isTrial ? 'Seu trial termina' : 'Sua assinatura expira';
+        const ctaLabel = sub.isTrial ? 'Assinar agora' : 'Renovar acesso';
         topbar.innerHTML =
           '<div class="renewal-topbar-inner" role="status">' +
-            '<span class="renewal-topbar-text">Sua assinatura expira em ' + renewalDaysLabel(days) + '.</span>' +
-            '<a href="/app/perfil" class="renewal-topbar-cta">Renovar acesso</a>' +
+            '<span class="renewal-topbar-text">' + expiryLabel + ' em ' + renewalDaysLabel(days) + '.</span>' +
+            '<a href="/app/perfil" class="renewal-topbar-cta">' + ctaLabel + '</a>' +
           '</div>';
         topbar.hidden = false;
       } else {

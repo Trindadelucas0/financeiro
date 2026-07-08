@@ -1948,6 +1948,21 @@ dialog.modal .type-picker.duracao-picker {
 .auth-form { text-align: left; }
 .auth-error { color: var(--red); font-size: 13px; margin: 0 0 12px; }
 
+.auth-footer-link {
+  margin: 16px 0 0;
+  text-align: center;
+  font-size: 13px;
+}
+
+.auth-footer-link a {
+  color: var(--ice);
+  text-decoration: none;
+}
+
+.auth-footer-link a:hover {
+  text-decoration: underline;
+}
+
 .auth-checkout-welcome {
   margin: 0 0 20px;
   padding: 16px;
@@ -2867,11 +2882,196 @@ dialog.modal .type-picker.duracao-picker {
   background: oklch(0.94 0.008 240 / 0.06);
 }
 
-@media (max-width: 480px) {
+@media (max-width: 768px) {
   .admin-user-meta {
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
+  }
+
+  /* Charts mobile (layout-desktop) */
+  .chart-wrap.chart-fluxo { height: 220px; min-height: 200px; }
+  .chart-wrap.chart-proj { height: 220px; min-height: 200px; }
+  .chart-wrap.chart-donut { height: 170px; min-height: 150px; }
+  .chart-donut-center { font-size: 1.1rem; }
+  .chart-panel { overflow: hidden; }
+  .chart-wrap canvas { display: block; max-width: 100%; }
+
+  .kpi-sparkline canvas { max-height: 36px !important; }
+  .kpi-mini .kpi-sparkline canvas { max-height: 28px !important; }
+
+  .forecast-strip .fc-node { min-width: 72px; }
+  .forecast-strip { scroll-snap-type: x proximity; }
+
+  .donut-legend-item span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 140px;
+  }
+
+  /* Saldo em conta */
+  .saldo-conta-box {
+    flex-direction: column;
+    align-items: stretch;
+    border-color: var(--border);
+  }
+
+  .saldo-conta-box--empty {
+    border-color: oklch(0.94 0.008 240 / 0.35);
+    background: linear-gradient(180deg, oklch(0.12 0.01 240) 0%, var(--surface-2) 100%);
+  }
+
+  .sc-empty-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .saldo-conta-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .saldo-pagar-rapido {
+    width: 100%;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .saldo-pagar-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--muted-2);
+    margin-bottom: 8px;
+  }
+
+  .saldo-pagar-item {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px 8px;
+    align-items: center;
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+
+  .saldo-pagar-apos {
+    grid-column: 1 / -1;
+    font-size: 11px;
+    color: var(--muted-2);
+  }
+
+  .account-balance-panel--accent {
+    border-color: oklch(0.94 0.008 240 / 0.3);
+  }
+
+  .account-balance-quick {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .account-balance-meta--tip { color: var(--muted-2); }
+
+  /* Saldo extrato */
+  .saldo-extrato-panel.panel {
+    margin-bottom: 16px;
+    padding: 16px;
+  }
+
+  .saldo-extrato-balance {
+    margin-bottom: 14px;
+  }
+
+  .saldo-extrato-history {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+
+  .saldo-extrato-history-head {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted-2);
+    margin-bottom: 10px;
+  }
+
+  .extrato-empty {
+    font-size: 13px;
+    color: var(--muted-2);
+    line-height: 1.45;
+    padding: 12px 0;
+  }
+
+  .saldo-extrato-panel .extrato-list {
+    max-height: 280px;
+    overflow-y: auto;
+  }
+
+  dialog.saldo-sheet,
+  dialog.saldo-sheet[open] {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    border-radius: 20px 20px 0 0;
+    border-top: 1px solid var(--border);
+    max-height: 85dvh;
+    position: fixed;
+    inset: auto 0 0 0;
+  }
+
+  dialog.saldo-sheet .modal-grab {
+    display: block;
+    width: 40px;
+    height: 4px;
+    border-radius: 99px;
+    background: var(--surface-3);
+    margin: 10px auto 8px;
+  }
+
+  /* Filter bar mobile */
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-bar input,
+  .filter-bar select {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+  }
+
+  .account-balance-field input,
+  .budget-input {
+    min-height: 44px;
+  }
+
+  /* Previsão */
+  .previsao-panel .forecast-summary {
+    margin-bottom: 16px;
+  }
+
+  .previsao-footnote {
+    text-align: left;
+    margin-top: 16px;
+  }
+
+  .m-card--current {
+    border-color: oklch(0.94 0.008 240 / 0.4);
+    background: var(--ice-dim);
+  }
+
+  #view {
+    padding-bottom: 8px;
   }
 }
 

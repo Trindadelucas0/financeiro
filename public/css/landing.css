@@ -43,7 +43,6 @@
     --text-8xl--line-height: 1;
     --text-9xl: 8rem;
     --text-9xl--line-height: 1;
-    --font-weight-normal: 400;
     --font-weight-medium: 500;
     --font-weight-semibold: 600;
     --font-weight-bold: 700;
@@ -1228,6 +1227,17 @@
     .landing-pricing-layout {
       grid-template-columns: 1fr 1fr;
     }
+  }
+  .landing-pricing-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .landing-pricing-trial-copy {
+    margin: 0 0 1.25rem;
+    font-size: 0.875rem;
+    color: var(--color-muted);
+    line-height: 1.5;
   }
   .landing-pricing-hero {
     margin-bottom: clamp(1.5rem, 4vw, 2.5rem);

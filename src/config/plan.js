@@ -4,6 +4,10 @@ const PRO_PLAN = {
   currency: 'BRL',
 };
 
+const TRIAL_PLAN = {
+  accessDays: 7,
+};
+
 const RENEWAL_REMINDER_DAYS = 4;
 
 function formatProMonthlyPriceShort() {
@@ -24,10 +28,12 @@ function getProPlanPricing() {
   return {
     monthlyPriceBrl: PRO_PLAN.monthlyPriceBrl,
     accessDays: PRO_PLAN.accessDays,
+    trialDays: TRIAL_PLAN.accessDays,
     currency: PRO_PLAN.currency,
     label,
     priceShort,
     accessLabel: `${PRO_PLAN.accessDays} dias de acesso`,
+    trialLabel: `${TRIAL_PLAN.accessDays} dias grátis`,
     subline: `Pague ${priceShort} · use por ${PRO_PLAN.accessDays} dias`,
     paymentMethods: ['Pix', 'Cartão de crédito'],
   };
@@ -35,6 +41,7 @@ function getProPlanPricing() {
 
 module.exports = {
   PRO_PLAN,
+  TRIAL_PLAN,
   RENEWAL_REMINDER_DAYS,
   formatProMonthlyPrice,
   formatProMonthlyPriceShort,

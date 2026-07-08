@@ -3,6 +3,7 @@ const { getPool } = require('../db/pool');
 const { signToken } = require('../utils/jwt');
 const { mapUser } = require('../services/profileService');
 const subscriptionService = require('./subscriptionService');
+const userService = require('./userService');
 const { getProPlanPricing } = require('../config/plan');
 const { canManagePlatform } = require('../config/adminAccess');
 
@@ -76,11 +77,37 @@ async function login(identifier, password) {
   };
 }
 
+async function register({ nome, email, password, username }) {
+  const { user, subscription } = await userService.createUserWithTrial({
+    nome,
+    email,
+    password,
+    username,
+  });
+
+  const payload = {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    role: user.role,
+    nome: user.nome,
+  };
+
+  const token = signToken(payload);
+
+  return {
+    token,
+    user: withPlatformAccess(user),
+    subscription,
+    pricing: getProPlanPricing(),
+  };
+}
+
 async function getMe(userId) {
   const pool = getPool();
   const { rows } = await pool.query(
     `SELECT id, nome, username, email, role, ativo, created_at, must_change_password,
-            plan, subscription_status, subscription_current_period_end
+            plan, subscription_status, subscription_current_period_end, access_grant_type
      FROM users WHERE id = $1 LIMIT 1`,
     [userId],
   );
@@ -139,4 +166,4 @@ async function verifyPassword(userId, password) {
   return { ok: true };
 }
 
-module.exports = { login, getMe, verifyPassword };
+module.exports = { login, register, getMe, verifyPassword };

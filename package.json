@@ -12,6 +12,7 @@
     "test:production": "node scripts/test-production.js",
     "test:notifications": "node scripts/test-notifications.js",
     "test:greetings": "node scripts/test-greetings.js",
+    "test:emails": "node scripts/test-emails.js",
     "notify:send": "node scripts/send-notifications.js",
     "notify:greetings": "node scripts/send-greeting-notifications.js",
     "build:css": "tailwindcss -i ./src/styles/landing.css -o ./public/css/landing.css --minify",
@@ -33,6 +34,7 @@
     "jsonwebtoken": "^9.0.2",
     "pdfkit": "^0.15.2",
     "pg": "^8.13.3",
+    "resend": "^6.17.2",
     "web-push": "^3.6.7"
   },
   "devDependencies": {

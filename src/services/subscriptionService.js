@@ -24,8 +24,10 @@ function mapSubscription(row) {
       status: null,
       isPro: false,
       isLifetime: false,
+      isTrial: false,
       accessGrantType: null,
       currentPeriodEnd: null,
+      trialEndsAt: null,
       daysUntilExpiry: 0,
       renewalDueSoon: false,
     };
@@ -37,6 +39,7 @@ function mapSubscription(row) {
     || row.subscription_status === 'lifetime';
   const active = isLifetime || isPeriodActive(row.subscription_current_period_end);
   const isPro = isAdmin || isLifetime || (row.plan === 'pro' && active);
+  const isTrial = isPro && !isAdmin && !isLifetime && row.access_grant_type === 'trial';
   const daysUntilExpiry = isLifetime
     ? null
     : computeDaysUntilExpiry(row.subscription_current_period_end);
@@ -51,8 +54,10 @@ function mapSubscription(row) {
     status: isLifetime ? 'lifetime' : (active ? 'active' : (row.subscription_status || null)),
     isPro,
     isLifetime,
+    isTrial,
     accessGrantType: row.access_grant_type || null,
     currentPeriodEnd: row.subscription_current_period_end || null,
+    trialEndsAt: isTrial ? (row.subscription_current_period_end || null) : null,
     daysUntilExpiry: daysUntilExpiry ?? 0,
     renewalDueSoon,
   };
@@ -79,7 +84,7 @@ async function getSubscription(userId) {
 
   const pool = getPool();
   const { rows } = await pool.query(
-    `SELECT id, role, plan, subscription_status, subscription_current_period_end
+    `SELECT id, role, plan, subscription_status, subscription_current_period_end, access_grant_type
      FROM users WHERE id = $1 LIMIT 1`,
     [userId],
   );
@@ -115,8 +120,15 @@ async function getUserPaymentContext(userId) {
   return rows[0];
 }
 
-async function grantProAccess(userId, days = PRO_ACCESS_DAYS) {
+async function grantProAccess(userId, days = PRO_ACCESS_DAYS, { accessGrantType } = {}) {
   const pool = getPool();
+  const grantClause = accessGrantType
+    ? `, access_grant_type = $3`
+    : '';
+  const params = accessGrantType
+    ? [userId, String(days), accessGrantType]
+    : [userId, String(days)];
+
   const { rows } = await pool.query(
     `UPDATE users
      SET plan = 'pro',
@@ -124,10 +136,10 @@ async function grantProAccess(userId, days = PRO_ACCESS_DAYS) {
          subscription_current_period_end = GREATEST(
            COALESCE(subscription_current_period_end, NOW()),
            NOW()
-         ) + ($2 || ' days')::interval
+         ) + ($2 || ' days')::interval${grantClause}
      WHERE id = $1
      RETURNING subscription_current_period_end`,
-    [userId, String(days)],
+    params,
   );
 
   if (rows.length === 0) {

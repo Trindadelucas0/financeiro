@@ -17,6 +17,13 @@ const verifyPasswordLimiter = createRateLimit({
   message: { error: 'Muitas tentativas. Aguarde um minuto e tente novamente.' },
 });
 
+const registerLimiter = createRateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Muitas tentativas de cadastro. Tente novamente em alguns minutos.' },
+});
+
+router.post('/register', registerLimiter, authController.register);
 router.post('/login', loginLimiter, authController.login);
 router.post('/verify-password', authJwt, verifyPasswordLimiter, authController.verifyPassword);
 router.get('/me', authJwt, authController.me);

@@ -2,6 +2,8 @@ const bcrypt = require('bcryptjs');
 const { getPool } = require('../db/pool');
 const { validateUsername, usernameFromEmail, ensureUniqueUsername } = require('../utils/username');
 const { mapUser } = require('./profileService');
+const subscriptionService = require('./subscriptionService');
+const { TRIAL_PLAN } = require('../config/plan');
 
 async function ensureUserSettings(client, userId) {
   await client.query(
@@ -53,6 +55,80 @@ async function createUser({ nome, email, password, role = 'user', username }) {
     await client.query('COMMIT');
 
     return mapUser(insert.rows[0]);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    if (err.code === '23505') {
+      const msg = err.constraint && String(err.constraint).includes('username')
+        ? 'Username já cadastrado'
+        : 'Email já cadastrado';
+      const dup = new Error(msg);
+      dup.status = 409;
+      throw dup;
+    }
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function createUserWithTrial({ nome, email, password, username }) {
+  const pool = getPool();
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const trimmedNome = String(nome || '').trim();
+
+  if (!trimmedNome || !normalizedEmail || !password) {
+    const err = new Error('nome, email e password são obrigatórios');
+    err.status = 400;
+    throw err;
+  }
+
+  if (password.length < 6) {
+    const err = new Error('Senha deve ter pelo menos 6 caracteres');
+    err.status = 400;
+    throw err;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    let finalUsername;
+    if (username) {
+      finalUsername = validateUsername(username);
+    } else {
+      finalUsername = await ensureUniqueUsername(client, usernameFromEmail(normalizedEmail));
+    }
+
+    const insert = await client.query(
+      `INSERT INTO users (nome, username, email, password_hash, role, ativo, billing_source)
+       VALUES ($1, $2, $3, $4, 'user', TRUE, 'site')
+       RETURNING id, nome, username, email, role, ativo, created_at,
+                 plan, subscription_status, subscription_current_period_end, access_grant_type`,
+      [trimmedNome, finalUsername, normalizedEmail, passwordHash],
+    );
+
+    const userRow = insert.rows[0];
+    await ensureUserSettings(client, userRow.id);
+    await client.query('COMMIT');
+
+    await subscriptionService.grantProAccess(userRow.id, TRIAL_PLAN.accessDays, {
+      accessGrantType: 'trial',
+    });
+
+    const { rows } = await pool.query(
+      `SELECT id, nome, username, email, role, ativo, created_at,
+              plan, subscription_status, subscription_current_period_end, access_grant_type
+       FROM users WHERE id = $1 LIMIT 1`,
+      [userRow.id],
+    );
+
+    const refreshed = rows[0];
+    return {
+      user: mapUser(refreshed),
+      subscription: subscriptionService.mapSubscription(refreshed),
+    };
   } catch (err) {
     await client.query('ROLLBACK');
     if (err.code === '23505') {
@@ -201,4 +277,11 @@ async function getUserByEmail(email) {
   return rows[0] ? mapUser(rows[0]) : null;
 }
 
-module.exports = { createUser, createUserFromPurchase, getUserByEmail, listUsers, updateUser };
+module.exports = {
+  createUser,
+  createUserWithTrial,
+  createUserFromPurchase,
+  getUserByEmail,
+  listUsers,
+  updateUser,
+};

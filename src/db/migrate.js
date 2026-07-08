@@ -94,6 +94,21 @@ CREATE INDEX IF NOT EXISTS idx_emprestimos_user_mes ON emprestimos(user_id, mes_
 CREATE INDEX IF NOT EXISTS idx_pagamentos_user ON pagamentos(user_id);
 CREATE INDEX IF NOT EXISTS idx_pagamentos_user_mes ON pagamentos(user_id, mes);
 
+CREATE TABLE IF NOT EXISTS saldo_movimentos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('entrada', 'ajuste', 'pagamento', 'estorno')),
+  valor NUMERIC(14, 2) NOT NULL,
+  saldo_apos NUMERIC(14, 2) NOT NULL,
+  descricao VARCHAR(255),
+  referencia_entidade VARCHAR(20),
+  referencia_item_id UUID,
+  referencia_mes VARCHAR(7),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_saldo_mov_user_created ON saldo_movimentos(user_id, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS user_feedback (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -262,6 +277,21 @@ ALTER TABLE notification_preferences
 
 ALTER TABLE notification_preferences
   ADD COLUMN IF NOT EXISTS saudacoes BOOLEAN NOT NULL DEFAULT TRUE;
+
+CREATE TABLE IF NOT EXISTS saldo_movimentos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('entrada', 'ajuste', 'pagamento', 'estorno')),
+  valor NUMERIC(14, 2) NOT NULL,
+  saldo_apos NUMERIC(14, 2) NOT NULL,
+  descricao VARCHAR(255),
+  referencia_entidade VARCHAR(20),
+  referencia_item_id UUID,
+  referencia_mes VARCHAR(7),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_saldo_mov_user_created ON saldo_movimentos(user_id, created_at DESC);
 `;
 
 async function backfillUsernames(client) {

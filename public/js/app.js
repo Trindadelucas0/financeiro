@@ -16,6 +16,7 @@
     orcamentos: {},
     saldoConta: 0,
     saldoContaAtualizadoEm: null,
+    saldoMovimentos: [],
   });
 
   let state = defaultState();
@@ -96,6 +97,155 @@
     return map;
   }
 
+  const PAGE_TITLES = {
+    dashboard: 'Início',
+    receitas: 'Receitas',
+    despesas: 'Despesas',
+    compromissos: 'Parcelas',
+    orcamentos: 'Orçamentos',
+    previsao: 'Previsão',
+    perfil: 'Minha conta',
+  };
+
+  function applyMovimentoFromRes(res) {
+    if (res && res.movimento) {
+      state.saldoMovimentos = [res.movimento].concat(state.saldoMovimentos || []).slice(0, 50);
+    }
+  }
+
+  function tipoMovimentoLabel(tipo) {
+    const map = { entrada: 'Entrada', ajuste: 'Ajuste manual', pagamento: 'Pagamento', estorno: 'Estorno' };
+    return map[tipo] || tipo;
+  }
+
+  function renderExtratoList(movimentos) {
+    if (!movimentos || movimentos.length === 0) {
+      return '<div class="extrato-empty">Nenhuma movimentação ainda — use <strong>Entrou dinheiro</strong> ou <strong>Atualizar saldo</strong>.</div>';
+    }
+    return (
+      '<div class="extrato-list" role="list" aria-label="Extrato da conta">' +
+        movimentos.map(function (m) {
+          const isIn = m.valor >= 0;
+          const iconCls = isIn ? 'in' : 'out';
+          const valCls = isIn ? 'in' : 'out';
+          const sign = isIn ? '+' : '−';
+          const date = m.createdAt
+            ? new Date(m.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+            : '';
+          return (
+            '<div class="extrato-item" role="listitem">' +
+              '<span class="extrato-icon ' + iconCls + '" aria-hidden="true">' + (isIn ? '↑' : '↓') + '</span>' +
+              '<div class="extrato-body"><strong>' + esc(m.descricao || tipoMovimentoLabel(m.tipo)) + '</strong><span>' + date + '</span></div>' +
+              '<span class="extrato-value ' + valCls + ' mono">' + sign + formatBRL(Math.abs(m.valor)) + '</span>' +
+            '</div>'
+          );
+        }).join('') +
+      '</div>'
+    );
+  }
+
+  function applySettingsFromRes(res) {
+    const s = res && res.settings;
+    if (!s) return;
+    if (s.saldoConta !== undefined) state.saldoConta = Number(s.saldoConta) || 0;
+    if (s.saldoContaAtualizadoEm !== undefined) state.saldoContaAtualizadoEm = s.saldoContaAtualizadoEm;
+    updateMaisBadge();
+    updateHeroSaldoConta();
+  }
+
+  function pagamentoAfetaSaldo(entidade) {
+    return entidade === 'despesa' || entidade === 'emprestimo' || entidade === 'receita';
+  }
+
+  function getValorPagamentoFromChave(chave) {
+    const parts = chave.split('_');
+    const mes = parts.pop();
+    const id = parts.pop();
+    const entidade = parts.join('_');
+    if (entidade === 'receita') {
+      const item = getReceitasMes(mes).itens.find(function (r) { return r.id === id; });
+      return item ? item.valorEfetivo : 0;
+    }
+    const despesas = getDespesasMes(mes).itens;
+    const item = despesas.find(function (d) {
+      return d.id === id && entidadeDoItemDespesa(d) === entidade;
+    });
+    return item ? item.valorEfetivo : 0;
+  }
+
+  async function confirmPagarComSaldo(chave, entidade) {
+    if (!pagamentoAfetaSaldo(entidade)) return true;
+    const valor = getValorPagamentoFromChave(chave);
+    const isReceita = entidade === 'receita';
+    let message = isReceita
+      ? 'Marcar como recebido ' + formatBRL(valor) + '?'
+      : 'Pagar ' + formatBRL(valor) + '?';
+    if (state.saldoContaAtualizadoEm) {
+      const novoSaldo = isReceita ? state.saldoConta + valor : state.saldoConta - valor;
+      message += ' Saldo passará de ' + formatBRL(state.saldoConta) + ' para ' + formatBRL(novoSaldo) + '.';
+      if (novoSaldo < 0) message += ' Atenção: saldo ficará negativo.';
+    }
+    return confirmAction({
+      title: isReceita ? 'Confirmar recebimento' : 'Confirmar pagamento',
+      message: message,
+      confirmLabel: isReceita ? 'Receber' : 'Pagar',
+    });
+  }
+
+  function updateMaisBadge() {
+    const badge = document.getElementById('maisNavBadge');
+    if (!badge) return;
+    const mes = state.currentMonth;
+    const pendentes = getContasPendentes(mes);
+    const totalPend = pendentes.reduce(function (s, p) { return s + p.valor; }, 0);
+    const show = !state.saldoContaAtualizadoEm || (state.saldoContaAtualizadoEm && state.saldoConta < totalPend);
+    badge.hidden = !show;
+  }
+
+  function updateHeroSaldoConta() {
+    const btn = document.getElementById('heroSaldoConta');
+    const valEl = document.getElementById('heroSaldoContaValue');
+    if (!btn || !valEl) return;
+    if (!state.saldoContaAtualizadoEm) {
+      btn.hidden = true;
+      return;
+    }
+    btn.hidden = false;
+    valEl.textContent = formatBRL(state.saldoConta);
+    valEl.classList.toggle('val-neg', state.saldoConta < 0);
+    valEl.classList.toggle('val-pos', state.saldoConta >= 0);
+  }
+
+  function openSaldoSheet(mode) {
+    if (window.FinanceUI && window.FinanceUI.openSaldoSheet) {
+      window.FinanceUI.openSaldoSheet(mode, mode === 'atualizar' ? state.saldoConta : null);
+    }
+  }
+
+  async function submitSaldoSheet(mode, valor, descricao) {
+    try {
+      if (mode === 'entrada') {
+        const res = await apiFetch('/api/finance/saldo/entrada', {
+          method: 'POST',
+          body: { valor: valor, descricao: descricao || undefined },
+        });
+        applySettingsFromRes(res);
+        applyMovimentoFromRes(res);
+        if (window.FinanceUI) FinanceUI.closeSaldoSheet();
+        toast(formatBRL(valor) + ' adicionados · saldo: ' + formatBRL(state.saldoConta));
+      } else {
+        const res = await apiFetch('/api/finance/settings', { method: 'PUT', body: { saldoConta: valor } });
+        applySettingsFromRes(res);
+        applyMovimentoFromRes(res);
+        if (window.FinanceUI) FinanceUI.closeSaldoSheet();
+        toast('Saldo em conta atualizado · ' + formatBRL(state.saldoConta));
+      }
+      render();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
+
   function applyPagamentoRes(res, fallbackChave) {
     const pg = res.pagamento || res;
     if (pg.pago === false && !pg.entidade) {
@@ -138,13 +288,14 @@
     loading = true;
     render();
     try {
-      const [receitas, despesas, emprestimos, pagamentos, orcamentos, settings] = await Promise.all([
+      const [receitas, despesas, emprestimos, pagamentos, orcamentos, settings, movimentosRes] = await Promise.all([
         apiFetch('/api/finance/receitas'),
         apiFetch('/api/finance/despesas'),
         apiFetch('/api/finance/emprestimos'),
         apiFetch('/api/finance/pagamentos'),
         apiFetch('/api/finance/orcamentos'),
         apiFetch('/api/finance/settings'),
+        apiFetch('/api/finance/saldo/movimentos?limit=30'),
       ]);
 
       state.receitas = unwrapItems(receitas, 'receitas');
@@ -160,6 +311,7 @@
         state.saldoConta = Number(settingsData.saldoConta) || 0;
         state.saldoContaAtualizadoEm = settingsData.saldoContaAtualizadoEm || null;
       }
+      state.saldoMovimentos = movimentosRes.movimentos || [];
     } catch (err) {
       toast(err.message || 'Erro ao carregar dados', 'error');
     } finally {
@@ -170,10 +322,9 @@
 
   async function saveSettings(partial) {
     const data = await apiFetch('/api/finance/settings', { method: 'PUT', body: partial });
-    const s = data.settings || data;
-    if (s.currentMonth) state.currentMonth = s.currentMonth;
-    if (s.saldoConta !== undefined) state.saldoConta = Number(s.saldoConta) || 0;
-    if (s.saldoContaAtualizadoEm !== undefined) state.saldoContaAtualizadoEm = s.saldoContaAtualizadoEm;
+    applySettingsFromRes(data);
+    applyMovimentoFromRes(data);
+    return data;
   }
 
 async function exportPDF() {
@@ -305,15 +456,25 @@ async function exportPDF() {
           password,
         };
         const res = await apiFetch('/api/finance/pagamentos', { method: 'POST', body });
+        applySettingsFromRes(res);
+        applyMovimentoFromRes(res);
         const applied = applyPagamentoRes(res, chave);
         if (applied.remove) delete state.pagamentos[applied.chave];
         else state.pagamentos[applied.chave] = applied;
         render();
-        toast('Status de pagamento atualizado');
+        const msg = pagamentoAfetaSaldo(entidade) && res.settings
+          ? 'Desmarcado · saldo em conta: ' + formatBRL(state.saldoConta)
+          : 'Status de pagamento atualizado';
+        toast(msg);
       } catch (err) {
         toast(err.message, 'error');
       }
       return;
+    }
+
+    if (!atual.pago && pagamentoAfetaSaldo(entidade)) {
+      const okPay = await confirmPagarComSaldo(chave, entidade);
+      if (!okPay) return;
     }
 
     try {
@@ -325,11 +486,19 @@ async function exportPDF() {
         dataHora: !atual.pago ? new Date().toISOString() : null,
       };
       const res = await apiFetch('/api/finance/pagamentos', { method: 'POST', body });
+      applySettingsFromRes(res);
+      applyMovimentoFromRes(res);
       const applied = applyPagamentoRes(res, chave);
       if (applied.remove) delete state.pagamentos[applied.chave];
       else state.pagamentos[applied.chave] = applied;
       render();
-      toast('Status de pagamento atualizado');
+      let msg = 'Status de pagamento atualizado';
+      if (pagamentoAfetaSaldo(entidade) && res.settings) {
+        msg = entidade === 'receita'
+          ? 'Recebido · saldo em conta: ' + formatBRL(state.saldoConta)
+          : 'Pago · saldo em conta: ' + formatBRL(state.saldoConta);
+      }
+      toast(msg);
     } catch (err) {
       toast(err.message, 'error');
     }
@@ -359,6 +528,8 @@ async function exportPDF() {
           comprovanteDataUrl: dataUrl,
         },
       });
+      applySettingsFromRes(res);
+      applyMovimentoFromRes(res);
       const applied = applyPagamentoRes(res, chave);
       state.pagamentos[applied.chave] = applied;
       render();
@@ -432,9 +603,52 @@ async function exportPDF() {
     return Math.max(item.numParcelas - d, 0);
   }
 
-  function valorParcelaSimples(item) { return item.valorTotal / item.numParcelas; }
-  function valorParcelaEmprestimo(item) { return (item.valorTotal * (1 + (item.juros || 0) / 100)) / item.numParcelas; }
-  function valorEfetivoDespesa(d) { return d.formaPagamento === 'parcelado' ? valorParcelaSimples(d) : Number(d.valor); }
+  function valorParcelaPorIndice(total, numParcelas, indice) {
+    const n = Number(numParcelas);
+    if (!n || n <= 0) return 0;
+    const totalCents = Math.round(Number(total) * 100);
+    const baseCents = Math.floor(totalCents / n);
+    const remainder = totalCents - baseCents * n;
+    if (indice === n - 1) return (baseCents + remainder) / 100;
+    return baseCents / 100;
+  }
+
+  function valorParcelaNoMes(item, mes, totalComJuros) {
+    const idx = diffMonths(item.mesInicio, mes);
+    if (idx < 0 || idx >= item.numParcelas) return 0;
+    const total = totalComJuros != null ? totalComJuros : item.valorTotal;
+    return valorParcelaPorIndice(total, item.numParcelas, idx);
+  }
+
+  function valorParcelaSimples(item, mes) {
+    return valorParcelaNoMes(item, mes, item.valorTotal);
+  }
+
+  function valorParcelaEmprestimo(item, mes) {
+    const total = item.valorTotal * (1 + (item.juros || 0) / 100);
+    return valorParcelaNoMes(item, mes, total);
+  }
+
+  function somaParcelasRestantes(item, mes, totalComJuros) {
+    const n = item.numParcelas;
+    if (!n || n <= 0) return 0;
+    const total = totalComJuros != null ? totalComJuros : item.valorTotal;
+    const idx = diffMonths(item.mesInicio, mes);
+    const start = idx < 0 ? 0 : idx;
+    if (start >= n) return 0;
+    let sum = 0;
+    for (let i = start; i < n; i++) sum += valorParcelaPorIndice(total, n, i);
+    return Math.round(sum * 100) / 100;
+  }
+
+  function vencimentoNoMes(ano, mes, dia) {
+    const ultimoDia = new Date(ano, mes, 0).getDate();
+    return new Date(ano, mes - 1, Math.min(dia, ultimoDia));
+  }
+
+  function valorEfetivoDespesa(d, mes) {
+    return d.formaPagamento === 'parcelado' ? valorParcelaSimples(d, mes) : Number(d.valor);
+  }
 
   function getReceitasMes(mes) {
     const itens = state.receitas.filter(function (r) { return receitaAtivaNoMes(r, mes); }).map(function (r) {
@@ -446,7 +660,7 @@ async function exportPDF() {
   function getParceladosMes(mes) {
     return state.despesas
       .filter(function (d) { return d.formaPagamento === 'parcelado' && despesaAtivaNoMes(d, mes); })
-      .map(function (d) { return Object.assign({}, d, { valorEfetivo: valorParcelaSimples(d) }); });
+      .map(function (d) { return Object.assign({}, d, { valorEfetivo: valorParcelaSimples(d, mes) }); });
   }
 
   function getEmprestimosMes(mes) {
@@ -457,7 +671,7 @@ async function exportPDF() {
           tipo: 'emprestimo',
           formaPagamento: 'parcelado',
           categoria: e.categoria || 'Empréstimo',
-          valorEfetivo: valorParcelaEmprestimo(e),
+          valorEfetivo: valorParcelaEmprestimo(e, mes),
         });
       });
   }
@@ -469,7 +683,7 @@ async function exportPDF() {
 
   function getDespesasMes(mes) {
     const desp = state.despesas.filter(function (d) { return despesaAtivaNoMes(d, mes); }).map(function (d) {
-      return Object.assign({}, d, { valorEfetivo: valorEfetivoDespesa(d) });
+      return Object.assign({}, d, { valorEfetivo: valorEfetivoDespesa(d, mes) });
     });
     const itens = desp.concat(getEmprestimosMes(mes));
     return { total: itens.reduce(function (s, d) { return s + d.valorEfetivo; }, 0), itens: itens };
@@ -504,10 +718,10 @@ async function exportPDF() {
 
   function getSaldoDevedorAtMonth(mes) {
     const p1 = state.despesas.filter(function (d) { return d.formaPagamento === 'parcelado'; }).reduce(function (s, d) {
-      return s + parcelasRestantes(d, mes) * valorParcelaSimples(d);
+      return s + somaParcelasRestantes(d, mes, d.valorTotal);
     }, 0);
     const p2 = state.emprestimos.reduce(function (s, e) {
-      return s + parcelasRestantes(e, mes) * valorParcelaEmprestimo(e);
+      return s + somaParcelasRestantes(e, mes, e.valorTotal * (1 + (e.juros || 0) / 100));
     }, 0);
     return p1 + p2;
   }
@@ -523,7 +737,7 @@ async function exportPDF() {
     const mm = parts[1];
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
-    const venc = new Date(y, mm - 1, Math.min(diaVencimento, 28));
+    const venc = vencimentoNoMes(y, mm, diaVencimento);
     return Math.ceil((venc - hoje) / (1000 * 60 * 60 * 24));
   }
 
@@ -792,7 +1006,7 @@ async function exportPDF() {
     const out = [];
     getDespesasMes(mes).itens.forEach(function (d) {
       if (!d.diaVencimento) return;
-      const venc = new Date(y, mm - 1, Math.min(d.diaVencimento, 28));
+      const venc = vencimentoNoMes(y, mm, d.diaVencimento);
       const diff = Math.ceil((venc - hoje) / (1000 * 60 * 60 * 24));
       if (diff >= 0 && diff <= 5) {
         const chave = chavePg(entidadeDoItemDespesa(d), d.id, mes);
@@ -881,6 +1095,10 @@ async function exportPDF() {
     const receitas = getReceitasMes(mes);
     const despesas = getDespesasMes(mes);
     const saldo = receitas.total - despesas.total;
+    const tab = activeTab();
+
+    const pageTitle = document.getElementById('heroPageTitle');
+    if (pageTitle) pageTitle.textContent = PAGE_TITLES[tab] || 'Início';
 
     document.querySelectorAll('#monthLabel').forEach(function (el) {
       const short = window.matchMedia('(max-width: 768px)').matches;
@@ -918,6 +1136,17 @@ async function exportPDF() {
         '<span class="meta-in">Receitas ' + formatBRL(receitas.total) + '</span>' +
         ' · <span class="meta-out">Despesas ' + formatBRL(despesas.total) + '</span>';
     }
+
+    updateHeroSaldoConta();
+    updateMaisBadge();
+
+    const heroSaldoContaBtn = document.getElementById('heroSaldoConta');
+    if (heroSaldoContaBtn && !heroSaldoContaBtn._bound) {
+      heroSaldoContaBtn._bound = true;
+      heroSaldoContaBtn.addEventListener('click', function () {
+        openSaldoSheet(state.saldoContaAtualizadoEm ? 'atualizar' : 'atualizar');
+      });
+    }
   }
 
   function render() {
@@ -948,6 +1177,16 @@ async function exportPDF() {
       previsao: renderPrevisao,
     };
     view.innerHTML = (map[tab] || renderDashboard)();
+
+    if (tab === 'previsao' && window.FinanceCharts) {
+      const forecast = buildForecastSeries(state.currentMonth, 12);
+      requestAnimationFrame(function () {
+        window.FinanceCharts.init({ forecast: forecast });
+        requestAnimationFrame(function () {
+          if (window.FinanceCharts.resize) window.FinanceCharts.resize();
+        });
+      });
+    }
   }
 
   function renderChartEmpty(message, withCta) {
@@ -1018,14 +1257,17 @@ async function exportPDF() {
     staggerRevealBlocks(view, reduced ? 0 : 180);
 
     if (window.FinanceCharts) {
-      requestAnimationFrame(function () {
+      const revealDelay = reduced ? 0 : 180;
+      const blockCount = view.querySelectorAll('.dash-reveal').length;
+      const waitMs = reduced ? 0 : (blockCount * revealDelay + 200);
+      setTimeout(function () {
         if (gen !== dashboardRevealGen) return;
         window.FinanceCharts.init(buildDashboardChartPayload());
         requestAnimationFrame(function () {
           if (gen !== dashboardRevealGen) return;
           if (window.FinanceCharts.resize) window.FinanceCharts.resize();
         });
-      });
+      }, waitMs);
     }
   }
 
@@ -1041,7 +1283,7 @@ async function exportPDF() {
 
   function buildAtrasados() {
     const out = [];
-    for (let i = 6; i >= 1; i--) {
+    for (let i = 12; i >= 1; i--) {
       const mes = addMonths(state.currentMonth, -i);
       getDespesasMes(mes).itens.forEach(function (d) {
         const chave = chavePg(entidadeDoItemDespesa(d), d.id, mes);
@@ -1074,6 +1316,83 @@ async function exportPDF() {
     if (receitas.total > 0 && comprometido / receitas.total > 0.3) alerts.push({ level: 'danger', icon: '🔒', text: (comprometido / receitas.total * 100).toFixed(0) + '% da receita comprometida com parcelas/empréstimos.' });
 
     return alerts;
+  }
+
+  function renderSaldoExtratoPanel(mes, options) {
+    options = options || {};
+    const hasSaldo = !!state.saldoContaAtualizadoEm;
+    const pendentes = getContasPendentes(mes);
+    const totalPend = pendentes.reduce(function (s, p) { return s + p.valor; }, 0);
+    const projetado = state.saldoConta - totalPend;
+    const valCls = state.saldoConta >= 0 ? 'pos' : 'neg';
+    const wrapCls = 'saldo-extrato-panel' + (options.asPanel ? ' panel account-balance-panel account-balance-panel--accent' : ' saldo-conta-box dash-reveal') + (hasSaldo ? '' : ' saldo-conta-box--empty');
+
+    const headHtml = options.asPanel
+      ? '<div class="panel-head"><h3>Saldo em conta</h3><span class="hint">carteira — pagar diminui, entradas somam</span></div>'
+      : '';
+
+    const balanceHtml = hasSaldo
+      ? (
+        '<div class="saldo-extrato-balance">' +
+          '<div class="sc-label">Saldo em conta</div>' +
+          '<div class="sc-value mono ' + valCls + '">' + formatBRL(state.saldoConta) + '</div>' +
+          '<div class="sc-meta">Atualizado em ' + nowLabel(state.saldoContaAtualizadoEm) + '</div>' +
+          (totalPend > 0
+            ? '<div class="sc-meta sc-projetado">Após pendências do mês: <span class="mono ' + (projetado >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(projetado) + '</span></div>'
+            : '') +
+        '</div>'
+      )
+      : (
+        '<div class="saldo-extrato-balance saldo-extrato-balance--empty">' +
+          '<div class="sc-label">Saldo em conta</div>' +
+          '<div class="sc-empty-title">Quanto você tem na conta?</div>' +
+          '<div class="sc-meta">Informe para acompanhar pagamentos e entradas.</div>' +
+        '</div>'
+      );
+
+    const actionsHtml = (
+      '<div class="saldo-conta-actions">' +
+        '<button type="button" class="btn btn-primary btn-sm" onclick="openSaldoSheet(\'entrada\')">+ Entrou dinheiro</button>' +
+        '<button type="button" class="btn btn-ghost btn-sm" onclick="openSaldoSheet(\'atualizar\')">' + (hasSaldo ? 'Atualizar saldo' : 'Informar saldo') + '</button>' +
+      '</div>'
+    );
+
+    const pendentesHtml = options.showPagarRapido && pendentes.length > 0
+      ? '<div class="saldo-pagar-rapido">' +
+          '<span class="saldo-pagar-label">Pagar pendentes</span>' +
+          pendentes.slice(0, 3).map(function (p, i) {
+            const saldoApos = state.saldoConta - pendentes.slice(0, i + 1).reduce(function (s, x) { return s + x.valor; }, 0);
+            return (
+              '<div class="saldo-pagar-item">' +
+                '<span>' + esc(p.nome) + ' · ' + formatBRL(p.valor) + '</span>' +
+                '<button type="button" class="btn btn-primary btn-sm" onclick="togglePago(\'' + p.chave + '\')">Pagar</button>' +
+                '<span class="saldo-pagar-apos mono">→ ' + formatBRL(saldoApos) + '</span>' +
+              '</div>'
+            );
+          }).join('') +
+        '</div>'
+      : '';
+
+    const extratoHtml = (
+      '<div class="saldo-extrato-history">' +
+        '<div class="saldo-extrato-history-head"><span>Extrato recente</span></div>' +
+        renderExtratoList(state.saldoMovimentos) +
+      '</div>'
+    );
+
+    return (
+      '<div class="' + wrapCls + '">' +
+        headHtml +
+        balanceHtml +
+        actionsHtml +
+        pendentesHtml +
+        extratoHtml +
+      '</div>'
+    );
+  }
+
+  function renderSaldoContaCard(mes) {
+    return renderSaldoExtratoPanel(mes, { showPagarRapido: true });
   }
 
   function renderPendingBillRow(item, mobile) {
@@ -1261,14 +1580,7 @@ async function exportPDF() {
     const chartPayload = buildDashboardChartPayload();
     const catsDonut = chartPayload.categorias;
 
-    const saldoContaHtml = state.saldoContaAtualizadoEm ? (
-      '<div class="saldo-conta-box dash-reveal">' +
-        '<div><div class="sc-label">Saldo em conta (manual)</div>' +
-        '<div class="sc-value mono' + (state.saldoConta >= 0 ? ' pos' : ' neg') + '">' + formatBRL(state.saldoConta) + '</div>' +
-        '<div class="sc-meta">Atualizado em ' + nowLabel(state.saldoContaAtualizadoEm) + '</div></div>' +
-        '<a href="/app/orcamentos" class="btn btn-ghost btn-sm">Atualizar saldo</a>' +
-      '</div>'
-    ) : '';
+    const saldoContaHtml = renderSaldoContaCard(mes);
 
     const saldoSub = saldo >= 0
       ? 'sobra no mês' + (taxaPoup !== null ? ' · ' + taxaPoup + '% da receita' : '')
@@ -1495,19 +1807,42 @@ async function exportPDF() {
     const arrKey = isEmp ? 'emprestimos' : 'despesas';
     const editEnt = isEmp ? 'emprestimo' : 'despesa';
 
-    return '<div class="table-wrap"><table><thead><tr><th>Nome</th>' + (isEmp ? '<th>Juros</th>' : '') + '<th>Total</th><th>Parcela</th><th>Progresso</th><th>Status</th><th></th></tr></thead><tbody>' +
-      items.map(function (item) {
-        const valorParcela = isEmp ? valorParcelaEmprestimo(item) : valorParcelaSimples(item);
-        const restantes = parcelasRestantes(item, mes);
-        const pagas = item.numParcelas - restantes;
-        const pct = Math.min(100, Math.max(0, (pagas / item.numParcelas) * 100));
-        let statusTxt, cls;
-        if (diffMonths(item.mesInicio, mes) < 0) { statusTxt = 'não iniciado'; cls = ''; }
-        else if (restantes <= 0) { statusTxt = 'quitado'; cls = 'val-pos'; }
-        else { statusTxt = restantes + ' restante(s)'; cls = 'val-neg'; }
-        return '<tr><td>' + esc(item.nome) + '</td>' + (isEmp ? '<td class="mono">' + (item.juros || 0) + '%</td>' : '') + '<td class="mono">' + formatBRL(item.valorTotal) + '</td><td class="mono">' + formatBRL(valorParcela) + ' <span style="color:var(--muted-2)">/ ' + item.numParcelas + 'x</span></td><td><span class="progress-mini"><div style="--prog-scale:' + (pct / 100).toFixed(4) + '"></div></span><span class="mono" style="font-size:12px;color:var(--muted)">' + pagas + '/' + item.numParcelas + '</span></td><td class="mono ' + cls + '">' + statusTxt + '</td><td class="row-actions"><button type="button" class="icon-btn" onclick="editItem(\'' + editEnt + '\',\'' + item.id + '\')">✎</button><button type="button" class="icon-btn danger" onclick="removeItem(\'' + arrKey + '\',\'' + item.id + '\',\'' + editEnt + '\')">✕</button></td></tr>';
-      }).join('') +
-    '</tbody></table></div>';
+    const rows = items.map(function (item) {
+      const valorParcela = isEmp ? valorParcelaEmprestimo(item, mes) : valorParcelaSimples(item, mes);
+      const restantes = parcelasRestantes(item, mes);
+      const pagas = item.numParcelas - restantes;
+      const pct = Math.min(100, Math.max(0, (pagas / item.numParcelas) * 100));
+      let statusTxt, cls;
+      if (diffMonths(item.mesInicio, mes) < 0) { statusTxt = 'não iniciado'; cls = ''; }
+      else if (restantes <= 0) { statusTxt = 'quitado'; cls = 'val-pos'; }
+      else { statusTxt = restantes + ' restante(s)'; cls = 'val-neg'; }
+      return '<tr><td>' + esc(item.nome) + '</td>' + (isEmp ? '<td class="mono">' + (item.juros || 0) + '%</td>' : '') + '<td class="mono">' + formatBRL(item.valorTotal) + '</td><td class="mono">' + formatBRL(valorParcela) + ' <span style="color:var(--muted-2)">/ ' + item.numParcelas + 'x</span></td><td><span class="progress-mini"><div style="--prog-scale:' + (pct / 100).toFixed(4) + '"></div></span><span class="mono" style="font-size:12px;color:var(--muted)">' + pagas + '/' + item.numParcelas + '</span></td><td class="mono ' + cls + '">' + statusTxt + '</td><td class="row-actions"><button type="button" class="icon-btn" onclick="editItem(\'' + editEnt + '\',\'' + item.id + '\')">✎</button><button type="button" class="icon-btn danger" onclick="removeItem(\'' + arrKey + '\',\'' + item.id + '\',\'' + editEnt + '\')">✕</button></td></tr>';
+    }).join('');
+
+    const mobileCards = items.map(function (item) {
+      const valorParcela = isEmp ? valorParcelaEmprestimo(item, mes) : valorParcelaSimples(item, mes);
+      const restantes = parcelasRestantes(item, mes);
+      const pagas = item.numParcelas - restantes;
+      const pct = Math.min(100, Math.max(0, (pagas / item.numParcelas) * 100));
+      let statusTxt, cls;
+      if (diffMonths(item.mesInicio, mes) < 0) { statusTxt = 'não iniciado'; cls = ''; }
+      else if (restantes <= 0) { statusTxt = 'quitado'; cls = 'val-pos'; }
+      else { statusTxt = restantes + ' restante(s)'; cls = 'val-neg'; }
+      return (
+        '<div class="m-card">' +
+          '<div class="m-card-head"><strong>' + esc(item.nome) + '</strong><span class="mono">' + formatBRL(item.valorTotal) + '</span></div>' +
+          '<div class="m-card-row"><span>Parcela ' + formatBRL(valorParcela) + ' / ' + item.numParcelas + 'x</span>' + (isEmp ? '<span class="mono">' + (item.juros || 0) + '% juros</span>' : '') + '</div>' +
+          '<div class="m-card-row"><span class="progress-mini" style="flex:1"><div style="--prog-scale:' + (pct / 100).toFixed(4) + '"></div></span><span class="mono" style="font-size:12px">' + pagas + '/' + item.numParcelas + '</span></div>' +
+          '<div class="m-card-row"><span class="mono ' + cls + '">' + statusTxt + '</span></div>' +
+          '<div class="m-card-actions">' +
+            '<button type="button" class="btn btn-ghost btn-sm" onclick="editItem(\'' + editEnt + '\',\'' + item.id + '\')">Editar</button>' +
+            '<button type="button" class="btn btn-danger-ghost btn-sm" onclick="removeItem(\'' + arrKey + '\',\'' + item.id + '\',\'' + editEnt + '\')">Excluir</button>' +
+          '</div>' +
+        '</div>'
+      );
+    }).join('');
+
+    return '<div class="table-wrap"><table><thead><tr><th>Nome</th>' + (isEmp ? '<th>Juros</th>' : '') + '<th>Total</th><th>Parcela</th><th>Progresso</th><th>Status</th><th></th></tr></thead><tbody>' + rows + '</tbody></table><div class="mobile-cards">' + mobileCards + '</div></div>';
   }
 
   function renderCompromissos() {
@@ -1643,22 +1978,7 @@ async function exportPDF() {
     const mes = state.currentMonth;
     return (
       '<div class="section-title-row"><h2>Orçamentos &amp; Conta</h2></div>' +
-      '<div class="panel account-balance-panel" style="margin-bottom:16px;">' +
-        '<div class="panel-head"><h3>Saldo em conta</h3><span class="hint">valor manual para conciliação</span></div>' +
-        '<form onsubmit="salvarSaldoConta(event)" class="account-balance-form">' +
-          '<div class="field account-balance-field">' +
-            '<label for="saldoContaInput">Quanto você tem agora</label>' +
-            '<div class="budget-input-wrap budget-input-wrap--lg">' +
-              '<span class="budget-input-prefix mono" aria-hidden="true">R$</span>' +
-              '<input id="saldoContaInput" class="budget-input mono" type="number" step="0.01" value="' + esc(String(state.saldoConta || '')) + '" required>' +
-            '</div>' +
-          '</div>' +
-          '<button type="submit" class="btn btn-primary">Salvar saldo</button>' +
-        '</form>' +
-        (state.saldoContaAtualizadoEm
-          ? '<p class="account-balance-meta">Última atualização: ' + nowLabel(state.saldoContaAtualizadoEm) + '</p>'
-          : '') +
-      '</div>' +
+      renderSaldoExtratoPanel(mes, { asPanel: true }) +
       renderBudgetPanel(mes)
     );
   }
@@ -1672,34 +1992,20 @@ async function exportPDF() {
     }
   }
 
-  async function salvarSaldoConta(e) {
-    e.preventDefault();
-    try {
-      await saveSettings({
-        saldoConta: Number(document.getElementById('saldoContaInput').value) || 0,
-        saldoContaAtualizadoEm: new Date().toISOString(),
-      });
-      state.saldoConta = Number(document.getElementById('saldoContaInput').value) || 0;
-      state.saldoContaAtualizadoEm = new Date().toISOString();
-      toast('Saldo em conta atualizado');
-      render();
-    } catch (err) {
-      toast(err.message, 'error');
-    }
-  }
-
   async function salvarOrcamentos(e) {
     e.preventDefault();
-    const orcamentos = {};
-    CATEGORIAS_DESPESA.forEach(function (cat) {
-      const id = 'orc_' + cat.replace(/\s+/g, '_');
-      const el = document.getElementById(id);
-      const v = el ? el.value : '';
-      if (v) orcamentos[cat] = Number(v);
-    });
     try {
-      await apiFetch('/api/finance/orcamentos', { method: 'PUT', body: { orcamentos: orcamentos } });
-      state.orcamentos = orcamentos;
+      const fresh = await apiFetch('/api/finance/orcamentos');
+      const merged = Object.assign({}, fresh.orcamentos || fresh || {});
+      CATEGORIAS_DESPESA.forEach(function (cat) {
+        const id = 'orc_' + cat.replace(/\s+/g, '_');
+        const el = document.getElementById(id);
+        const v = el ? el.value.trim() : '';
+        if (v) merged[cat] = Number(v);
+        else delete merged[cat];
+      });
+      const res = await apiFetch('/api/finance/orcamentos', { method: 'PUT', body: { orcamentos: merged } });
+      state.orcamentos = res.orcamentos || merged;
       toast('Orçamentos salvos');
       render();
     } catch (err) {
@@ -1709,19 +2015,68 @@ async function exportPDF() {
 
   function renderPrevisao() {
     const N = 12;
-    let cumulativo = 0;
-    const rows = [];
-    for (let i = 0; i < N; i++) {
-      const mes = addMonths(state.currentMonth, i);
-      const r = getReceitasMes(mes).total;
-      const d = getDespesasMes(mes).total;
-      const saldo = r - d;
-      cumulativo += saldo;
-      rows.push({ mes: mes, r: r, d: d, saldo: saldo, cumulativo: cumulativo });
+    const forecast = buildForecastSeries(state.currentMonth, N);
+    const summary = buildForecastSummary(forecast);
+    const empty = forecastIsEmpty(forecast);
+
+    if (empty) {
+      return (
+        '<div class="section-title-row"><h2>Previsão — próximos 12 meses</h2></div>' +
+        '<div class="panel">' +
+          '<div class="empty-state">Cadastre receitas e despesas para ver a previsão.' +
+            '<div class="empty-action"><button type="button" class="btn btn-primary btn-sm" onclick="openModal()">+ Novo lançamento</button></div>' +
+          '</div>' +
+        '</div>' +
+        '<p class="footer-note previsao-footnote">Entram receitas/despesas fixas e parcelas ativas. Variáveis futuras não lançadas não entram.</p>'
+      );
     }
-    return '<div class="section-title-row"><h2>Previsão — próximos 12 meses</h2></div><div class="panel"><div class="table-wrap"><table><thead><tr><th>Mês</th><th>Receitas</th><th>Despesas</th><th>Saldo</th><th>Acumulado</th></tr></thead><tbody>' + rows.map(function (row) {
-      return '<tr><td>' + monthLabel(row.mes) + '</td><td class="mono val-pos">' + formatBRL(row.r) + '</td><td class="mono val-neg">' + formatBRL(row.d) + '</td><td class="mono ' + (row.saldo >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(row.saldo) + '</td><td class="mono ' + (row.cumulativo >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(row.cumulativo) + '</td></tr>';
-    }).join('') + '</tbody></table></div></div><p class="footer-note" style="text-align:left;margin-top:16px;">Entram receitas/despesas fixas e parcelas ativas. Variáveis futuras não lançadas não entram — atualize conforme planejar.</p>';
+
+    const tableRows = forecast.map(function (row) {
+      return '<tr><td>' + monthLabel(row.mes) + '</td><td class="mono val-pos">' + formatBRL(row.receitas) + '</td><td class="mono val-neg">' + formatBRL(row.despesas) + '</td><td class="mono ' + (row.saldo >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(row.saldo) + '</td><td class="mono ' + (row.cumulativo >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(row.cumulativo) + '</td></tr>';
+    }).join('');
+
+    const mobileCards = forecast.map(function (row) {
+      return (
+        '<div class="m-card' + (row.isCurrent ? ' m-card--current' : '') + '">' +
+          '<div class="m-card-head"><strong>' + monthLabel(row.mes) + (row.isCurrent ? ' · atual' : '') + '</strong><span class="mono ' + (row.saldo >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(row.saldo) + '</span></div>' +
+          '<div class="m-card-row"><span>Receitas</span><span class="mono val-pos">' + formatBRL(row.receitas) + '</span></div>' +
+          '<div class="m-card-row"><span>Despesas</span><span class="mono val-neg">' + formatBRL(row.despesas) + '</span></div>' +
+          '<div class="m-card-row"><span>Acumulado</span><span class="mono ' + (row.cumulativo >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(row.cumulativo) + '</span></div>' +
+        '</div>'
+      );
+    }).join('');
+
+    const summaryHtml = (
+      '<div class="forecast-summary previsao-summary">' +
+        '<div class="forecast-summary-stat">' +
+          '<span class="forecast-summary-label">Saldo médio mensal</span>' +
+          '<span class="forecast-summary-value mono ' + (summary.avgSaldo >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(summary.avgSaldo) + '</span>' +
+        '</div>' +
+        '<div class="forecast-summary-stat">' +
+          '<span class="forecast-summary-label">Meses negativos</span>' +
+          '<span class="forecast-summary-value mono' + (summary.mesesNegativos > 0 ? ' val-neg' : '') + '">' + summary.mesesNegativos + '<span class="forecast-summary-of">/' + N + '</span></span>' +
+        '</div>' +
+        '<div class="forecast-summary-stat">' +
+          '<span class="forecast-summary-label">Saldo acumulado</span>' +
+          '<span class="forecast-summary-value mono ' + (summary.saldoAcumulado >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(summary.saldoAcumulado) + '</span>' +
+        '</div>' +
+      '</div>'
+    );
+
+    return (
+      '<div class="section-title-row"><h2>Previsão — próximos 12 meses</h2></div>' +
+      '<div class="panel chart-panel chart-panel-proj previsao-panel">' +
+        '<div class="panel-head"><h3>Resumo da projeção</h3><span class="panel-hint-pill">12 meses</span></div>' +
+        summaryHtml +
+        '<div class="chart-wrap chart-proj"><canvas id="chartPrevisao" role="img" aria-label="Gráfico de previsão"></canvas></div>' +
+        renderForecastStrip(forecast) +
+        '<div class="table-wrap previsao-table-wrap">' +
+          '<table><thead><tr><th>Mês</th><th>Receitas</th><th>Despesas</th><th>Saldo</th><th>Acumulado</th></tr></thead><tbody>' + tableRows + '</tbody></table>' +
+          '<div class="mobile-cards">' + mobileCards + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<p class="footer-note previsao-footnote">Entram receitas/despesas fixas e parcelas ativas. Variáveis futuras não lançadas não entram — atualize conforme planejar.</p>'
+    );
   }
 
   async function removeItem(arrKey, id, entidade) {
@@ -2318,7 +2673,7 @@ async function exportPDF() {
   function bindChartLandscapeResize() {
     function onLayoutChange() {
       if (window.FinancePhoneLandscape) window.FinancePhoneLandscape.apply();
-      if (!document.getElementById('chartFluxo') || !window.FinanceCharts) return;
+      if (!window.FinanceCharts) return;
       clearTimeout(chartResizeTimer);
       chartResizeTimer = setTimeout(function () {
         window.FinanceCharts.resize();
@@ -2326,6 +2681,9 @@ async function exportPDF() {
     }
     window.addEventListener('orientationchange', onLayoutChange);
     window.addEventListener('resize', onLayoutChange);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', onLayoutChange);
+    }
     onLayoutChange();
   }
 
@@ -2341,9 +2699,13 @@ async function exportPDF() {
   window.anexarComprovante = anexarComprovante;
   window.verComprovante = verComprovante;
   window.exportPDF = exportPDF;
-  window.salvarSaldoConta = salvarSaldoConta;
   window.salvarOrcamentos = salvarOrcamentos;
   window.clearOrcamentoCategoria = clearOrcamentoCategoria;
+  window.openSaldoSheet = openSaldoSheet;
+  window.FinanceApp = {
+    submitSaldoSheet: submitSaldoSheet,
+    getSaldoAtual: function () { return state.saldoConta; },
+  };
   window.setEntidade = setEntidade;
   window.setTipo = setTipo;
   window.setForma = setForma;

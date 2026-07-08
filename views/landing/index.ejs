@@ -34,7 +34,7 @@
 
         <a href="/login" class="btn-ghost hidden px-4 py-2 sm:inline-flex">Entrar</a>
 
-        <a href="#adquirir" data-scroll-acquire class="btn-ice btn-ice--nav px-4 py-2 text-sm sm:px-6 sm:py-3">Adquirir</a>
+        <a href="/cadastro" class="btn-ice btn-ice--nav px-4 py-2 text-sm sm:px-6 sm:py-3">Começar grátis</a>
 
       </nav>
 
@@ -74,9 +74,9 @@
 
         <div class="landing-hero-stagger landing-hero-stagger-4 mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
 
-          <a href="#adquirir" data-scroll-acquire class="btn-ice w-full sm:w-auto">Adquirir acesso</a>
+          <a href="/cadastro" class="btn-ice w-full sm:w-auto">Começar grátis</a>
 
-          <a href="/login" class="btn-ghost w-full sm:w-auto">Já tenho conta</a>
+          <a href="#adquirir" data-scroll-acquire class="btn-ghost w-full sm:w-auto">Adquirir acesso</a>
 
         </div>
 
@@ -204,9 +204,29 @@
 
 
 
+          <div class="landing-pricing-actions">
+
+          <div class="landing-pricing-checkout landing-pricing-trial">
+
+            <h3 class="landing-pricing-checkout-title">Experimente grátis</h3>
+
+            <p class="landing-pricing-trial-copy"><%= pricing.trialDays %> dias grátis, sem cartão. Depois <%= pricing.priceShort %> por <%= pricing.accessDays %> dias.</p>
+
+            <div class="landing-acquire-actions">
+
+              <a href="/cadastro" class="btn-ice w-full">Criar conta grátis</a>
+
+              <a href="/login" class="landing-acquire-link">Já tenho conta</a>
+
+            </div>
+
+          </div>
+
+
+
           <div class="landing-pricing-checkout">
 
-            <h3 class="landing-pricing-checkout-title">Começar agora</h3>
+            <h3 class="landing-pricing-checkout-title">Adquirir agora</h3>
 
             <form id="acquireForm" class="landing-acquire-form" novalidate>
 
@@ -241,6 +261,8 @@
               </div>
 
             </form>
+
+          </div>
 
           </div>
 

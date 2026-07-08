@@ -5,6 +5,7 @@ const { generateTempPassword } = require('../utils/tempPassword');
 const paymentOrderService = require('./paymentOrderService');
 const subscriptionService = require('./subscriptionService');
 const userService = require('./userService');
+const emailService = require('./emailService');
 
 const API_BASE = 'https://api.checkout.infinitepay.io';
 const WELCOME_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -205,7 +206,26 @@ async function provisionGuestOrder(order) {
   }
 
   await paymentOrderService.linkOrderToUser(order.order_nsu, existingUser.id);
-  await subscriptionService.grantProAccess(existingUser.id);
+  await subscriptionService.grantProAccess(existingUser.id, undefined, { accessGrantType: 'paid' });
+
+  if (isNewAccount && tempPassword) {
+    emailService.sendCredentialsEmail({
+      to: email,
+      nome,
+      email,
+      username: existingUser.username,
+      tempPassword,
+    }).catch(function (err) {
+      console.error('[email] Falha ao enviar credenciais:', err.message);
+    });
+
+    emailService.sendWelcomeEmail({
+      to: email,
+      nome,
+    }).catch(function (err) {
+      console.error('[email] Falha ao enviar boas-vindas:', err.message);
+    });
+  }
 
   return {
     userId: existingUser.id,
@@ -270,7 +290,7 @@ async function fulfillOrder({ orderNsu, transactionNsu, slug }) {
     return { alreadyPaid: false, subscription, provisioned };
   }
 
-  await subscriptionService.grantProAccess(order.user_id);
+  await subscriptionService.grantProAccess(order.user_id, undefined, { accessGrantType: 'paid' });
   const subscription = await subscriptionService.getSubscription(order.user_id);
   return { alreadyPaid: false, subscription };
 }

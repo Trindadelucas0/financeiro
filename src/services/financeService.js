@@ -1,5 +1,11 @@
 const { getPool } = require('../db/pool');
 const authService = require('./authService');
+const {
+  valorParcelaSimples,
+  valorParcelaEmprestimo,
+  somaParcelasRestantes,
+  vencimentoNoMes,
+} = require('../utils/parcelMath');
 
 /* ============ DATE UTILS ============ */
 
@@ -149,16 +155,8 @@ function parcelasRestantes(item, mes) {
   return Math.max(item.numParcelas - d, 0);
 }
 
-function valorParcelaSimples(item) {
-  return item.valorTotal / item.numParcelas;
-}
-
-function valorParcelaEmprestimo(item) {
-  return (item.valorTotal * (1 + (item.juros || 0) / 100)) / item.numParcelas;
-}
-
-function valorEfetivoDespesa(d) {
-  return d.formaPagamento === 'parcelado' ? valorParcelaSimples(d) : Number(d.valor);
+function valorEfetivoDespesa(d, mes) {
+  return d.formaPagamento === 'parcelado' ? valorParcelaSimples(d, mes) : Number(d.valor);
 }
 
 function entidadeDoItemDespesa(d) {
@@ -175,7 +173,7 @@ function getReceitasMes(receitas, mes) {
 function getDespesasMes(despesas, emprestimos, mes) {
   const desp = despesas
     .filter((d) => despesaAtivaNoMes(d, mes))
-    .map((d) => ({ ...d, valorEfetivo: valorEfetivoDespesa(d) }));
+    .map((d) => ({ ...d, valorEfetivo: valorEfetivoDespesa(d, mes) }));
   const emp = emprestimos
     .filter((e) => estaAtivoParcela(e, mes))
     .map((e) => ({
@@ -183,7 +181,7 @@ function getDespesasMes(despesas, emprestimos, mes) {
       tipo: 'emprestimo',
       formaPagamento: 'parcelado',
       categoria: e.categoria || 'Empréstimo',
-      valorEfetivo: valorParcelaEmprestimo(e),
+      valorEfetivo: valorParcelaEmprestimo(e, mes),
     }));
   const itens = [...desp, ...emp];
   return { total: itens.reduce((s, d) => s + d.valorEfetivo, 0), itens };
@@ -201,9 +199,9 @@ function getCategoriaBreakdown(itens) {
 function getSaldoDevedorTotal(despesas, emprestimos, currentMonth) {
   const p1 = despesas
     .filter((d) => d.formaPagamento === 'parcelado')
-    .reduce((s, d) => s + parcelasRestantes(d, currentMonth) * valorParcelaSimples(d), 0);
+    .reduce((s, d) => s + somaParcelasRestantes(d, currentMonth, d.valorTotal), 0);
   const p2 = emprestimos.reduce(
-    (s, e) => s + parcelasRestantes(e, currentMonth) * valorParcelaEmprestimo(e),
+    (s, e) => s + somaParcelasRestantes(e, currentMonth, e.valorTotal * (1 + (e.juros || 0) / 100)),
     0,
   );
   return p1 + p2;
@@ -215,7 +213,7 @@ function getVencimentosProximos(despesas, emprestimos, pagamentosMap, mes) {
   const out = [];
   getDespesasMes(despesas, emprestimos, mes).itens.forEach((d) => {
     if (!d.diaVencimento) return;
-    const venc = new Date(y, mm - 1, Math.min(d.diaVencimento, 28));
+    const venc = vencimentoNoMes(y, mm, d.diaVencimento);
     const diff = Math.ceil((venc - hoje) / (1000 * 60 * 60 * 24));
     if (diff >= 0 && diff <= 5) {
       const ent = entidadeDoItemDespesa(d);
@@ -230,7 +228,7 @@ function getVencimentosProximos(despesas, emprestimos, pagamentosMap, mes) {
 
 function buildAtrasados(despesas, emprestimos, pagamentosMap, currentMonth) {
   const out = [];
-  for (let i = 6; i >= 1; i--) {
+  for (let i = 12; i >= 1; i--) {
     const mes = addMonths(currentMonth, -i);
     getDespesasMes(despesas, emprestimos, mes).itens.forEach((d) => {
       const ent = entidadeDoItemDespesa(d);
@@ -384,12 +382,69 @@ async function ensureSettings(userId) {
 async function getSettings(userId) {
   await ensureSettings(userId);
   const { settings } = await loadUserFinanceData(userId);
+  const mesReal = monthKeyOf(new Date());
+  if (settings.currentMonth < mesReal) {
+    const pool = getPool();
+    await pool.query(
+      'UPDATE user_settings SET current_month = $1 WHERE user_id = $2',
+      [mesReal, userId],
+    );
+    settings.currentMonth = mesReal;
+  }
   return settings;
 }
 
 async function updateSettings(userId, { currentMonth, saldoConta }) {
   await ensureSettings(userId);
   const pool = getPool();
+
+  if (saldoConta !== undefined) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows: beforeRows } = await client.query(
+        'SELECT saldo_conta FROM user_settings WHERE user_id = $1 FOR UPDATE',
+        [userId],
+      );
+      const saldoAnterior = Number(beforeRows[0]?.saldo_conta) || 0;
+      const saldoNovo = Number(saldoConta);
+      const delta = saldoNovo - saldoAnterior;
+
+      const setFields = ['saldo_conta = $1', 'saldo_atualizado_em = NOW()'];
+      const values = [saldoNovo];
+      let idx = 2;
+
+      if (currentMonth !== undefined) {
+        setFields.push(`current_month = $${idx++}`);
+        values.push(currentMonth);
+      }
+
+      values.push(userId);
+      await client.query(
+        `UPDATE user_settings SET ${setFields.join(', ')} WHERE user_id = $${idx}`,
+        values,
+      );
+
+      let movimento = null;
+      if (delta !== 0) {
+        movimento = await registrarMovimentoSaldo(userId, {
+          tipo: 'ajuste',
+          valor: delta,
+          saldoApos: saldoNovo,
+          descricao: 'Ajuste manual de saldo',
+        }, client);
+      }
+
+      await client.query('COMMIT');
+      const settings = await getSettings(userId);
+      return { settings, movimento };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
 
   const fields = [];
   const values = [];
@@ -398,12 +453,6 @@ async function updateSettings(userId, { currentMonth, saldoConta }) {
   if (currentMonth !== undefined) {
     fields.push(`current_month = $${idx++}`);
     values.push(currentMonth);
-  }
-
-  if (saldoConta !== undefined) {
-    fields.push(`saldo_conta = $${idx++}`);
-    values.push(saldoConta);
-    fields.push(`saldo_atualizado_em = NOW()`);
   }
 
   if (fields.length === 0) {
@@ -418,7 +467,8 @@ async function updateSettings(userId, { currentMonth, saldoConta }) {
     values,
   );
 
-  return getSettings(userId);
+  const settings = await getSettings(userId);
+  return { settings, movimento: null };
 }
 
 /* ============ RECEITAS CRUD ============ */
@@ -730,6 +780,161 @@ async function listPagamentos(userId, mes) {
   return rows.map(mapPagamento);
 }
 
+function pagamentoAfetaSaldo(entidade) {
+  return entidade === 'despesa' || entidade === 'emprestimo' || entidade === 'receita';
+}
+
+async function lockSaldoConta(userId, client) {
+  await client.query(
+    'SELECT saldo_conta FROM user_settings WHERE user_id = $1 FOR UPDATE',
+    [userId],
+  );
+}
+
+async function getValorEfetivoPagamento(userId, entidade, itemId, mes) {
+  const data = await loadUserFinanceData(userId);
+  if (entidade === 'receita') {
+    const item = data.receitas.find((r) => r.id === itemId);
+    if (!item || !receitaAtivaNoMes(item, mes)) return 0;
+    return Number(item.valor);
+  }
+  if (entidade === 'despesa') {
+    const item = data.despesas.find((d) => d.id === itemId);
+    if (!item || !despesaAtivaNoMes(item, mes)) return 0;
+    return valorEfetivoDespesa(item, mes);
+  }
+  if (entidade === 'emprestimo') {
+    const item = data.emprestimos.find((e) => e.id === itemId);
+    if (!item || !estaAtivoParcela(item, mes)) return 0;
+    return valorParcelaEmprestimo(item, mes);
+  }
+  return 0;
+}
+
+function mapSaldoMovimento(row) {
+  return {
+    id: row.id,
+    tipo: row.tipo,
+    valor: Number(row.valor),
+    saldoApos: Number(row.saldo_apos),
+    descricao: row.descricao,
+    referenciaEntidade: row.referencia_entidade,
+    referenciaItemId: row.referencia_item_id,
+    referenciaMes: row.referencia_mes,
+    createdAt: row.created_at,
+  };
+}
+
+async function getSaldoContaAtual(userId, client) {
+  const db = client || getPool();
+  const { rows } = await db.query(
+    'SELECT saldo_conta FROM user_settings WHERE user_id = $1',
+    [userId],
+  );
+  return Number(rows[0]?.saldo_conta) || 0;
+}
+
+async function registrarMovimentoSaldo(userId, payload, client) {
+  const db = client || getPool();
+  const { rows } = await db.query(
+    `INSERT INTO saldo_movimentos (
+      user_id, tipo, valor, saldo_apos, descricao,
+      referencia_entidade, referencia_item_id, referencia_mes
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    RETURNING *`,
+    [
+      userId,
+      payload.tipo,
+      payload.valor,
+      payload.saldoApos,
+      payload.descricao || null,
+      payload.referenciaEntidade || null,
+      payload.referenciaItemId || null,
+      payload.referenciaMes || null,
+    ],
+  );
+  return mapSaldoMovimento(rows[0]);
+}
+
+async function listSaldoMovimentos(userId, { mes, limit = 50 } = {}) {
+  const pool = getPool();
+  let query = 'SELECT * FROM saldo_movimentos WHERE user_id = $1';
+  const params = [userId];
+
+  if (mes) {
+    query += ` AND created_at >= ($${params.length + 1} || '-01')::date
+               AND created_at < (($${params.length + 1} || '-01')::date + interval '1 month')`;
+    params.push(mes);
+  }
+
+  query += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
+  params.push(Math.min(Number(limit) || 50, 100));
+
+  const { rows } = await pool.query(query, params);
+  return rows.map(mapSaldoMovimento);
+}
+
+async function getNomePagamento(userId, entidade, itemId) {
+  const data = await loadUserFinanceData(userId);
+  if (entidade === 'receita') {
+    const item = data.receitas.find((r) => r.id === itemId);
+    return item?.nome || 'Receita';
+  }
+  if (entidade === 'despesa') {
+    const item = data.despesas.find((d) => d.id === itemId);
+    return item?.nome || 'Despesa';
+  }
+  if (entidade === 'emprestimo') {
+    const item = data.emprestimos.find((e) => e.id === itemId);
+    return item?.nome || 'Empréstimo';
+  }
+  return 'Lançamento';
+}
+
+async function adjustSaldoConta(userId, delta, client) {
+  const db = client || getPool();
+  await db.query(
+    `UPDATE user_settings
+     SET saldo_conta = COALESCE(saldo_conta, 0) + $1,
+         saldo_atualizado_em = NOW()
+     WHERE user_id = $2`,
+    [delta, userId],
+  );
+}
+
+async function registrarEntradaSaldo(userId, { valor, descricao }) {
+  const v = Number(valor);
+  if (!v || v <= 0) {
+    const err = new Error('Informe um valor maior que zero');
+    err.status = 400;
+    throw err;
+  }
+  await ensureSettings(userId);
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+    await lockSaldoConta(userId, client);
+    await adjustSaldoConta(userId, v, client);
+    const saldoApos = await getSaldoContaAtual(userId, client);
+    const movimento = await registrarMovimentoSaldo(userId, {
+      tipo: 'entrada',
+      valor: v,
+      saldoApos,
+      descricao: (descricao && String(descricao).trim()) || 'Entrada de dinheiro',
+    }, client);
+    await client.query('COMMIT');
+    const settings = await getSettings(userId);
+    return { settings, movimento };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 async function upsertPagamento(userId, { entidade, itemId, mes, pago, comprovanteNome, comprovanteDataUrl, password }) {
   const pool = getPool();
 
@@ -745,29 +950,93 @@ async function upsertPagamento(userId, { entidade, itemId, mes, pago, comprovant
     throw err;
   }
 
-  if (pago === false) {
-    await assertPasswordIfPaid(userId, { entidade, itemId, mes, password });
-    await pool.query(
-      'DELETE FROM pagamentos WHERE user_id = $1 AND entidade = $2 AND item_id = $3 AND mes = $4',
+  const afetaSaldo = pagamentoAfetaSaldo(entidade);
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+    await lockSaldoConta(userId, client);
+
+    const { rows: existingRows } = await client.query(
+      'SELECT pago FROM pagamentos WHERE user_id = $1 AND entidade = $2 AND item_id = $3 AND mes = $4',
       [userId, entidade, itemId, mes],
     );
-    return { pago: false };
+    const wasPaid = existingRows.length > 0 && existingRows[0].pago === true;
+
+    if (pago === false) {
+      await assertPasswordIfPaid(userId, { entidade, itemId, mes, password });
+      let movimento = null;
+      if (wasPaid && afetaSaldo) {
+        const valor = await getValorEfetivoPagamento(userId, entidade, itemId, mes);
+        if (valor > 0) {
+          const delta = entidade === 'receita' ? -valor : valor;
+          await adjustSaldoConta(userId, delta, client);
+          const saldoApos = await getSaldoContaAtual(userId, client);
+          const nome = await getNomePagamento(userId, entidade, itemId);
+          const isReceita = entidade === 'receita';
+          movimento = await registrarMovimentoSaldo(userId, {
+            tipo: isReceita ? 'pagamento' : 'estorno',
+            valor: isReceita ? -valor : valor,
+            saldoApos,
+            descricao: isReceita ? `Estorno recebimento · ${nome}` : `Estorno · ${nome}`,
+            referenciaEntidade: entidade,
+            referenciaItemId: itemId,
+            referenciaMes: mes,
+          }, client);
+        }
+      }
+      await client.query(
+        'DELETE FROM pagamentos WHERE user_id = $1 AND entidade = $2 AND item_id = $3 AND mes = $4',
+        [userId, entidade, itemId, mes],
+      );
+      await client.query('COMMIT');
+      const settings = await getSettings(userId);
+      return { pago: false, settings, movimento };
+    }
+
+    let movimento = null;
+    if (afetaSaldo && !wasPaid) {
+      const valor = await getValorEfetivoPagamento(userId, entidade, itemId, mes);
+      if (valor > 0) {
+        const delta = entidade === 'receita' ? valor : -valor;
+        await adjustSaldoConta(userId, delta, client);
+        const saldoApos = await getSaldoContaAtual(userId, client);
+        const nome = await getNomePagamento(userId, entidade, itemId);
+        const isReceita = entidade === 'receita';
+        movimento = await registrarMovimentoSaldo(userId, {
+          tipo: isReceita ? 'entrada' : 'pagamento',
+          valor: isReceita ? valor : -valor,
+          saldoApos,
+          descricao: isReceita ? `Recebimento · ${nome}` : `Pagamento · ${nome}`,
+          referenciaEntidade: entidade,
+          referenciaItemId: itemId,
+          referenciaMes: mes,
+        }, client);
+      }
+    }
+
+    const { rows } = await client.query(
+      `INSERT INTO pagamentos (user_id, entidade, item_id, mes, pago, data_hora, comprovante_nome, comprovante_data)
+       VALUES ($1, $2, $3, $4, TRUE, NOW(), $5, $6)
+       ON CONFLICT (user_id, entidade, item_id, mes)
+       DO UPDATE SET
+         pago = TRUE,
+         data_hora = COALESCE(pagamentos.data_hora, NOW()),
+         comprovante_nome = COALESCE(EXCLUDED.comprovante_nome, pagamentos.comprovante_nome),
+         comprovante_data = COALESCE(EXCLUDED.comprovante_data, pagamentos.comprovante_data)
+       RETURNING *`,
+      [userId, entidade, itemId, mes, comprovanteNome || null, comprovanteDataUrl || null],
+    );
+
+    await client.query('COMMIT');
+    const settings = await getSettings(userId);
+    return { ...mapPagamento(rows[0]), settings, movimento };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
   }
-
-  const { rows } = await pool.query(
-    `INSERT INTO pagamentos (user_id, entidade, item_id, mes, pago, data_hora, comprovante_nome, comprovante_data)
-     VALUES ($1, $2, $3, $4, TRUE, NOW(), $5, $6)
-     ON CONFLICT (user_id, entidade, item_id, mes)
-     DO UPDATE SET
-       pago = TRUE,
-       data_hora = COALESCE(pagamentos.data_hora, NOW()),
-       comprovante_nome = COALESCE(EXCLUDED.comprovante_nome, pagamentos.comprovante_nome),
-       comprovante_data = COALESCE(EXCLUDED.comprovante_data, pagamentos.comprovante_data)
-     RETURNING *`,
-    [userId, entidade, itemId, mes, comprovanteNome || null, comprovanteDataUrl || null],
-  );
-
-  return mapPagamento(rows[0]);
 }
 
 /* ============ ORCAMENTOS ============ */
@@ -783,14 +1052,22 @@ async function updateOrcamentos(userId, orcamentosMap) {
 
   try {
     await client.query('BEGIN');
-    await client.query('DELETE FROM orcamentos WHERE user_id = $1', [userId]);
 
     const entries = Object.entries(orcamentosMap || {});
     for (const [categoria, limite] of entries) {
-      if (limite && Number(limite) > 0) {
+      const valor = Number(limite);
+      if (valor > 0) {
         await client.query(
-          'INSERT INTO orcamentos (user_id, categoria, limite_mensal) VALUES ($1, $2, $3)',
-          [userId, categoria, limite],
+          `INSERT INTO orcamentos (user_id, categoria, limite_mensal)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (user_id, categoria)
+           DO UPDATE SET limite_mensal = EXCLUDED.limite_mensal`,
+          [userId, categoria, valor],
+        );
+      } else {
+        await client.query(
+          'DELETE FROM orcamentos WHERE user_id = $1 AND categoria = $2',
+          [userId, categoria],
         );
       }
     }
@@ -1023,6 +1300,8 @@ module.exports = {
   deleteEmprestimo,
   listPagamentos,
   upsertPagamento,
+  registrarEntradaSaldo,
+  listSaldoMovimentos,
   getOrcamentos,
   updateOrcamentos,
   getDashboard,

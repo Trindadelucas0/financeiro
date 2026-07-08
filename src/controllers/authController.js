@@ -1,6 +1,19 @@
 const authService = require('../services/authService');
 const profileController = require('./profileController');
 
+async function register(req, res, next) {
+  try {
+    const { nome, email, password, username } = req.body;
+    if (!nome || !email || !password) {
+      return res.status(400).json({ error: 'nome, email e password são obrigatórios' });
+    }
+    const result = await authService.register({ nome, email, password, username });
+    return res.status(201).json(result);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 async function login(req, res, next) {
   try {
     const { identifier, email, password } = req.body;
@@ -35,6 +48,7 @@ async function verifyPassword(req, res, next) {
 }
 
 module.exports = {
+  register,
   login,
   me,
   verifyPassword,

@@ -28,6 +28,8 @@ router.delete('/emprestimos/:id', financeController.deleteEmprestimo);
 
 router.get('/pagamentos', financeController.listPagamentos);
 router.post('/pagamentos', financeController.upsertPagamento);
+router.post('/saldo/entrada', financeController.postSaldoEntrada);
+router.get('/saldo/movimentos', financeController.getSaldoMovimentos);
 
 router.get('/orcamentos', financeController.getOrcamentos);
 router.put('/orcamentos', financeController.putOrcamentos);

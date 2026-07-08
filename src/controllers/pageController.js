@@ -23,6 +23,13 @@ function loginPage(req, res) {
   res.render('auth/login', { title: 'Login' });
 }
 
+function registerPage(req, res) {
+  res.render('auth/register', {
+    title: 'Criar conta',
+    pricing: getProPlanPricing(),
+  });
+}
+
 function appDashboard(req, res) {
   res.render('app/dashboard', { title: 'Dashboard', activeTab: 'dashboard' });
 }
@@ -80,6 +87,7 @@ function notFoundPage(req, res) {
 
 module.exports = {
   loginPage,
+  registerPage,
   appDashboard,
   appReceitas,
   appDespesas,

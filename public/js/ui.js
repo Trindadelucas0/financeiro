@@ -183,6 +183,177 @@
   function init() {
     initConfirmDialog();
     initPasswordDialog();
+    initMaisSheet();
+    initSaldoSheet();
+    initMobileTip();
+  }
+
+  function initMaisSheet() {
+    var btn = document.getElementById('btnMaisNav');
+    var dialog = document.getElementById('maisSheetDialog');
+    var closeBtn = document.getElementById('maisSheetClose');
+    if (!btn || !dialog || dialog._financeMaisInit) return;
+    dialog._financeMaisInit = true;
+
+    function open() {
+      document.body.appendChild(dialog);
+      dialog.showModal();
+      btn.setAttribute('aria-expanded', 'true');
+    }
+
+    function close() {
+      dialog.close();
+      btn.setAttribute('aria-expanded', 'false');
+    }
+
+    btn.addEventListener('click', function () {
+      if (dialog.open) close();
+      else open();
+    });
+
+    if (closeBtn) closeBtn.addEventListener('click', close);
+
+    bindModal(dialog, close);
+
+    dialog.addEventListener('close', function () {
+      btn.setAttribute('aria-expanded', 'false');
+    });
+  }
+
+  function closeMaisSheet() {
+    var dialog = document.getElementById('maisSheetDialog');
+    if (dialog && dialog.open) dialog.close();
+  }
+
+  var saldoSheetMode = 'atualizar';
+
+  function parseMoneyInput(str) {
+    if (!str) return 0;
+    var s = String(str).trim();
+    if (s.indexOf(',') !== -1) {
+      s = s.replace(/\./g, '').replace(',', '.');
+    }
+    return Math.max(0, Number(s.replace(/[^\d.]/g, '')) || 0);
+  }
+
+  function formatMoneyPreview(value) {
+    if (!window.FinanceApp || !window.FinanceCharts) {
+      return (value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+    return (value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  }
+
+  function updateSaldoSheetPreview() {
+    var previewEl = document.getElementById('saldoSheetPreview');
+    var valorInput = document.getElementById('saldoSheetValor');
+    if (!previewEl || !valorInput || saldoSheetMode !== 'atualizar') return;
+    var novo = parseMoneyInput(valorInput.value);
+    var atual = window.FinanceApp && window.FinanceApp.getSaldoAtual ? window.FinanceApp.getSaldoAtual() : 0;
+    if (novo > 0) {
+      previewEl.textContent = 'Saldo atual ' + formatMoneyPreview(atual) + ' → Novo ' + formatMoneyPreview(novo);
+      previewEl.hidden = false;
+    } else {
+      previewEl.hidden = true;
+    }
+  }
+
+  function initSaldoSheet() {
+    var dialog = document.getElementById('saldoSheetDialog');
+    var form = document.getElementById('saldoSheetForm');
+    var cancelBtn = document.getElementById('saldoSheetCancel');
+    var valorInput = document.getElementById('saldoSheetValor');
+    if (!dialog || !form || dialog._financeSaldoInit) return;
+    dialog._financeSaldoInit = true;
+
+    bindModal(dialog, function () { dialog.close(); });
+
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', function () { dialog.close(); });
+    }
+
+    if (valorInput) {
+      valorInput.addEventListener('input', updateSaldoSheetPreview);
+    }
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var valor = parseMoneyInput(document.getElementById('saldoSheetValor').value);
+      if (valor <= 0) return;
+      if (window.FinanceApp && window.FinanceApp.submitSaldoSheet) {
+        window.FinanceApp.submitSaldoSheet(saldoSheetMode, valor, document.getElementById('saldoSheetDescricao').value);
+      }
+    });
+  }
+
+  function openSaldoSheet(mode, presetValor) {
+    var dialog = document.getElementById('saldoSheetDialog');
+    if (!dialog) return;
+
+    saldoSheetMode = mode === 'entrada' ? 'entrada' : 'atualizar';
+    var titleEl = document.getElementById('saldoSheetTitle');
+    var descEl = document.getElementById('saldoSheetDesc');
+    var previewEl = document.getElementById('saldoSheetPreview');
+    var labelEl = document.getElementById('saldoSheetValorLabel');
+    var descField = document.getElementById('saldoSheetDescricaoField');
+    var submitBtn = document.getElementById('saldoSheetSubmit');
+    var valorInput = document.getElementById('saldoSheetValor');
+    var descInput = document.getElementById('saldoSheetDescricao');
+
+    if (saldoSheetMode === 'entrada') {
+      if (titleEl) titleEl.textContent = 'Entrou dinheiro';
+      if (descEl) descEl.textContent = 'Quanto entrou na sua conta?';
+      if (labelEl) labelEl.textContent = 'Valor da entrada';
+      if (descField) descField.hidden = false;
+      if (submitBtn) submitBtn.textContent = 'Adicionar à conta';
+      if (previewEl) previewEl.hidden = true;
+      if (valorInput) valorInput.value = '';
+      if (descInput) descInput.value = '';
+    } else {
+      if (titleEl) titleEl.textContent = 'Atualizar saldo';
+      if (descEl) descEl.textContent = 'Informe o total que você tem na conta agora.';
+      if (labelEl) labelEl.textContent = 'Novo saldo total';
+      if (descField) descField.hidden = true;
+      if (submitBtn) submitBtn.textContent = 'Salvar saldo';
+      if (valorInput) {
+        valorInput.value = presetValor != null && presetValor > 0
+          ? String(presetValor).replace('.', ',')
+          : '';
+      }
+      if (descInput) descInput.value = '';
+      updateSaldoSheetPreview();
+    }
+
+    document.body.appendChild(dialog);
+    dialog.showModal();
+    if (valorInput) {
+      requestAnimationFrame(function () {
+        valorInput.focus();
+        valorInput.select();
+      });
+    }
+  }
+
+  function closeSaldoSheet() {
+    var dialog = document.getElementById('saldoSheetDialog');
+    if (dialog && dialog.open) dialog.close();
+  }
+
+  function initMobileTip() {
+    var banner = document.getElementById('mobileTipBanner');
+    var dismiss = document.getElementById('mobileTipDismiss');
+    if (!banner || banner._financeTipInit) return;
+    banner._financeTipInit = true;
+
+    if (window.matchMedia('(max-width: 768px)').matches && !localStorage.getItem('finance_mais_tip_dismissed')) {
+      banner.hidden = false;
+    }
+
+    if (dismiss) {
+      dismiss.addEventListener('click', function () {
+        banner.hidden = true;
+        localStorage.setItem('finance_mais_tip_dismissed', '1');
+      });
+    }
   }
 
   window.FinanceUI = {
@@ -190,6 +361,13 @@
     showPasswordPrompt: showPasswordPrompt,
     bindModal: bindModal,
     init: init,
+    openMaisSheet: function () {
+      var btn = document.getElementById('btnMaisNav');
+      if (btn) btn.click();
+    },
+    closeMaisSheet: closeMaisSheet,
+    openSaldoSheet: openSaldoSheet,
+    closeSaldoSheet: closeSaldoSheet,
   };
 
   document.addEventListener('DOMContentLoaded', init);

@@ -11,6 +11,7 @@ router.use((req, res, next) => {
 
 router.get('/', pageController.landingPage);
 router.get('/login', pageController.loginPage);
+router.get('/cadastro', pageController.registerPage);
 
 router.get('/app', pageController.redirectApp);
 router.get('/app/dashboard', pageController.appDashboard);

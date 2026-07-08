@@ -1,3 +1,5 @@
+<% const maisPages = ['compromissos', 'orcamentos', 'previsao']; %>
+<% const isMaisActive = maisPages.indexOf(page) !== -1; %>
 <nav class="bottom-nav" aria-label="Navegação principal">
   <a href="/app/dashboard" class="bottom-nav-item<%= page === 'dashboard' ? ' active' : '' %>"<%= page === 'dashboard' ? ' aria-current="page"' : '' %>>
     <span class="bn-icon" aria-hidden="true">◉</span>
@@ -11,10 +13,13 @@
     <span class="bn-icon" aria-hidden="true">↓</span>
     <span class="bn-label">Despesas</span>
   </a>
-  <a href="/app/compromissos" class="bottom-nav-item<%= page === 'compromissos' ? ' active' : '' %>"<%= page === 'compromissos' ? ' aria-current="page"' : '' %>>
-    <span class="bn-icon" aria-hidden="true">⧉</span>
-    <span class="bn-label">Parcelas</span>
-  </a>
+  <button type="button" class="bottom-nav-item bottom-nav-mais<%= isMaisActive ? ' active' : '' %>" id="btnMaisNav" aria-haspopup="dialog" aria-controls="maisSheetDialog" aria-expanded="false">
+    <span class="bn-icon-wrap">
+      <span class="bn-icon" aria-hidden="true">⋯</span>
+      <span class="bn-badge" id="maisNavBadge" hidden aria-label="Atenção no saldo"></span>
+    </span>
+    <span class="bn-label">Mais</span>
+  </button>
   <a href="/app/perfil" class="bottom-nav-item<%= page === 'perfil' ? ' active' : '' %>"<%= page === 'perfil' ? ' aria-current="page"' : '' %>>
     <span class="bn-icon" aria-hidden="true">◎</span>
     <span class="bn-label">Conta</span>

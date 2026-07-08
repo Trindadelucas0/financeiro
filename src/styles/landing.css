@@ -474,6 +474,19 @@
     }
   }
 
+  .landing-pricing-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .landing-pricing-trial-copy {
+    margin: 0 0 1.25rem;
+    font-size: 0.875rem;
+    color: var(--color-muted);
+    line-height: 1.5;
+  }
+
   .landing-pricing-hero {
     margin-bottom: clamp(1.5rem, 4vw, 2.5rem);
   }

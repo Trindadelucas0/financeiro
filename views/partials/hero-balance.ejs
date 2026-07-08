@@ -1,8 +1,13 @@
-<section class="hero-balance" aria-label="Saldo do mês">
+<section class="hero-balance" aria-label="Resumo do mês">
   <div class="hero-balance-inner">
+    <p class="hero-page-title" id="heroPageTitle">Início</p>
     <p class="hero-greeting">Olá, <a href="/app/perfil" class="hero-greeting-link" id="userName">—</a></p>
     <p class="hero-label">Saldo do mês</p>
     <p class="hero-value mono" id="heroSaldo">—</p>
+    <button type="button" class="hero-saldo-conta" id="heroSaldoConta" hidden aria-label="Saldo em conta — toque para atualizar">
+      <span class="hero-saldo-conta-label">Em conta</span>
+      <span class="hero-saldo-conta-value mono" id="heroSaldoContaValue">—</span>
+    </button>
     <p class="hero-meta mono" id="heroMonthMeta">—</p>
     <div class="quick-actions" role="group" aria-label="Ações rápidas">
       <button type="button" class="qa-btn" onclick="openModal()">
@@ -16,6 +21,10 @@
       <a href="/app/previsao" class="qa-btn">
         <span class="qa-icon" aria-hidden="true">↗</span>
         <span>Previsão</span>
+      </a>
+      <a href="/app/orcamentos" class="qa-btn">
+        <span class="qa-icon" aria-hidden="true">◎</span>
+        <span>Orçamentos</span>
       </a>
     </div>
   </div>

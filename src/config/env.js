@@ -74,6 +74,11 @@ function loadEnv() {
         && (process.env.VAPID_PRIVATE_KEY || '').trim(),
       ),
     },
+    resend: {
+      apiKey: (process.env.RESEND_API_KEY || '').trim(),
+      from: (process.env.RESEND_FROM || 'Home Finanças <onboarding@resend.dev>').trim(),
+      enabled: Boolean((process.env.RESEND_API_KEY || '').trim()),
+    },
   };
 }
 
