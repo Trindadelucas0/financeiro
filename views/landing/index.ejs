@@ -72,6 +72,12 @@
 
         </p>
 
+        <% if (typeof pricing !== 'undefined' && pricing) { %>
+        <p class="landing-hero-stagger landing-hero-stagger-3 mt-4">
+          <span class="landing-hero-trial-badge"><%= pricing.trialOfferLine %></span>
+        </p>
+        <% } %>
+
         <div class="landing-hero-stagger landing-hero-stagger-4 mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
 
           <a href="/cadastro" class="btn-ice w-full sm:w-auto">Começar grátis</a>
@@ -79,6 +85,10 @@
           <a href="#adquirir" data-scroll-acquire class="btn-ghost w-full sm:w-auto">Adquirir acesso</a>
 
         </div>
+
+        <% if (typeof pricing !== 'undefined' && pricing) { %>
+        <p class="landing-hero-trial-note landing-hero-stagger landing-hero-stagger-4 mt-3 text-sm text-muted"><%= pricing.trialOfferLine %> · sem cartão</p>
+        <% } %>
 
       </div>
 
@@ -210,7 +220,7 @@
 
             <h3 class="landing-pricing-checkout-title">Experimente grátis</h3>
 
-            <p class="landing-pricing-trial-copy"><%= pricing.trialDays %> dias grátis, sem cartão. Depois <%= pricing.priceShort %> por <%= pricing.accessDays %> dias.</p>
+            <p class="landing-pricing-trial-copy"><%= pricing.trialOfferLine %> · sem cartão. Depois <%= pricing.priceShort %> por <%= pricing.accessDays %> dias.</p>
 
             <div class="landing-acquire-actions">
 

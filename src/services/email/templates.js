@@ -88,11 +88,46 @@ function reportPdfTemplate({ nome, mesLabel, appUrl }) {
   };
 }
 
-const EMAIL_LAYOUTS = ['credentials', 'welcome', 'reportPdf'];
+function subscriptionExpiredTemplate({
+  nome,
+  appUrl,
+  isTrial,
+  trialDays,
+  accessDays,
+  priceShort,
+}) {
+  const name = firstName(nome);
+  const perfilUrl = `${appUrl}/app/perfil`;
+  const expiredLine = isTrial
+    ? `Seu período de teste de <strong style="color:#f3f7fb;">${trialDays} dias</strong> terminou.`
+    : `Seu acesso de <strong style="color:#f3f7fb;">${accessDays} dias</strong> terminou.`;
+
+  const bodyHtml = `
+    <p style="margin:0 0 16px;">Olá, <strong style="color:#f3f7fb;">${esc(name)}</strong>.</p>
+    <p style="margin:0 0 16px;">${expiredLine}</p>
+    <p style="margin:0 0 16px;">Para continuar usando o dashboard completo, relatórios em PDF e previsões, renove seu acesso por apenas <strong style="color:#f3f7fb;">${esc(priceShort)}</strong> por ${accessDays} dias.</p>
+    <p style="margin:0;">Seus dados continuam salvos — basta renovar para voltar a usar tudo.</p>`;
+
+  return {
+    subject: 'Seu acesso ao Home Finanças expirou',
+    preheader: isTrial ? 'Seu período de teste terminou' : 'Renove seu acesso ao Home Finanças',
+    html: renderEmailLayout({
+      preheader: 'Seu acesso ao Home Finanças expirou',
+      title: 'Acesso expirado',
+      bodyHtml,
+      ctaLabel: 'Renovar acesso',
+      ctaUrl: perfilUrl,
+      appUrl,
+    }),
+  };
+}
+
+const EMAIL_LAYOUTS = ['credentials', 'welcome', 'reportPdf', 'subscriptionExpired'];
 
 module.exports = {
   EMAIL_LAYOUTS,
   credentialsTemplate,
   welcomeTemplate,
   reportPdfTemplate,
+  subscriptionExpiredTemplate,
 };

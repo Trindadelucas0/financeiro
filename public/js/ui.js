@@ -228,12 +228,33 @@
   var saldoSheetMode = 'atualizar';
 
   function parseMoneyInput(str) {
-    if (!str) return 0;
+    if (str == null) return null;
     var s = String(str).trim();
+    if (!s) return null;
     if (s.indexOf(',') !== -1) {
       s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      s = s.replace(/\./g, '');
     }
-    return Math.max(0, Number(s.replace(/[^\d.]/g, '')) || 0);
+    var n = Number(s.replace(/[^\d.]/g, ''));
+    if (!Number.isFinite(n)) return null;
+    return Math.max(0, n);
+  }
+
+  function formatMoneyInputValue(value) {
+    if (value == null || value === '' || !Number.isFinite(Number(value))) return '';
+    return Number(value).toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
+  function showSaldoSheetError(message) {
+    if (window.FinanceApp && window.FinanceApp.toast) {
+      window.FinanceApp.toast(message, 'error');
+      return;
+    }
+    window.alert(message);
   }
 
   function formatMoneyPreview(value) {
@@ -249,7 +270,7 @@
     if (!previewEl || !valorInput || saldoSheetMode !== 'atualizar') return;
     var novo = parseMoneyInput(valorInput.value);
     var atual = window.FinanceApp && window.FinanceApp.getSaldoAtual ? window.FinanceApp.getSaldoAtual() : 0;
-    if (novo > 0) {
+    if (novo != null && String(valorInput.value || '').trim() !== '') {
       previewEl.textContent = 'Saldo atual ' + formatMoneyPreview(atual) + ' → Novo ' + formatMoneyPreview(novo);
       previewEl.hidden = false;
     } else {
@@ -277,11 +298,25 @@
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      var valor = parseMoneyInput(document.getElementById('saldoSheetValor').value);
-      if (valor <= 0) return;
-      if (window.FinanceApp && window.FinanceApp.submitSaldoSheet) {
-        window.FinanceApp.submitSaldoSheet(saldoSheetMode, valor, document.getElementById('saldoSheetDescricao').value);
+      var rawValue = document.getElementById('saldoSheetValor').value;
+      var valor = parseMoneyInput(rawValue);
+      if (valor == null) {
+        showSaldoSheetError('Informe um valor válido.');
+        return;
       }
+      if (saldoSheetMode === 'entrada' && valor <= 0) {
+        showSaldoSheetError('Informe um valor maior que zero.');
+        return;
+      }
+      if (!window.FinanceApp || !window.FinanceApp.submitSaldoSheet) {
+        showSaldoSheetError('Não foi possível salvar agora. Recarregue a página.');
+        return;
+      }
+      window.FinanceApp.submitSaldoSheet(
+        saldoSheetMode,
+        valor,
+        document.getElementById('saldoSheetDescricao').value,
+      );
     });
   }
 
@@ -315,8 +350,8 @@
       if (descField) descField.hidden = true;
       if (submitBtn) submitBtn.textContent = 'Salvar saldo';
       if (valorInput) {
-        valorInput.value = presetValor != null && presetValor > 0
-          ? String(presetValor).replace('.', ',')
+        valorInput.value = presetValor != null && Number.isFinite(Number(presetValor))
+          ? formatMoneyInputValue(presetValor)
           : '';
       }
       if (descInput) descInput.value = '';

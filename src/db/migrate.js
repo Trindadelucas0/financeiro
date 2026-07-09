@@ -292,6 +292,16 @@ CREATE TABLE IF NOT EXISTS saldo_movimentos (
 );
 
 CREATE INDEX IF NOT EXISTS idx_saldo_mov_user_created ON saldo_movimentos(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS email_log (
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  template VARCHAR(40) NOT NULL,
+  dedup_key VARCHAR(120) NOT NULL,
+  sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, dedup_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_log_sent ON email_log(sent_at);
 `;
 
 async function backfillUsernames(client) {

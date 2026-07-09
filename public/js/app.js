@@ -225,6 +225,10 @@
   async function submitSaldoSheet(mode, valor, descricao) {
     try {
       if (mode === 'entrada') {
+        if (!Number.isFinite(valor) || valor <= 0) {
+          toast('Informe um valor maior que zero.', 'error');
+          return;
+        }
         const res = await apiFetch('/api/finance/saldo/entrada', {
           method: 'POST',
           body: { valor: valor, descricao: descricao || undefined },
@@ -234,6 +238,10 @@
         if (window.FinanceUI) FinanceUI.closeSaldoSheet();
         toast(formatBRL(valor) + ' adicionados · saldo: ' + formatBRL(state.saldoConta));
       } else {
+        if (!Number.isFinite(valor) || valor < 0) {
+          toast('Informe um valor válido.', 'error');
+          return;
+        }
         const res = await apiFetch('/api/finance/settings', { method: 'PUT', body: { saldoConta: valor } });
         applySettingsFromRes(res);
         applyMovimentoFromRes(res);
@@ -2375,9 +2383,20 @@ async function exportPDF() {
     modalSubmitting = false;
     modalSnapshot = null;
     modalDraft = {};
+    modalCtx = {
+      entidade: null,
+      tipo: null,
+      forma: null,
+      duracaoTipo: 'indeterminado',
+      editing: null,
+      editingMes: null,
+      paidPassword: null,
+    };
     document.body.classList.remove('modal-open');
     document.documentElement.style.removeProperty('--modal-vvh');
     const dialog = document.getElementById('modalDialog');
+    const modalBody = document.getElementById('modalBody');
+    if (modalBody) modalBody.innerHTML = '';
     if (dialog) dialog.close();
   }
 
@@ -2524,7 +2543,9 @@ async function exportPDF() {
     const prevScroll = scrollEl ? scrollEl.scrollTop : 0;
     const activeId = document.activeElement && document.activeElement.id ? document.activeElement.id : null;
 
-    captureFormDraft();
+    if (dialog && dialog.open) {
+      captureFormDraft();
+    }
     const c = modalCtx;
     const locked = !!c.editing;
     const pronto = modalIsReady(c);
@@ -2705,6 +2726,7 @@ async function exportPDF() {
   window.FinanceApp = {
     submitSaldoSheet: submitSaldoSheet,
     getSaldoAtual: function () { return state.saldoConta; },
+    toast: toast,
   };
   window.setEntidade = setEntidade;
   window.setTipo = setTipo;

@@ -25,7 +25,7 @@ async function main() {
   console.log(`\nTestes produção — ${PROD}\n`);
 
   let passed = 0;
-  const total = 5;
+  const total = 7;
 
   if (await check('Landing', `${PROD}/`)) passed += 1;
 
@@ -42,15 +42,21 @@ async function main() {
   const landingRes = await fetch(`${PROD}/`, { signal: AbortSignal.timeout(15000) });
   const html = await landingRes.text();
   const has30 = html.includes('30 dias');
+  const has7Trial = html.includes('7 dias grátis');
+  const hasCancelNote = html.includes('cancele quando quiser');
   const no14trial = !html.includes('14 dias grátis');
   console.log(`${has30 ? '✓' : '✗'} Copy 30 dias na landing`);
+  console.log(`${has7Trial ? '✓' : '✗'} Copy "7 dias grátis" na landing`);
+  console.log(`${hasCancelNote ? '✓' : '✗'} Copy "cancele quando quiser" na landing`);
   console.log(`${no14trial ? '✓' : '✗'} Sem "14 dias grátis" na landing`);
   if (has30) passed += 1;
+  if (has7Trial) passed += 1;
+  if (hasCancelNote) passed += 1;
   if (no14trial) passed += 1;
 
   console.log(`\n--- ${passed}/${total} checks OK ---`);
   console.log('\nPendente (manual): cadastrar URL no InfinitePay + pagamento real + PDF Pro');
-  process.exit(passed >= 4 ? 0 : 1);
+  process.exit(passed >= 6 ? 0 : 1);
 }
 
 main();

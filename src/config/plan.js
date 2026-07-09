@@ -34,6 +34,9 @@ function getProPlanPricing() {
     priceShort,
     accessLabel: `${PRO_PLAN.accessDays} dias de acesso`,
     trialLabel: `${TRIAL_PLAN.accessDays} dias grátis`,
+    trialHeadline: `${TRIAL_PLAN.accessDays} dias grátis`,
+    trialCancelNote: 'cancele quando quiser',
+    trialOfferLine: `${TRIAL_PLAN.accessDays} dias grátis · cancele quando quiser`,
     subline: `Pague ${priceShort} · use por ${PRO_PLAN.accessDays} dias`,
     paymentMethods: ['Pix', 'Cartão de crédito'],
   };

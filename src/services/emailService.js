@@ -4,6 +4,7 @@ const {
   credentialsTemplate,
   welcomeTemplate,
   reportPdfTemplate,
+  subscriptionExpiredTemplate,
   EMAIL_LAYOUTS,
 } = require('./email/templates');
 
@@ -98,6 +99,25 @@ async function sendWelcomeEmail({ to, nome }) {
   });
 }
 
+async function sendSubscriptionExpiredEmail({ to, nome, isTrial }) {
+  const config = getConfig();
+  const pricing = require('../config/plan').getProPlanPricing();
+  const template = subscriptionExpiredTemplate({
+    nome,
+    appUrl: config.appUrl,
+    isTrial: Boolean(isTrial),
+    trialDays: pricing.trialDays,
+    accessDays: pricing.accessDays,
+    priceShort: pricing.priceShort,
+  });
+
+  return sendEmail({
+    to,
+    subject: template.subject,
+    html: template.html,
+  });
+}
+
 async function sendReportPdfEmail({ to, nome, mes, mesLabel, pdfBuffer }) {
   const config = getConfig();
   const template = reportPdfTemplate({
@@ -150,6 +170,16 @@ async function sendLayoutPreview({ layout, to, sampleData, from }) {
         content: data.pdfBuffer,
       }];
     }
+  } else if (layout === 'subscriptionExpired') {
+    const pricing = require('../config/plan').getProPlanPricing();
+    template = subscriptionExpiredTemplate({
+      nome: data.nome || 'Lucas Rodrigues',
+      appUrl: config.appUrl,
+      isTrial: data.isTrial !== false,
+      trialDays: pricing.trialDays,
+      accessDays: pricing.accessDays,
+      priceShort: pricing.priceShort,
+    });
   } else {
     const err = new Error(`Layout de e-mail desconhecido: ${layout}`);
     err.status = 400;
@@ -201,6 +231,7 @@ module.exports = {
   sendEmail,
   sendCredentialsEmail,
   sendWelcomeEmail,
+  sendSubscriptionExpiredEmail,
   sendReportPdfEmail,
   sendLayoutPreview,
   sendAllLayoutPreviews,
