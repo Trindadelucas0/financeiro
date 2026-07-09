@@ -187,6 +187,54 @@ function getDespesasMes(despesas, emprestimos, mes) {
   return { total: itens.reduce((s, d) => s + d.valorEfetivo, 0), itens };
 }
 
+function mapSettingsRow(s) {
+  return {
+    currentMonth: s.current_month,
+    saldoConta: Number(s.saldo_conta),
+    saldoContaAtualizadoEm: s.saldo_atualizado_em,
+    saldoCarryOver: Number(s.saldo_carry_over) || 0,
+    saldoCarryMes: s.saldo_carry_mes || null,
+  };
+}
+
+function defaultSettings() {
+  return {
+    currentMonth: monthKeyOf(new Date()),
+    saldoConta: 0,
+    saldoContaAtualizadoEm: null,
+    saldoCarryOver: 0,
+    saldoCarryMes: null,
+  };
+}
+
+function getSaldoFluxoMes(receitas, despesas, emprestimos, mes) {
+  const r = getReceitasMes(receitas, mes);
+  const d = getDespesasMes(despesas, emprestimos, mes);
+  return { total: r.total - d.total, receitas: r, despesas: d };
+}
+
+function getSaldoMesAjustado(receitas, despesas, emprestimos, mes, settings) {
+  const { total: fluxo } = getSaldoFluxoMes(receitas, despesas, emprestimos, mes);
+  const carryOver = settings.saldoCarryMes === mes ? (Number(settings.saldoCarryOver) || 0) : 0;
+  return { fluxo, carryOver, total: fluxo + carryOver };
+}
+
+function computeCarryOnRollover(data, settings, mesReal) {
+  // MVP: carry apenas do mês imediatamente anterior ao mês real (mesmo se vários meses foram pulados).
+  const mesFechado = addMonths(mesReal, -1);
+  const { total: sobra } = getSaldoFluxoMes(
+    data.receitas,
+    data.despesas,
+    data.emprestimos,
+    mesFechado,
+  );
+  const hasSaldoConta = Boolean(settings.saldoContaAtualizadoEm) && Number(settings.saldoConta) > 0;
+  if (hasSaldoConta && sobra > 0) {
+    return { saldoCarryOver: sobra, saldoCarryMes: mesReal };
+  }
+  return { saldoCarryOver: 0, saldoCarryMes: null };
+}
+
 function getCategoriaBreakdown(itens) {
   const map = {};
   itens.forEach((d) => {
@@ -298,28 +346,37 @@ function buildAlerts(receitas, despesas, orcamentos) {
   return alerts;
 }
 
-function buildForecastStrip(despesas, emprestimos, receitas, currentMonth, n = 6) {
+function buildForecastStrip(despesas, emprestimos, receitas, currentMonth, n = 6, settings = null) {
   const nodes = [];
   for (let i = 0; i < n; i++) {
     const mes = addMonths(currentMonth, i);
     const r = getReceitasMes(receitas, mes).total;
     const d = getDespesasMes(despesas, emprestimos, mes).total;
-    const saldo = r - d;
-    nodes.push({ mes, mesLabel: monthLabelShort(mes), receitas: r, despesas: d, saldo });
+    const fluxo = r - d;
+    const carryOver = settings && settings.saldoCarryMes === mes
+      ? (Number(settings.saldoCarryOver) || 0)
+      : 0;
+    const saldo = fluxo + carryOver;
+    nodes.push({ mes, mesLabel: monthLabelShort(mes), receitas: r, despesas: d, saldo, fluxo, carryOver });
   }
   return nodes;
 }
 
-function buildPrevisao(despesas, emprestimos, receitas, startMonth, meses = 12) {
-  let cumulativo = 0;
+function buildPrevisao(despesas, emprestimos, receitas, startMonth, meses = 12, settings = null) {
+  const hasSaldoConta = settings && settings.saldoContaAtualizadoEm;
+  let cumulativo = hasSaldoConta ? Number(settings.saldoConta) || 0 : 0;
   const rows = [];
   for (let i = 0; i < meses; i++) {
     const mes = addMonths(startMonth, i);
     const r = getReceitasMes(receitas, mes).total;
     const d = getDespesasMes(despesas, emprestimos, mes).total;
-    const saldo = r - d;
-    cumulativo += saldo;
-    rows.push({ mes, receitas: r, despesas: d, saldo, cumulativo });
+    const fluxo = r - d;
+    const carryOver = settings && settings.saldoCarryMes === mes
+      ? (Number(settings.saldoCarryOver) || 0)
+      : 0;
+    const saldo = fluxo + carryOver;
+    cumulativo += fluxo;
+    rows.push({ mes, receitas: r, despesas: d, saldo, fluxo, carryOver, cumulativo });
   }
   return rows;
 }
@@ -349,19 +406,10 @@ async function loadUserFinanceData(userId) {
     orcamentos[row.categoria] = Number(row.limite_mensal);
   });
 
-  let settings = {
-    currentMonth: monthKeyOf(new Date()),
-    saldoConta: 0,
-    saldoContaAtualizadoEm: null,
-  };
+  let settings = defaultSettings();
 
   if (settingsRes.rows.length > 0) {
-    const s = settingsRes.rows[0];
-    settings = {
-      currentMonth: s.current_month,
-      saldoConta: Number(s.saldo_conta),
-      saldoContaAtualizadoEm: s.saldo_atualizado_em,
-    };
+    settings = mapSettingsRow(settingsRes.rows[0]);
   }
 
   return { receitas, despesas, emprestimos, pagamentos, orcamentos, settings };
@@ -381,17 +429,22 @@ async function ensureSettings(userId) {
 
 async function getSettings(userId) {
   await ensureSettings(userId);
-  const { settings } = await loadUserFinanceData(userId);
+  const data = await loadUserFinanceData(userId);
   const mesReal = monthKeyOf(new Date());
-  if (settings.currentMonth < mesReal) {
+  if (data.settings.currentMonth < mesReal) {
+    const carry = computeCarryOnRollover(data, data.settings, mesReal);
     const pool = getPool();
     await pool.query(
-      'UPDATE user_settings SET current_month = $1 WHERE user_id = $2',
-      [mesReal, userId],
+      `UPDATE user_settings
+       SET current_month = $1, saldo_carry_over = $2, saldo_carry_mes = $3
+       WHERE user_id = $4`,
+      [mesReal, carry.saldoCarryOver, carry.saldoCarryMes, userId],
     );
-    settings.currentMonth = mesReal;
+    data.settings.currentMonth = mesReal;
+    data.settings.saldoCarryOver = carry.saldoCarryOver;
+    data.settings.saldoCarryMes = carry.saldoCarryMes;
   }
-  return settings;
+  return data.settings;
 }
 
 async function updateSettings(userId, { currentMonth, saldoConta }) {
@@ -1095,8 +1148,20 @@ async function getDashboard(userId, mes) {
   const recAnt = getReceitasMes(data.receitas, mesAnt);
   const despAnt = getDespesasMes(data.despesas, data.emprestimos, mesAnt);
 
-  const saldo = receitas.total - despesas.total;
-  const saldoAnt = recAnt.total - despAnt.total;
+  const saldoAjustado = getSaldoMesAjustado(
+    data.receitas,
+    data.despesas,
+    data.emprestimos,
+    currentMonth,
+    data.settings,
+  );
+  const saldoAntAjustado = getSaldoMesAjustado(
+    data.receitas,
+    data.despesas,
+    data.emprestimos,
+    mesAnt,
+    data.settings,
+  );
   const saldoDevedor = getSaldoDevedorTotal(data.despesas, data.emprestimos, currentMonth);
   const catBreakdown = getCategoriaBreakdown(despesas.itens);
   const alerts = buildAlerts(receitas, despesas, data.orcamentos);
@@ -1118,6 +1183,7 @@ async function getDashboard(userId, mes) {
     data.receitas,
     currentMonth,
     6,
+    data.settings,
   );
 
   let pagoVal = 0;
@@ -1166,9 +1232,11 @@ async function getDashboard(userId, mes) {
         delta: pctDelta(despesas.total, despAnt.total),
       },
       saldo: {
-        total: saldo,
-        delta: pctDelta(saldo, saldoAnt),
-        positivo: saldo >= 0,
+        fluxo: saldoAjustado.fluxo,
+        carryOver: saldoAjustado.carryOver,
+        total: saldoAjustado.total,
+        delta: pctDelta(saldoAjustado.total, saldoAntAjustado.total),
+        positivo: saldoAjustado.total >= 0,
       },
       saldoDevedor: { total: saldoDevedor },
     },
@@ -1194,7 +1262,14 @@ async function getPrevisao(userId, { mes, meses = 12 } = {}) {
   return {
     mesInicio: startMonth,
     meses: n,
-    rows: buildPrevisao(data.despesas, data.emprestimos, data.receitas, startMonth, n),
+    rows: buildPrevisao(
+      data.despesas,
+      data.emprestimos,
+      data.receitas,
+      startMonth,
+      n,
+      data.settings,
+    ),
   };
 }
 
@@ -1249,9 +1324,8 @@ async function getReportCharts(userId, mes) {
     data.receitas,
     currentMonth,
     6,
+    data.settings,
   );
-
-  const despesas = getDespesasMes(data.despesas, data.emprestimos, currentMonth);
   const catBreakdown = getCategoriaBreakdown(despesas.itens);
   const categorias = catBreakdown.slice(0, 6).map(([label, valor]) => ({ label, valor }));
   if (catBreakdown.length > 6) {
@@ -1286,6 +1360,8 @@ module.exports = {
   loadUserFinanceData,
   getSettings,
   updateSettings,
+  getSaldoMesAjustado,
+  getSaldoFluxoMes,
   listReceitas,
   createReceita,
   updateReceita,

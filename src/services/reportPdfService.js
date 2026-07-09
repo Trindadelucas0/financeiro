@@ -91,7 +91,9 @@ function drawKpiCards(doc, report) {
     {
       label: 'Saldo',
       value: formatBRL(k.saldo.total),
-      delta: k.saldo.delta?.text || '',
+      delta: k.saldo.carryOver > 0
+        ? `inclui ${formatBRL(k.saldo.carryOver)} do mês anterior`
+        : (k.saldo.delta?.text || ''),
       color: k.saldo.positivo ? COLORS.green : COLORS.red,
     },
     {

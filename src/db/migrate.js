@@ -21,7 +21,9 @@ CREATE TABLE IF NOT EXISTS user_settings (
   user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   current_month VARCHAR(7) NOT NULL DEFAULT to_char(NOW(), 'YYYY-MM'),
   saldo_conta NUMERIC(14, 2) NOT NULL DEFAULT 0,
-  saldo_atualizado_em TIMESTAMPTZ
+  saldo_atualizado_em TIMESTAMPTZ,
+  saldo_carry_over NUMERIC(14, 2) NOT NULL DEFAULT 0,
+  saldo_carry_mes VARCHAR(7)
 );
 
 CREATE TABLE IF NOT EXISTS receitas (
@@ -302,6 +304,9 @@ CREATE TABLE IF NOT EXISTS email_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_email_log_sent ON email_log(sent_at);
+
+ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS saldo_carry_over NUMERIC(14, 2) NOT NULL DEFAULT 0;
+ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS saldo_carry_mes VARCHAR(7);
 `;
 
 async function backfillUsernames(client) {

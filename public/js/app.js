@@ -16,6 +16,8 @@
     orcamentos: {},
     saldoConta: 0,
     saldoContaAtualizadoEm: null,
+    saldoCarryOver: 0,
+    saldoCarryMes: null,
     saldoMovimentos: [],
   });
 
@@ -149,6 +151,9 @@
     if (!s) return;
     if (s.saldoConta !== undefined) state.saldoConta = Number(s.saldoConta) || 0;
     if (s.saldoContaAtualizadoEm !== undefined) state.saldoContaAtualizadoEm = s.saldoContaAtualizadoEm;
+    if (s.currentMonth) state.currentMonth = s.currentMonth;
+    if (s.saldoCarryOver !== undefined) state.saldoCarryOver = Number(s.saldoCarryOver) || 0;
+    if (s.saldoCarryMes !== undefined) state.saldoCarryMes = s.saldoCarryMes || null;
     updateMaisBadge();
     updateHeroSaldoConta();
   }
@@ -318,6 +323,8 @@
         if (settingsData.currentMonth) state.currentMonth = settingsData.currentMonth;
         state.saldoConta = Number(settingsData.saldoConta) || 0;
         state.saldoContaAtualizadoEm = settingsData.saldoContaAtualizadoEm || null;
+        state.saldoCarryOver = Number(settingsData.saldoCarryOver) || 0;
+        state.saldoCarryMes = settingsData.saldoCarryMes || null;
       }
       state.saldoMovimentos = movimentosRes.movimentos || [];
     } catch (err) {
@@ -697,6 +704,14 @@ async function exportPDF() {
     return { total: itens.reduce(function (s, d) { return s + d.valorEfetivo; }, 0), itens: itens };
   }
 
+  function getSaldoMesAjustado(mes) {
+    const receitas = getReceitasMes(mes);
+    const despesas = getDespesasMes(mes);
+    const fluxo = receitas.total - despesas.total;
+    const carryOver = state.saldoCarryMes === mes ? (Number(state.saldoCarryOver) || 0) : 0;
+    return { fluxo: fluxo, carryOver: carryOver, total: fluxo + carryOver };
+  }
+
   function buildCompromissosTabPayload(mes) {
     const data = getCompromissosMes(mes);
     let pagoVal = 0;
@@ -816,19 +831,24 @@ async function exportPDF() {
 
   function buildForecastSeries(fromMonth, months) {
     const nodes = [];
-    let cumulativo = 0;
+    const hasSaldoConta = !!state.saldoContaAtualizadoEm;
+    let cumulativo = hasSaldoConta ? (Number(state.saldoConta) || 0) : 0;
     for (let i = 0; i < months; i++) {
       const mes = addMonths(fromMonth, i);
       const r = getReceitasMes(mes).total;
       const d = getDespesasMes(mes).total;
-      const saldo = r - d;
-      cumulativo += saldo;
+      const fluxo = r - d;
+      const carryOver = state.saldoCarryMes === mes ? (Number(state.saldoCarryOver) || 0) : 0;
+      const saldo = fluxo + carryOver;
+      cumulativo += fluxo;
       nodes.push({
         mes: mes,
         mesLabel: monthLabelShort(mes),
         receitas: r,
         despesas: d,
         saldo: saldo,
+        fluxo: fluxo,
+        carryOver: carryOver,
         isCurrent: i === 0,
         cumulativo: cumulativo,
         isNegative: saldo < 0,
@@ -1102,7 +1122,7 @@ async function exportPDF() {
     const mes = state.currentMonth;
     const receitas = getReceitasMes(mes);
     const despesas = getDespesasMes(mes);
-    const saldo = receitas.total - despesas.total;
+    const saldoAdj = getSaldoMesAjustado(mes);
     const tab = activeTab();
 
     const pageTitle = document.getElementById('heroPageTitle');
@@ -1131,13 +1151,13 @@ async function exportPDF() {
     const heroSaldo = document.getElementById('heroSaldo');
     const heroMonthMeta = document.getElementById('heroMonthMeta');
     if (heroSaldo) {
-      heroSaldo.textContent = formatBRL(saldo);
-      heroSaldo.classList.toggle('neg', saldo < 0);
+      heroSaldo.textContent = formatBRL(saldoAdj.total);
+      heroSaldo.classList.toggle('neg', saldoAdj.total < 0);
     }
     const heroInner = document.querySelector('.hero-balance-inner');
     if (heroInner) {
-      heroInner.classList.toggle('positive', saldo >= 0);
-      heroInner.classList.toggle('negative', saldo < 0);
+      heroInner.classList.toggle('positive', saldoAdj.total >= 0);
+      heroInner.classList.toggle('negative', saldoAdj.total < 0);
     }
     if (heroMonthMeta) {
       heroMonthMeta.innerHTML =
@@ -1570,8 +1590,8 @@ async function exportPDF() {
     const despesas = getDespesasMes(mes);
     const recAnt = getReceitasMes(mesAnt);
     const despAnt = getDespesasMes(mesAnt);
-    const saldo = receitas.total - despesas.total;
-    const saldoAnt = recAnt.total - despAnt.total;
+    const saldoAdj = getSaldoMesAjustado(mes);
+    const saldoAntAdj = getSaldoMesAjustado(mesAnt);
     const saldoDevedor = getSaldoDevedorTotal();
     const alerts = buildAlerts(receitas, despesas);
     const vencProx = getVencimentosProximos();
@@ -1584,15 +1604,20 @@ async function exportPDF() {
     });
     const pctPago = despesas.total > 0 ? (pagoVal / despesas.total * 100) : 0;
     const atrasados = buildAtrasados();
-    const taxaPoup = receitas.total > 0 ? ((saldo / receitas.total) * 100).toFixed(0) : null;
+    const taxaPoup = receitas.total > 0 ? ((saldoAdj.fluxo / receitas.total) * 100).toFixed(0) : null;
     const chartPayload = buildDashboardChartPayload();
     const catsDonut = chartPayload.categorias;
 
     const saldoContaHtml = renderSaldoContaCard(mes);
 
-    const saldoSub = saldo >= 0
-      ? 'sobra no mês' + (taxaPoup !== null ? ' · ' + taxaPoup + '% da receita' : '')
-      : 'déficit no mês';
+    let saldoSub;
+    if (saldoAdj.carryOver > 0) {
+      saldoSub = 'inclui ' + formatBRL(saldoAdj.carryOver) + ' do mês anterior';
+    } else if (saldoAdj.fluxo >= 0) {
+      saldoSub = 'sobra no mês' + (taxaPoup !== null ? ' · ' + taxaPoup + '% da receita' : '');
+    } else {
+      saldoSub = 'déficit no mês';
+    }
 
     const fluxoEmpty = chartPayload.fluxo.every(function (p) { return p.receitas === 0 && p.despesas === 0; });
 
@@ -1601,10 +1626,10 @@ async function exportPDF() {
       saldoContaHtml +
       renderPendingBills(mes) +
       '<div class="dash-bento dash-reveal">' +
-        '<div class="kpi kpi-hero kpi-saldo ' + (saldo >= 0 ? 'positive' : 'negative') + '">' +
+        '<div class="kpi kpi-hero kpi-saldo ' + (saldoAdj.total >= 0 ? 'positive' : 'negative') + '">' +
           '<span class="label">Saldo do mês</span>' +
-          '<div class="value mono">' + formatBRL(saldo) + '</div>' +
-          renderDelta(saldo, saldoAnt, false) +
+          '<div class="value mono">' + formatBRL(saldoAdj.total) + '</div>' +
+          renderDelta(saldoAdj.total, saldoAntAdj.total, false) +
           '<div class="sub">' + saldoSub + '</div>' +
           '<div class="kpi-sparkline kpi-sparkline-hero"><canvas id="sparkSaldo" aria-hidden="true"></canvas></div>' +
         '</div>' +
@@ -1634,7 +1659,7 @@ async function exportPDF() {
         (fluxoEmpty
           ? renderChartEmpty('Cadastre receitas e despesas para ver o gráfico.', true)
           : '<div class="chart-wrap chart-fluxo"><canvas id="chartFluxo" role="img" aria-label="Gráfico de receitas e despesas"></canvas></div>' +
-            renderFluxoFooter(receitas, despesas, recAnt, despAnt, saldo, saldoAnt)) +
+            renderFluxoFooter(receitas, despesas, recAnt, despAnt, saldoAdj.total, saldoAntAdj.total)) +
       '</div>' +
       '<div class="grid-3 dash-reveal">' +
         '<div class="panel">' +
