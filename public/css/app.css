@@ -695,6 +695,284 @@ a.brand:focus-visible {
   }
 }
 
+/* —— Dashboard HUD cockpit —— */
+.dash-cockpit-page .topbar {
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+
+.dash-cockpit-page .topbar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--ice-glow), transparent);
+  pointer-events: none;
+}
+
+.dash-cockpit-page .month-switcher {
+  border-color: oklch(0.94 0.008 240 / 0.22);
+  background: oklch(0.11 0.01 240);
+}
+
+.dash-cockpit-page .month-switcher .label {
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 12px;
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.dash-cockpit-page .desktop-tabs {
+  margin-bottom: 18px;
+}
+
+.dash-cockpit {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.hud-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  background: oklch(0.11 0.008 240);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+}
+
+.hud-status::before,
+.hud-status::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: var(--ice);
+  border-style: solid;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.hud-status::before {
+  top: 4px;
+  left: 4px;
+  border-width: 1px 0 0 1px;
+}
+
+.hud-status::after {
+  bottom: 4px;
+  right: 4px;
+  border-width: 0 1px 1px 0;
+}
+
+.hud-status-item {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.hud-k {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.hud-v {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.hud-status-item--ok .hud-v { color: var(--green); }
+.hud-status-item--warn .hud-v { color: var(--red); }
+
+.hud-status-sep {
+  color: var(--muted-2);
+  opacity: 0.5;
+  font-size: 11px;
+  user-select: none;
+}
+
+.hud-frame {
+  position: relative;
+  border-radius: 12px;
+}
+
+.hud-frame::before,
+.hud-frame::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-color: oklch(0.94 0.008 240 / 0.45);
+  border-style: solid;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.hud-frame::before {
+  top: 6px;
+  left: 6px;
+  border-width: 1px 0 0 1px;
+}
+
+.hud-frame::after {
+  bottom: 6px;
+  right: 6px;
+  border-width: 0 1px 1px 0;
+}
+
+.hud-panel.panel {
+  background: linear-gradient(165deg, oklch(0.14 0.01 240) 0%, var(--surface) 42%);
+}
+
+.hud-core {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(240px, 0.7fr);
+  gap: 16px;
+  margin-bottom: 20px;
+  align-items: stretch;
+}
+
+.hud-core > .dash-bento {
+  margin-bottom: 0;
+}
+
+.hud-telemetry {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.hud-telemetry-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.hud-telemetry-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.hud-telemetry-grid {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+}
+
+.hud-tel-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid oklch(0.24 0 0 / 0.7);
+}
+
+.hud-tel-row:last-child { border-bottom: none; }
+
+.hud-tel-row dt {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.hud-tel-row dd {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.hud-risk {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 16px;
+  margin-bottom: 20px;
+  align-items: stretch;
+}
+
+.hud-risk > .pending-bills,
+.hud-risk > .saldo-conta-box,
+.hud-risk > .saldo-extrato-panel,
+.hud-risk > .panel-overdue {
+  margin-bottom: 0;
+  height: 100%;
+}
+
+.hud-risk > .panel-overdue {
+  grid-column: 1 / -1;
+}
+
+.hud-risk .saldo-extrato-panel .extrato-list,
+.hud-risk .saldo-conta-box .extrato-list {
+  max-height: 180px;
+}
+
+.hud-risk .pending-scroll {
+  max-height: 260px;
+}
+
+.hud-triad .panel-head h3 {
+  font-size: 14px;
+}
+
+@media (max-width: 1100px) {
+  .hud-core {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 960px) {
+  .hud-risk {
+    grid-template-columns: 1fr;
+  }
+
+  .hud-risk > .panel-overdue {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .hud-frame::before,
+  .hud-frame::after,
+  .hud-status::before,
+  .hud-status::after {
+    display: none;
+  }
+
+  .hud-status {
+    padding: 8px 12px;
+    gap: 4px 8px;
+  }
+}
+
 .filter-bar {
   display: flex;
   gap: 10px;
@@ -794,6 +1072,26 @@ a.brand:focus-visible {
 }
 
 .alert .ic { font-size: 15px; flex-shrink: 0; }
+.alert-mark {
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 1px;
+  flex-shrink: 0;
+  background: var(--amber);
+  box-shadow: 0 0 0 2px oklch(0.82 0.14 85 / 0.25);
+}
+.alert-mark--warn {
+  background: var(--red);
+  box-shadow: 0 0 0 2px oklch(0.72 0.14 25 / 0.25);
+}
+.alert-mark--due {
+  background: var(--ice);
+  box-shadow: 0 0 0 2px var(--ice-glow);
+}
+.alert-mark--info {
+  background: var(--amber);
+}
 .alert-empty { color: var(--muted-2); font-size: 13px; padding: 8px 0; }
 
 .alert-action {
@@ -2572,7 +2870,22 @@ dialog.modal .type-picker.duracao-picker {
 @media (prefers-reduced-motion: reduce) {
   .sk-block { animation: none; background: var(--surface-2); }
 }
-.sk-pending { height: 200px; margin-bottom: 20px; }
+.sk-status { height: 40px; margin-bottom: 16px; border-radius: 10px; }
+.sk-core {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(240px, 0.7fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.sk-core .sk-bento { margin-bottom: 0; }
+.sk-telemetry { min-height: 220px; }
+.sk-risk {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.sk-pending { height: 200px; margin-bottom: 0; }
 .sk-bento {
   display: grid;
   grid-template-columns: 1.4fr 1fr;
@@ -2588,7 +2901,11 @@ dialog.modal .type-picker.duracao-picker {
 .sk-chart-wide { height: 280px; margin-bottom: 20px; }
 .sk-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
 .sk-panel { height: 220px; }
+@media (max-width: 1100px) {
+  .sk-core { grid-template-columns: 1fr; }
+}
 @media (max-width: 900px) {
+  .sk-risk { grid-template-columns: 1fr; }
   .sk-bento {
     grid-template-columns: 1fr 1fr;
     grid-template-rows: auto;

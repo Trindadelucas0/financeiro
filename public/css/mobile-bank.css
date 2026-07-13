@@ -632,6 +632,48 @@
   .layout-mobile-bank .panel-head h3,
   .layout-desktop .panel-head h3 { font-size: 14px; }
 
+  /* HUD cockpit — stack denso sem chrome pesado */
+  .layout-desktop .hud-core,
+  .layout-mobile-bank .hud-core {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .layout-desktop .hud-risk,
+  .layout-mobile-bank .hud-risk {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .layout-desktop .hud-telemetry,
+  .layout-mobile-bank .hud-telemetry {
+    padding: 14px 14px 12px;
+  }
+
+  .layout-desktop .hud-tel-row,
+  .layout-mobile-bank .hud-tel-row {
+    padding: 8px 0;
+  }
+
+  .layout-desktop .hud-status,
+  .layout-mobile-bank .hud-status {
+    margin-bottom: 12px;
+  }
+
+  .layout-desktop .hud-status .hud-status-item:nth-child(n+11),
+  .layout-mobile-bank .hud-status .hud-status-item:nth-child(n+11),
+  .layout-desktop .hud-status .hud-status-sep:nth-child(n+10),
+  .layout-mobile-bank .hud-status .hud-status-sep:nth-child(n+10) {
+    display: none;
+  }
+
+  .layout-desktop .hud-risk .pending-scroll,
+  .layout-mobile-bank .hud-risk .pending-scroll {
+    max-height: none;
+  }
+
   /* Hero já mostra o saldo — não repetir o KPI hero no telefone */
   .dash-bento--synced {
     grid-template-columns: 1fr 1fr;

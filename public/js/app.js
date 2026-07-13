@@ -1108,7 +1108,7 @@ async function exportPDF() {
     }
 
     return (
-      '<div class="panel chart-panel chart-panel-proj forecast-panel dash-reveal">' +
+      '<div class="panel chart-panel chart-panel-proj forecast-panel hud-panel hud-frame dash-reveal">' +
         '<div class="panel-head">' +
           '<div class="forecast-panel-title">' +
             '<h3>Projeção — próximos 6 meses</h3>' +
@@ -1406,13 +1406,20 @@ async function exportPDF() {
 
   function renderDashboardSkeleton() {
     return (
-      '<div class="dash-skeleton">' +
-        '<div class="sk-block sk-pending"></div>' +
-        '<div class="sk-bento">' +
-          '<div class="sk-block sk-hero"></div>' +
-          '<div class="sk-block sk-mini"></div>' +
-          '<div class="sk-block sk-mini"></div>' +
-          '<div class="sk-block sk-mini"></div>' +
+      '<div class="dash-skeleton dash-cockpit-skel">' +
+        '<div class="sk-block sk-status"></div>' +
+        '<div class="sk-core">' +
+          '<div class="sk-bento">' +
+            '<div class="sk-block sk-hero"></div>' +
+            '<div class="sk-block sk-mini"></div>' +
+            '<div class="sk-block sk-mini"></div>' +
+            '<div class="sk-block sk-mini"></div>' +
+          '</div>' +
+          '<div class="sk-block sk-telemetry"></div>' +
+        '</div>' +
+        '<div class="sk-risk">' +
+          '<div class="sk-block sk-pending"></div>' +
+          '<div class="sk-block sk-pending"></div>' +
         '</div>' +
         '<div class="sk-block sk-chart-wide"></div>' +
         '<div class="sk-grid-3">' +
@@ -1494,25 +1501,75 @@ async function exportPDF() {
     const alerts = [];
     if (despesas.total === 0 && receitas.total === 0) return alerts;
     const saldo = receitas.total - despesas.total;
-    if (saldo < 0) alerts.push({ level: 'danger', icon: '⚠', text: 'Déficit de ' + formatBRL(Math.abs(saldo)) + ' — despesas superam receitas.' });
-    else if (receitas.total > 0 && saldo / receitas.total < 0.1) alerts.push({ level: '', icon: '⚡', text: 'Margem apertada: sobra menos de 10% da receita.' });
+    if (saldo < 0) alerts.push({ level: 'danger', mark: 'warn', text: 'Déficit de ' + formatBRL(Math.abs(saldo)) + ' — despesas superam receitas.' });
+    else if (receitas.total > 0 && saldo / receitas.total < 0.1) alerts.push({ level: '', mark: 'info', text: 'Margem apertada: sobra menos de 10% da receita.' });
 
     Object.entries(state.orcamentos).forEach(function (entry) {
       const cat = entry[0];
       const lim = entry[1];
       if (!lim) return;
       const gasto = despesas.itens.filter(function (d) { return d.categoria === cat; }).reduce(function (s, d) { return s + d.valorEfetivo; }, 0);
-      if (gasto > lim) alerts.push({ level: 'danger', icon: '💸', text: cat + ': ' + formatBRL(gasto) + ' ultrapassou o orçamento de ' + formatBRL(lim) + '.' });
-      else if (gasto > lim * 0.85) alerts.push({ level: '', icon: '📊', text: cat + ': ' + ((gasto / lim) * 100).toFixed(0) + '% do orçamento mensal usado.' });
+      if (gasto > lim) alerts.push({ level: 'danger', mark: 'warn', text: cat + ': ' + formatBRL(gasto) + ' ultrapassou o orçamento de ' + formatBRL(lim) + '.' });
+      else if (gasto > lim * 0.85) alerts.push({ level: '', mark: 'info', text: cat + ': ' + ((gasto / lim) * 100).toFixed(0) + '% do orçamento mensal usado.' });
     });
 
     const variaveis = despesas.itens.filter(function (d) { return d.tipo === 'variavel' && d.formaPagamento === 'avista'; }).reduce(function (s, d) { return s + d.valorEfetivo; }, 0);
-    if (despesas.total > 0 && variaveis / despesas.total > 0.4) alerts.push({ level: '', icon: '📊', text: 'Gastos variáveis à vista são ' + (variaveis / despesas.total * 100).toFixed(0) + '% das despesas.' });
+    if (despesas.total > 0 && variaveis / despesas.total > 0.4) alerts.push({ level: '', mark: 'info', text: 'Gastos variáveis à vista são ' + (variaveis / despesas.total * 100).toFixed(0) + '% das despesas.' });
 
     const comprometido = despesas.itens.filter(function (d) { return d.formaPagamento === 'parcelado' || d.tipo === 'emprestimo'; }).reduce(function (s, d) { return s + d.valorEfetivo; }, 0);
-    if (receitas.total > 0 && comprometido / receitas.total > 0.3) alerts.push({ level: 'danger', icon: '🔒', text: (comprometido / receitas.total * 100).toFixed(0) + '% da receita comprometida com parcelas/empréstimos.' });
+    if (receitas.total > 0 && comprometido / receitas.total > 0.3) alerts.push({ level: 'danger', mark: 'warn', text: (comprometido / receitas.total * 100).toFixed(0) + '% da receita comprometida com parcelas/empréstimos.' });
 
     return alerts;
+  }
+
+  function renderHudStatus(opts) {
+    const alertCount = (opts.alertCount || 0) + (opts.vencCount || 0);
+    const alertCls = alertCount > 0 ? ' hud-status-item--warn' : ' hud-status-item--ok';
+    const pagoCls = opts.pctPago >= 100 ? ' hud-status-item--ok' : (opts.pendCount > 0 ? ' hud-status-item--warn' : '');
+    const poupTxt = opts.taxaPoup !== null ? opts.taxaPoup + '%' : '—';
+    const poupCls = opts.taxaPoup === null ? '' : (Number(opts.taxaPoup) >= 0 ? ' hud-status-item--ok' : ' hud-status-item--warn');
+    return (
+      '<div class="hud-status dash-reveal" role="status" aria-label="Telemetria do mês">' +
+        '<span class="hud-status-item"><span class="hud-k">SYS</span><span class="hud-v">ONLINE</span></span>' +
+        '<span class="hud-status-sep" aria-hidden="true">·</span>' +
+        '<span class="hud-status-item"><span class="hud-k">PERÍODO</span><span class="hud-v mono">' + esc(opts.mesLabel) + '</span></span>' +
+        '<span class="hud-status-sep" aria-hidden="true">·</span>' +
+        '<span class="hud-status-item' + alertCls + '"><span class="hud-k">ALERTAS</span><span class="hud-v mono">' + alertCount + '</span></span>' +
+        '<span class="hud-status-sep" aria-hidden="true">·</span>' +
+        '<span class="hud-status-item' + pagoCls + '"><span class="hud-k">PAGO</span><span class="hud-v mono">' + opts.pctPago.toFixed(0) + '%</span></span>' +
+        '<span class="hud-status-sep" aria-hidden="true">·</span>' +
+        '<span class="hud-status-item' + poupCls + '"><span class="hud-k">MARGEM</span><span class="hud-v mono">' + poupTxt + '</span></span>' +
+        '<span class="hud-status-sep" aria-hidden="true">·</span>' +
+        '<span class="hud-status-item"><span class="hud-k">DEVEDOR</span><span class="hud-v mono val-neg">' + formatBRL(opts.saldoDevedor) + '</span></span>' +
+      '</div>'
+    );
+  }
+
+  function renderHudTelemetry(opts) {
+    const fluxoCls = opts.fluxo >= 0 ? 'val-pos' : 'val-neg';
+    return (
+      '<div class="hud-telemetry hud-frame dash-reveal">' +
+        '<div class="hud-telemetry-head">' +
+          '<span class="hud-telemetry-title">Telemetria</span>' +
+          '<span class="panel-hint-pill">' + esc(opts.mesLabel) + '</span>' +
+        '</div>' +
+        '<dl class="hud-telemetry-grid">' +
+          '<div class="hud-tel-row"><dt>Fluxo do mês</dt><dd class="mono ' + fluxoCls + '">' + formatBRL(opts.fluxo) + '</dd></div>' +
+          '<div class="hud-tel-row"><dt>Carry-over</dt><dd class="mono">' + formatBRL(opts.carryOver) + '</dd></div>' +
+          '<div class="hud-tel-row"><dt>Receitas</dt><dd class="mono">' + opts.recCount + ' lanç.</dd></div>' +
+          '<div class="hud-tel-row"><dt>Despesas</dt><dd class="mono">' + opts.despCount + ' lanç.</dd></div>' +
+          '<div class="hud-tel-row"><dt>Pendente</dt><dd class="mono val-neg">' + formatBRL(opts.pendenteVal) + '</dd></div>' +
+          '<div class="hud-tel-row"><dt>Itens abertos</dt><dd class="mono">' + opts.pendCount + '</dd></div>' +
+          '<div class="hud-tel-row"><dt>Atrasados</dt><dd class="mono' + (opts.atrasadoCount > 0 ? ' val-neg' : '') + '">' + opts.atrasadoCount + '</dd></div>' +
+          '<div class="hud-tel-row"><dt>Venc. próximos</dt><dd class="mono">' + opts.vencCount + '</dd></div>' +
+        '</dl>' +
+      '</div>'
+    );
+  }
+
+  function renderAlertMark(mark) {
+    const cls = mark === 'warn' ? 'alert-mark alert-mark--warn' : (mark === 'due' ? 'alert-mark alert-mark--due' : 'alert-mark alert-mark--info');
+    return '<span class="' + cls + '" aria-hidden="true"></span>';
   }
 
   function renderSaldoExtratoPanel(mes, options) {
@@ -1523,7 +1580,7 @@ async function exportPDF() {
     const totalPend = pendentes.reduce(function (s, p) { return s + p.valor; }, 0);
     const projetado = state.saldoConta - totalPend;
     const valCls = state.saldoConta >= 0 ? 'pos' : 'neg';
-    const wrapCls = 'saldo-extrato-panel' + (options.asPanel ? ' panel account-balance-panel account-balance-panel--accent' : ' saldo-conta-box dash-reveal') + (hasSaldo ? '' : ' saldo-conta-box--empty') + (compactBalance ? ' saldo-extrato-panel--compact' : '');
+    const wrapCls = 'saldo-extrato-panel' + (options.asPanel ? ' panel account-balance-panel account-balance-panel--accent' : ' saldo-conta-box hud-frame') + (hasSaldo ? '' : ' saldo-conta-box--empty') + (compactBalance ? ' saldo-extrato-panel--compact' : '');
 
     const headHtml = options.asPanel
       ? '<div class="panel-head"><h3>Saldo em conta</h3><span class="hint">carteira — pagar diminui, entradas somam</span></div>'
@@ -1657,7 +1714,7 @@ async function exportPDF() {
       ? '<span class="panel-hint-pill pending-total">' + pendentes.length + ' · ' + formatBRL(totalPend) + '</span>'
       : '<span class="panel-hint-pill pending-ok">em dia</span>';
     return (
-      '<div class="panel pending-bills dash-reveal">' +
+      '<div class="panel pending-bills hud-frame">' +
         '<div class="panel-head">' +
           '<h3>Contas a pagar</h3>' +
           headMeta +
@@ -1736,7 +1793,7 @@ async function exportPDF() {
     if (!atrasados.length) return '';
     const totalAtraso = atrasados.reduce(function (s, a) { return s + a.valor; }, 0);
     return (
-      '<div class="panel panel-overdue dash-reveal">' +
+      '<div class="panel panel-overdue hud-frame">' +
         '<div class="panel-head">' +
           '<h3>Em atraso</h3>' +
           '<span class="panel-hint-pill pending-total">' + atrasados.length + ' · ' + formatBRL(totalAtraso) + '</span>' +
@@ -1789,8 +1846,7 @@ async function exportPDF() {
     const taxaPoup = receitas.total > 0 ? ((saldoAdj.fluxo / receitas.total) * 100).toFixed(0) : null;
     const chartPayload = buildDashboardChartPayload();
     const catsDonut = chartPayload.categorias;
-
-    const saldoContaHtml = renderSaldoContaCard(mes);
+    const mesLabel = monthLabelShort(mes);
 
     let saldoSub;
     let saldoLabel = 'Saldo do mês';
@@ -1815,51 +1871,92 @@ async function exportPDF() {
       ? '<p class="dash-saldo-note">Saldo do mês = carteira. Fluxo e Outros (ajustes) aparecem nos gráficos.</p>'
       : '';
 
+    const overdueHtml = renderOverduePanel(atrasados);
+    const alertsHtml =
+      vencProx.map(function (v) {
+        return (
+          '<div class="alert info">' +
+            renderAlertMark('due') +
+            '<span>' + esc(v.nome) + ' vence ' + (v.diff === 0 ? 'hoje' : v.diff === 1 ? 'amanhã' : 'em ' + v.diff + ' dias') + ' — ' + formatBRL(v.valor) + '</span>' +
+            '<button type="button" class="alert-action" onclick="togglePago(\'' + v.chave + '\')">marcar pago</button>' +
+          '</div>'
+        );
+      }).join('') +
+      (alerts.length === 0 && vencProx.length === 0
+        ? '<div class="alert-empty">Nenhum alerta neste mês.</div>'
+        : alerts.map(function (a) {
+            return '<div class="alert ' + a.level + '">' + renderAlertMark(a.mark) + '<span>' + a.text + '</span></div>';
+          }).join(''));
+
     return (
+      '<div class="dash-cockpit">' +
       renderRenewalDashboardBanner() +
-      '<div class="dash-top dash-reveal">' +
-        saldoContaHtml +
-        renderPendingBills(mes) +
+      renderHudStatus({
+        mesLabel: mesLabel,
+        alertCount: alerts.length,
+        vencCount: vencProx.length,
+        pctPago: pctPago,
+        pendCount: pendCount,
+        taxaPoup: taxaPoup,
+        saldoDevedor: saldoDevedor,
+      }) +
+      '<div class="hud-core">' +
+        '<div class="dash-bento dash-reveal' + (saldoAdj.usaSaldoConta ? ' dash-bento--synced' : '') + '">' +
+          '<div class="kpi kpi-hero kpi-saldo ' + (saldoAdj.total >= 0 ? 'positive' : 'negative') + '">' +
+            '<span class="label">' + saldoLabel + '</span>' +
+            '<div class="value mono">' + formatBRL(saldoAdj.total) + '</div>' +
+            saldoDeltaHtml +
+            '<div class="sub">' + saldoSub + '</div>' +
+            '<div class="kpi-sparkline kpi-sparkline-hero"><canvas id="sparkSaldo" aria-hidden="true"></canvas></div>' +
+          '</div>' +
+          '<div class="kpi kpi-mini accent-income">' +
+            '<span class="label">Receitas</span>' +
+            '<div class="value mono">' + formatBRL(receitas.total) + '</div>' +
+            renderDelta(receitas.total, recAnt.total, false) +
+            '<div class="sub">' + receitas.itens.length + ' lanç.</div>' +
+            '<div class="kpi-sparkline"><canvas id="sparkReceitas" aria-hidden="true"></canvas></div>' +
+          '</div>' +
+          '<div class="kpi kpi-mini accent-expense">' +
+            '<span class="label">Despesas</span>' +
+            '<div class="value mono">' + formatBRL(despesas.total) + '</div>' +
+            renderDelta(despesas.total, despAnt.total, true) +
+            '<div class="sub">' + despesas.itens.length + ' lanç.</div>' +
+            '<div class="kpi-sparkline"><canvas id="sparkDespesas" aria-hidden="true"></canvas></div>' +
+          '</div>' +
+          '<div class="kpi kpi-mini accent-debt">' +
+            '<span class="label">Saldo devedor</span>' +
+            '<div class="value mono">' + formatBRL(saldoDevedor) + '</div>' +
+            '<div class="sub">parcelas + empréstimos</div>' +
+            '<div class="kpi-sparkline"><canvas id="sparkDevedor" aria-hidden="true"></canvas></div>' +
+          '</div>' +
+        '</div>' +
+        renderHudTelemetry({
+          mesLabel: mesLabel,
+          fluxo: saldoAdj.fluxo,
+          carryOver: saldoAdj.carryOver || 0,
+          recCount: receitas.itens.length,
+          despCount: despesas.itens.length,
+          pendenteVal: pendenteVal,
+          pendCount: pendCount,
+          atrasadoCount: atrasados.length,
+          vencCount: vencProx.length,
+        }) +
       '</div>' +
       saldoNote +
-      '<div class="dash-bento dash-reveal' + (saldoAdj.usaSaldoConta ? ' dash-bento--synced' : '') + '">' +
-        '<div class="kpi kpi-hero kpi-saldo ' + (saldoAdj.total >= 0 ? 'positive' : 'negative') + '">' +
-          '<span class="label">' + saldoLabel + '</span>' +
-          '<div class="value mono">' + formatBRL(saldoAdj.total) + '</div>' +
-          saldoDeltaHtml +
-          '<div class="sub">' + saldoSub + '</div>' +
-          '<div class="kpi-sparkline kpi-sparkline-hero"><canvas id="sparkSaldo" aria-hidden="true"></canvas></div>' +
-        '</div>' +
-        '<div class="kpi kpi-mini accent-income">' +
-          '<span class="label">Receitas</span>' +
-          '<div class="value mono">' + formatBRL(receitas.total) + '</div>' +
-          renderDelta(receitas.total, recAnt.total, false) +
-          '<div class="sub">' + receitas.itens.length + ' lanç.</div>' +
-          '<div class="kpi-sparkline"><canvas id="sparkReceitas" aria-hidden="true"></canvas></div>' +
-        '</div>' +
-        '<div class="kpi kpi-mini accent-expense">' +
-          '<span class="label">Despesas</span>' +
-          '<div class="value mono">' + formatBRL(despesas.total) + '</div>' +
-          renderDelta(despesas.total, despAnt.total, true) +
-          '<div class="sub">' + despesas.itens.length + ' lanç.</div>' +
-          '<div class="kpi-sparkline"><canvas id="sparkDespesas" aria-hidden="true"></canvas></div>' +
-        '</div>' +
-        '<div class="kpi kpi-mini accent-debt">' +
-          '<span class="label">Saldo devedor</span>' +
-          '<div class="value mono">' + formatBRL(saldoDevedor) + '</div>' +
-          '<div class="sub">parcelas + empréstimos</div>' +
-          '<div class="kpi-sparkline"><canvas id="sparkDevedor" aria-hidden="true"></canvas></div>' +
-        '</div>' +
+      '<div class="hud-risk dash-reveal">' +
+        renderSaldoContaCard(mes) +
+        renderPendingBills(mes) +
+        overdueHtml +
       '</div>' +
-      '<div class="panel chart-panel chart-panel-fluxo dash-reveal">' +
+      '<div class="panel chart-panel chart-panel-fluxo hud-panel hud-frame dash-reveal">' +
         '<div class="panel-head"><h3>Fluxo mensal</h3><span class="panel-hint-pill">7 meses</span></div>' +
         (fluxoEmpty
           ? renderChartEmpty('Cadastre receitas e despesas para ver o gráfico.', true)
           : '<div class="chart-wrap chart-fluxo"><canvas id="chartFluxo" role="img" aria-label="Gráfico de receitas e despesas"></canvas></div>' +
             renderFluxoFooter(receitas, despesas, recAnt, despAnt, saldoAdj.fluxo, saldoAntAdj.fluxo)) +
       '</div>' +
-      '<div class="grid-3 dash-reveal">' +
-        '<div class="panel">' +
+      '<div class="grid-3 hud-triad dash-reveal">' +
+        '<div class="panel hud-panel hud-frame">' +
           '<div class="panel-head"><h3>Pagamentos do mês</h3><span class="panel-hint-pill">' + pctPago.toFixed(0) + '% pago</span></div>' +
           (pagoVal === 0 && pendenteVal === 0
             ? renderChartEmpty('Sem despesas neste mês.', true)
@@ -1870,24 +1967,20 @@ async function exportPDF() {
               '</div>' +
               '<div class="chart-caption">Pendente: <b class="mono val-neg">' + formatBRL(pendenteVal) + '</b> · ' + pendCount + ' item(ns)</div>') +
         '</div>' +
-        '<div class="panel">' +
-          '<div class="panel-head"><h3>Gastos por categoria</h3><span class="panel-hint-pill">' + monthLabelShort(mes) + '</span></div>' +
+        '<div class="panel hud-panel hud-frame">' +
+          '<div class="panel-head"><h3>Gastos por categoria</h3><span class="panel-hint-pill">' + mesLabel + '</span></div>' +
           (catsDonut.length === 0
             ? renderChartEmpty('Sem despesas neste mês.', true)
             : '<div class="chart-wrap chart-donut"><canvas id="chartCategorias" role="img" aria-label="Gráfico de categorias"></canvas></div>' +
               renderDonutLegend(catsDonut)) +
         '</div>' +
-        '<div class="panel"><div class="panel-head"><h3>Alertas</h3><span class="panel-hint-pill">' + monthLabelShort(mes) + '</span></div>' +
-          vencProx.map(function (v) {
-            return '<div class="alert info"><span class="ic">📅</span><span>' + esc(v.nome) + ' vence ' + (v.diff === 0 ? 'hoje' : v.diff === 1 ? 'amanhã' : 'em ' + v.diff + ' dias') + ' — ' + formatBRL(v.valor) + '</span><button type="button" class="alert-action" onclick="togglePago(\'' + v.chave + '\')">marcar pago</button></div>';
-          }).join('') +
-          (alerts.length === 0 && vencProx.length === 0 ? '<div class="alert-empty">Nenhum alerta neste mês.</div>' : alerts.map(function (a) {
-            return '<div class="alert ' + a.level + '"><span class="ic">' + a.icon + '</span><span>' + a.text + '</span></div>';
-          }).join('')) +
+        '<div class="panel hud-panel hud-frame">' +
+          '<div class="panel-head"><h3>Alertas</h3><span class="panel-hint-pill">' + mesLabel + '</span></div>' +
+          alertsHtml +
         '</div>' +
       '</div>' +
-      renderOverduePanel(atrasados) +
-      renderForecastPanel(chartPayload.forecast)
+      renderForecastPanel(chartPayload.forecast) +
+      '</div>'
     );
   }
 

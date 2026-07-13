@@ -4,7 +4,7 @@
   <%- include('../partials/head') %>
   <title><%= typeof title !== 'undefined' ? title + ' · ' : '' %>Home Finanças</title>
 </head>
-<body class="layout-desktop<%= page === 'perfil' ? ' page-perfil' : '' %>" data-page="<%= page %>">
+<body class="layout-desktop<%= page === 'perfil' ? ' page-perfil' : '' %><%= page === 'dashboard' ? ' dash-cockpit-page' : '' %>" data-page="<%= page %>">
   <div class="app">
     <header class="topbar">
       <div class="brand">
