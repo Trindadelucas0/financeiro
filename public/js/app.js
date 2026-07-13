@@ -618,6 +618,8 @@ async function exportPDF() {
     inputEl.value = '';
   }
 
+  let comprovanteDialogAtual = null;
+
   function verComprovante(chave) {
     const pg = getPg(chave);
     if (!pg.comprovanteDataUrl) return;
@@ -631,7 +633,182 @@ async function exportPDF() {
     return /\.(png|jpe?g|gif|webp|bmp)$/i.test(n);
   }
 
+  function isComprovantePdf(dataUrl, nome) {
+    const src = String(dataUrl || '');
+    if (/^data:application\/pdf/i.test(src)) return true;
+    return /\.pdf$/i.test(String(nome || ''));
+  }
+
+  function comprovantePdfFileName(nome) {
+    const base = String(nome || 'comprovante').replace(/\.[^.]+$/, '').trim() || 'comprovante';
+    return base + '.pdf';
+  }
+
+  function dataUrlToUint8Array(dataUrl) {
+    const parts = String(dataUrl || '').split(',');
+    if (parts.length < 2) throw new Error('Arquivo inválido');
+    const bin = atob(parts[1]);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  function triggerBlobDownload(blob, fileName) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+  }
+
+  function buildJpegPdfBytes(jpegBytes, width, height) {
+    const encoder = new TextEncoder();
+    const objects = [];
+
+    function pushObj(bytes) {
+      objects.push(bytes);
+      return objects.length;
+    }
+
+    pushObj(encoder.encode('<< /Type /Catalog /Pages 2 0 R >>'));
+    pushObj(encoder.encode('<< /Type /Pages /Kids [3 0 R] /Count 1 >>'));
+    pushObj(encoder.encode(
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + width + ' ' + height + '] ' +
+      '/Resources << /XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>'
+    ));
+
+    const contentStream = 'q ' + width + ' 0 0 ' + height + ' 0 0 cm /Im0 Do Q\n';
+    const contentBytes = encoder.encode(contentStream);
+    const contentHead = encoder.encode('<< /Length ' + contentBytes.length + ' >>\nstream\n');
+    const contentTail = encoder.encode('\nendstream');
+    const contentObj = new Uint8Array(contentHead.length + contentBytes.length + contentTail.length);
+    contentObj.set(contentHead, 0);
+    contentObj.set(contentBytes, contentHead.length);
+    contentObj.set(contentTail, contentHead.length + contentBytes.length);
+    pushObj(contentObj);
+
+    const imgHead = encoder.encode(
+      '<< /Type /XObject /Subtype /Image /Width ' + width + ' /Height ' + height +
+      ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + jpegBytes.length +
+      ' >>\nstream\n'
+    );
+    const imgTail = encoder.encode('\nendstream');
+    const imgObj = new Uint8Array(imgHead.length + jpegBytes.length + imgTail.length);
+    imgObj.set(imgHead, 0);
+    imgObj.set(jpegBytes, imgHead.length);
+    imgObj.set(imgTail, imgHead.length + jpegBytes.length);
+    pushObj(imgObj);
+
+    const header = encoder.encode('%PDF-1.4\n');
+    const chunks = [header];
+    const offsets = [0];
+    let offset = header.length;
+
+    for (let i = 0; i < objects.length; i++) {
+      const objHeader = encoder.encode((i + 1) + ' 0 obj\n');
+      const objFooter = encoder.encode('\nendobj\n');
+      offsets.push(offset);
+      chunks.push(objHeader, objects[i], objFooter);
+      offset += objHeader.length + objects[i].length + objFooter.length;
+    }
+
+    const xrefStart = offset;
+    let xref = 'xref\n0 ' + (objects.length + 1) + '\n';
+    xref += '0000000000 65535 f \n';
+    for (let i = 1; i <= objects.length; i++) {
+      xref += String(offsets[i]).padStart(10, '0') + ' 00000 n \n';
+    }
+    xref +=
+      'trailer\n<< /Size ' + (objects.length + 1) + ' /Root 1 0 R >>\n' +
+      'startxref\n' + xrefStart + '\n%%EOF\n';
+
+    chunks.push(encoder.encode(xref));
+    let total = 0;
+    chunks.forEach(function (c) { total += c.length; });
+    const out = new Uint8Array(total);
+    let pos = 0;
+    chunks.forEach(function (c) {
+      out.set(c, pos);
+      pos += c.length;
+    });
+    return out;
+  }
+
+  function imageDataUrlToJpegPdfBlob(dataUrl) {
+    return new Promise(function (resolve, reject) {
+      const img = new Image();
+      img.onload = function () {
+        try {
+          const maxSide = 1600;
+          let w = img.naturalWidth || img.width;
+          let h = img.naturalHeight || img.height;
+          if (!w || !h) throw new Error('Imagem inválida');
+          const scale = Math.min(1, maxSide / Math.max(w, h));
+          w = Math.max(1, Math.round(w * scale));
+          h = Math.max(1, Math.round(h * scale));
+
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) throw new Error('Canvas indisponível');
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+
+          const jpegDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+          const jpegBytes = dataUrlToUint8Array(jpegDataUrl);
+          const pdfBytes = buildJpegPdfBytes(jpegBytes, w, h);
+          resolve(new Blob([pdfBytes], { type: 'application/pdf' }));
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.onerror = function () { reject(new Error('Não foi possível ler a imagem do comprovante')); };
+      img.src = dataUrl;
+    });
+  }
+
+  async function baixarComprovantePdf() {
+    const pg = comprovanteDialogAtual;
+    if (!pg || !pg.comprovanteDataUrl) {
+      toast('Nenhum comprovante para baixar', 'error');
+      return;
+    }
+    const fileName = comprovantePdfFileName(pg.comprovanteNome);
+    const btn = document.getElementById('comprovanteDownloadPdfBtn');
+    const original = btn ? btn.textContent : '';
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = 'Gerando…';
+    }
+    try {
+      let blob;
+      if (isComprovantePdf(pg.comprovanteDataUrl, pg.comprovanteNome)) {
+        blob = new Blob([dataUrlToUint8Array(pg.comprovanteDataUrl)], { type: 'application/pdf' });
+      } else if (isComprovanteImage(pg.comprovanteDataUrl, pg.comprovanteNome)) {
+        blob = await imageDataUrlToJpegPdfBlob(pg.comprovanteDataUrl);
+      } else {
+        throw new Error('Formato de comprovante não suportado para PDF');
+      }
+      triggerBlobDownload(blob, fileName);
+      toast('PDF baixado');
+    } catch (err) {
+      toast(err.message || 'Falha ao baixar PDF', 'error');
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = original || 'Baixar PDF';
+      }
+    }
+  }
+
   function openComprovanteDialog(pg) {
+    comprovanteDialogAtual = pg;
     const dialog = document.getElementById('comprovanteDialog');
     const body = document.getElementById('comprovanteDialogBody');
     const title = document.getElementById('comprovanteDialogTitle');
@@ -644,19 +821,18 @@ async function exportPDF() {
       w.document.write('<title>' + esc(pg.comprovanteNome || 'Comprovante') + '</title><iframe src="' + pg.comprovanteDataUrl + '" style="width:100%;height:100vh;border:none;"></iframe>');
       return;
     }
-    if (title) title.textContent = pg.comprovanteNome || 'Comprovante';
+    if (title) title.textContent = 'Comprovante';
     const isImage = isComprovanteImage(pg.comprovanteDataUrl, pg.comprovanteNome);
     if (isImage) {
       body.innerHTML =
         '<div class="comprovante-viewer-frame">' +
-          '<img src="' + pg.comprovanteDataUrl + '" alt="' + esc(pg.comprovanteNome || 'Comprovante') + '" class="comprovante-viewer-img">' +
+          '<img src="' + pg.comprovanteDataUrl + '" alt="Comprovante" class="comprovante-viewer-img">' +
         '</div>';
     } else {
       body.innerHTML =
         '<div class="comprovante-viewer-frame comprovante-viewer-frame--pdf">' +
-          '<iframe src="' + pg.comprovanteDataUrl + '" title="' + esc(pg.comprovanteNome || 'Comprovante') + '" class="comprovante-viewer-iframe"></iframe>' +
-        '</div>' +
-        '<a class="btn btn-ghost btn-sm comprovante-open-tab" href="' + pg.comprovanteDataUrl + '" target="_blank" rel="noopener">Abrir em nova aba</a>';
+          '<iframe src="' + pg.comprovanteDataUrl + '" title="Comprovante" class="comprovante-viewer-iframe"></iframe>' +
+        '</div>';
     }
     if (typeof dialog.showModal === 'function') dialog.showModal();
     else dialog.setAttribute('open', '');
@@ -669,6 +845,7 @@ async function exportPDF() {
     else dialog.removeAttribute('open');
     const body = document.getElementById('comprovanteDialogBody');
     if (body) body.innerHTML = '';
+    comprovanteDialogAtual = null;
   }
 
   function renderPagoCell(entidade, id, mes) {
@@ -692,20 +869,10 @@ async function exportPDF() {
 
     let comprovanteBlock;
     if (pg.comprovanteDataUrl) {
-      const isImage = isComprovanteImage(pg.comprovanteDataUrl, pg.comprovanteNome);
-      const thumb = isImage
-        ? '<button type="button" class="comprovante-thumb-btn" onclick="verComprovante(\'' + chave + '\')" aria-label="Visualizar comprovante">' +
-            '<img src="' + pg.comprovanteDataUrl + '" alt="" class="comprovante-thumb">' +
-          '</button>'
-        : '';
       comprovanteBlock =
         '<div class="comprovante-block">' +
-          '<div class="comprovante-block-head">' +
-            '<span class="comprovante-block-label">Comprovante</span>' +
-            (pg.comprovanteNome ? '<span class="comprovante-block-name">' + esc(pg.comprovanteNome) + '</span>' : '') +
-          '</div>' +
-          thumb +
-          '<button type="button" class="btn btn-ghost btn-sm comprovante-view-btn" onclick="verComprovante(\'' + chave + '\')">Visualizar comprovante</button>' +
+          '<span class="comprovante-block-label">Comprovante anexado</span>' +
+          '<button type="button" class="btn btn-ghost btn-sm comprovante-view-btn" onclick="verComprovante(\'' + chave + '\')">Visualizar</button>' +
         '</div>';
     } else {
       comprovanteBlock =
@@ -1071,13 +1238,28 @@ async function exportPDF() {
     );
   }
 
-  function renderForecastStrip(forecast) {
+  function renderForecastStrip(forecast, mode) {
+    const isRail = mode === 'rail';
+    const stripCls = 'forecast-strip' + (isRail ? ' forecast-strip--rail' : '');
+    const ariaLabel = isRail ? 'Selecionar mês da previsão' : 'Saldo projetado por mês';
     return (
-      '<div class="forecast-strip" role="list" aria-label="Saldo projetado por mês">' +
+      '<div class="' + stripCls + '" role="list" aria-label="' + ariaLabel + '">' +
         forecast.map(function (f, i) {
           const pos = f.saldo >= 0;
           const nodeCls = 'fc-node' + (f.isCurrent ? ' fc-node--current' : '');
           const dotCls = 'fc-dot ' + (pos ? 'pos' : 'neg');
+          if (isRail) {
+            const monthTxt = esc(f.mesLabel) + (f.isCurrent ? ' · atual' : '');
+            return (
+              '<button type="button" class="' + nodeCls + '" role="listitem" data-mes-index="' + i + '"' +
+                ' style="animation-delay:' + (i * 60) + 'ms"' +
+                ' onclick="scrollToPrevisaoMonth(' + i + ')"' +
+                ' aria-label="' + monthTxt + ', saldo ' + formatBRL(f.saldo) + '">' +
+                '<span class="' + dotCls + '" aria-hidden="true"></span>' +
+                '<span class="fc-month">' + monthTxt + '</span>' +
+              '</button>'
+            );
+          }
           const valCls = 'fc-value mono ' + (pos ? 'pos' : 'neg');
           return (
             '<div class="' + nodeCls + '" role="listitem" style="animation-delay:' + (i * 60) + 'ms">' +
@@ -1089,6 +1271,37 @@ async function exportPDF() {
           );
         }).join('') +
       '</div>'
+    );
+  }
+
+  function scrollToPrevisaoMonth(index) {
+    const card = document.getElementById('previsao-card-' + index);
+    if (!card) return;
+    document.querySelectorAll('.previsao-panel .m-card--focused').forEach(function (el) {
+      el.classList.remove('m-card--focused');
+    });
+    card.classList.add('m-card--focused');
+    const reduced = typeof prefersReducedMotion === 'function' && prefersReducedMotion();
+    card.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'nearest' });
+    const railNode = document.querySelector('.forecast-strip--rail [data-mes-index="' + index + '"]');
+    if (railNode && railNode.scrollIntoView) {
+      railNode.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', inline: 'center', block: 'nearest' });
+    }
+  }
+
+  function renderPrevisaoTrendChip(row, prevRow) {
+    if (!prevRow) {
+      return '<span class="previsao-trend previsao-trend--flat mono" aria-hidden="true">—</span>';
+    }
+    const delta = row.saldo - prevRow.saldo;
+    if (Math.abs(delta) < 0.005) {
+      return '<span class="previsao-trend previsao-trend--flat mono">—</span>';
+    }
+    const up = delta > 0;
+    return (
+      '<span class="previsao-trend ' + (up ? 'previsao-trend--up' : 'previsao-trend--down') + ' mono">' +
+        (up ? '↑ ' : '↓ ') + formatBRL(Math.abs(delta)) +
+      '</span>'
     );
   }
 
@@ -2354,14 +2567,24 @@ async function exportPDF() {
       );
     }
 
+    const isMobilePrevisao = window.matchMedia('(max-width: 768px)').matches;
+    const stripMode = isMobilePrevisao ? 'rail' : 'full';
+
     const tableRows = forecast.map(function (row) {
       return '<tr><td>' + monthLabel(row.mes) + '</td><td class="mono val-pos">' + formatBRL(row.receitas) + '</td><td class="mono val-neg">' + formatBRL(row.despesas) + '</td><td class="mono ' + (row.saldo >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(row.saldo) + '</td><td class="mono ' + (row.cumulativo >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(row.cumulativo) + '</td></tr>';
     }).join('');
 
-    const mobileCards = forecast.map(function (row) {
+    const mobileCards = forecast.map(function (row, i) {
+      const prev = i > 0 ? forecast[i - 1] : null;
       return (
-        '<div class="m-card' + (row.isCurrent ? ' m-card--current' : '') + '">' +
-          '<div class="m-card-head"><strong>' + monthLabel(row.mes) + (row.isCurrent ? ' · atual' : '') + '</strong><span class="mono ' + (row.saldo >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(row.saldo) + '</span></div>' +
+        '<div class="m-card' + (row.isCurrent ? ' m-card--current' : '') + '" id="previsao-card-' + i + '">' +
+          '<div class="m-card-head">' +
+            '<strong>' + monthLabel(row.mes) + (row.isCurrent ? ' · atual' : '') + '</strong>' +
+            '<span class="m-card-head-meta">' +
+              renderPrevisaoTrendChip(row, prev) +
+              '<span class="mono ' + (row.saldo >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(row.saldo) + '</span>' +
+            '</span>' +
+          '</div>' +
           '<div class="m-card-row"><span>Receitas</span><span class="mono val-pos">' + formatBRL(row.receitas) + '</span></div>' +
           '<div class="m-card-row"><span>Despesas</span><span class="mono val-neg">' + formatBRL(row.despesas) + '</span></div>' +
           '<div class="m-card-row"><span>Acumulado</span><span class="mono ' + (row.cumulativo >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(row.cumulativo) + '</span></div>' +
@@ -2392,7 +2615,7 @@ async function exportPDF() {
         '<div class="panel-head"><h3>Resumo da projeção</h3><span class="panel-hint-pill">12 meses</span></div>' +
         summaryHtml +
         '<div class="chart-wrap chart-proj"><canvas id="chartPrevisao" role="img" aria-label="Gráfico de previsão"></canvas></div>' +
-        renderForecastStrip(forecast) +
+        renderForecastStrip(forecast, stripMode) +
         '<div class="table-wrap previsao-table-wrap">' +
           '<table><thead><tr><th>Mês</th><th>Receitas</th><th>Despesas</th><th>Saldo</th><th>Acumulado</th></tr></thead><tbody>' + tableRows + '</tbody></table>' +
           '<div class="mobile-cards">' + mobileCards + '</div>' +
@@ -3034,7 +3257,9 @@ async function exportPDF() {
   window.togglePago = togglePago;
   window.anexarComprovante = anexarComprovante;
   window.verComprovante = verComprovante;
+  window.baixarComprovantePdf = baixarComprovantePdf;
   window.closeComprovanteDialog = closeComprovanteDialog;
+  window.scrollToPrevisaoMonth = scrollToPrevisaoMonth;
   window.exportPDF = exportPDF;
   window.salvarOrcamentos = salvarOrcamentos;
   window.clearOrcamentoCategoria = clearOrcamentoCategoria;

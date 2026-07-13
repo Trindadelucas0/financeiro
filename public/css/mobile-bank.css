@@ -789,4 +789,18 @@
   .layout-mobile-bank dialog.modal .field {
     margin-bottom: 10px;
   }
+
+  /* Previsão — trilho + cards no shell mobile */
+  .layout-desktop .previsao-panel .forecast-strip--rail,
+  .layout-mobile-bank .previsao-panel .forecast-strip--rail {
+    margin-left: -4px;
+    margin-right: -4px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  .layout-desktop .previsao-panel .mobile-cards,
+  .layout-mobile-bank .previsao-panel .mobile-cards {
+    padding-bottom: 8px;
+  }
 }
