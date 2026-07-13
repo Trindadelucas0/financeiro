@@ -15,6 +15,7 @@
     "test:emails": "node scripts/test-emails.js",
     "notify:send": "node scripts/send-notifications.js",
     "notify:subscription-emails": "node scripts/send-subscription-emails.js",
+    "notify:weekly-reports": "node scripts/send-weekly-reports.js",
     "notify:greetings": "node scripts/send-greeting-notifications.js",
     "build:css": "tailwindcss -i ./src/styles/landing.css -o ./public/css/landing.css --minify",
     "generate:landing-shots": "node scripts/generate-landing-shots.js",

@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const { getPool } = require('../db/pool');
 const { usernameFromEmail, ensureUniqueUsername } = require('../utils/username');
+const { isValidEmail, normalizeEmail } = require('../utils/email');
 const { generateTempPassword } = require('../utils/tempPassword');
 const { mapUser } = require('./profileService');
 const subscriptionService = require('./subscriptionService');
@@ -74,12 +75,18 @@ async function listManualClients() {
 
 async function createManualClient({ nome, email, password, accessGrant = 'trial' }) {
   const pool = getPool();
-  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const normalizedEmail = normalizeEmail(email);
   const trimmedNome = String(nome || '').trim();
   const grantType = accessGrant === 'lifetime' ? 'lifetime' : 'trial';
 
   if (!trimmedNome || !normalizedEmail) {
     const err = new Error('nome e email são obrigatórios');
+    err.status = 400;
+    throw err;
+  }
+
+  if (!isValidEmail(normalizedEmail)) {
+    const err = new Error('Informe um e-mail válido');
     err.status = 400;
     throw err;
   }

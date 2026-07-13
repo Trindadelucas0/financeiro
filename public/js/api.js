@@ -105,8 +105,22 @@
           const params = new URLSearchParams(window.location.search);
           const onPaywall = path === '/app/perfil' || path.startsWith('/app/perfil');
           const checkoutFlow = params.get('checkout') === 'success';
+          const msg = (isJson && payload && payload.error)
+            ? payload.error
+            : 'Sua assinatura expirou. Renove o acesso Pro para continuar.';
+
+          document.dispatchEvent(new CustomEvent('finance:subscription-required', {
+            detail: { message: msg, code: code },
+          }));
+
           if (!onPaywall && !checkoutFlow) {
-            window.location.href = '/app/perfil?assinatura=expirada';
+            try {
+              sessionStorage.setItem('finance_subscription_toast', msg);
+            } catch (e) { /* ignore */ }
+            // Delay so toast/banner can render before navigation wipes the page
+            setTimeout(function () {
+              window.location.href = '/app/perfil?assinatura=expirada';
+            }, 900);
           }
         }
       }

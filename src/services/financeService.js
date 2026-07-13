@@ -96,6 +96,7 @@ function mapPagamento(row) {
     dataHora: row.data_hora,
     comprovanteNome: row.comprovante_nome,
     comprovanteDataUrl: row.comprovante_data,
+    valorEfetivo: row.valor_efetivo != null ? Number(row.valor_efetivo) : null,
   };
 }
 
@@ -194,6 +195,7 @@ function mapSettingsRow(s) {
     saldoContaAtualizadoEm: s.saldo_atualizado_em,
     saldoCarryOver: Number(s.saldo_carry_over) || 0,
     saldoCarryMes: s.saldo_carry_mes || null,
+    lastRolloverMonth: s.last_rollover_month || null,
   };
 }
 
@@ -204,7 +206,23 @@ function defaultSettings() {
     saldoContaAtualizadoEm: null,
     saldoCarryOver: 0,
     saldoCarryMes: null,
+    lastRolloverMonth: null,
   };
+}
+
+function isValidMonthKey(mes) {
+  if (!mes || typeof mes !== 'string') return false;
+  if (!/^\d{4}-\d{2}$/.test(mes)) return false;
+  const mm = Number(mes.slice(5, 7));
+  return mm >= 1 && mm <= 12;
+}
+
+function assertValidMonthKey(mes) {
+  if (!isValidMonthKey(mes)) {
+    const err = new Error('Mês inválido. Use o formato YYYY-MM.');
+    err.status = 400;
+    throw err;
+  }
 }
 
 function getSaldoFluxoMes(receitas, despesas, emprestimos, mes) {
@@ -220,17 +238,38 @@ function getSaldoMesAjustado(receitas, despesas, emprestimos, mes, settings) {
 }
 
 function computeCarryOnRollover(data, settings, mesReal) {
-  // MVP: carry apenas do mês imediatamente anterior ao mês real (mesmo se vários meses foram pulados).
-  const mesFechado = addMonths(mesReal, -1);
-  const { total: sobra } = getSaldoFluxoMes(
-    data.receitas,
-    data.despesas,
-    data.emprestimos,
-    mesFechado,
-  );
+  // Soma sobras positivas de cada mês fechado entre last_rollover+1 e mesReal-1.
+  // Déficits não reduzem o carry. Sem last_rollover: só o mês imediatamente anterior.
   const hasSaldoConta = Boolean(settings.saldoContaAtualizadoEm) && Number(settings.saldoConta) > 0;
-  if (hasSaldoConta && sobra > 0) {
-    return { saldoCarryOver: sobra, saldoCarryMes: mesReal };
+  if (!hasSaldoConta) {
+    return { saldoCarryOver: 0, saldoCarryMes: null };
+  }
+
+  const lastRollover = settings.lastRolloverMonth;
+  const months = [];
+  if (!lastRollover) {
+    months.push(addMonths(mesReal, -1));
+  } else {
+    let cursor = addMonths(lastRollover, 1);
+    while (cursor <= addMonths(mesReal, -1)) {
+      months.push(cursor);
+      cursor = addMonths(cursor, 1);
+    }
+  }
+
+  let soma = 0;
+  months.forEach((mes) => {
+    const { total: fluxo } = getSaldoFluxoMes(
+      data.receitas,
+      data.despesas,
+      data.emprestimos,
+      mes,
+    );
+    if (fluxo > 0) soma += fluxo;
+  });
+
+  if (soma > 0) {
+    return { saldoCarryOver: soma, saldoCarryMes: mesReal };
   }
   return { saldoCarryOver: 0, saldoCarryMes: null };
 }
@@ -427,29 +466,55 @@ async function ensureSettings(userId) {
 
 /* ============ SETTINGS ============ */
 
-async function getSettings(userId) {
+/**
+ * Aplica carry na virada do calendário sem impedir navegação para meses passados.
+ * Atualiza last_rollover_month + carry; só avança current_month se o usuário
+ * estava no mês "ao vivo" da última virada (não se navegou para o histórico).
+ */
+async function ensureMonthRollover(userId) {
   await ensureSettings(userId);
   const data = await loadUserFinanceData(userId);
   const mesReal = monthKeyOf(new Date());
-  if (data.settings.currentMonth < mesReal) {
-    const carry = computeCarryOnRollover(data, data.settings, mesReal);
-    const pool = getPool();
-    await pool.query(
-      `UPDATE user_settings
-       SET current_month = $1, saldo_carry_over = $2, saldo_carry_mes = $3
-       WHERE user_id = $4`,
-      [mesReal, carry.saldoCarryOver, carry.saldoCarryMes, userId],
-    );
-    data.settings.currentMonth = mesReal;
-    data.settings.saldoCarryOver = carry.saldoCarryOver;
-    data.settings.saldoCarryMes = carry.saldoCarryMes;
+  const lastRollover = data.settings.lastRolloverMonth;
+
+  if (lastRollover && lastRollover >= mesReal) {
+    return data.settings;
   }
+
+  const carry = computeCarryOnRollover(data, data.settings, mesReal);
+  const wasOnLiveMonth = !lastRollover || data.settings.currentMonth === lastRollover;
+  const newCurrentMonth = wasOnLiveMonth ? mesReal : data.settings.currentMonth;
+
+  const pool = getPool();
+  await pool.query(
+    `UPDATE user_settings
+     SET last_rollover_month = $1,
+         saldo_carry_over = $2,
+         saldo_carry_mes = $3,
+         current_month = $4
+     WHERE user_id = $5`,
+    [mesReal, carry.saldoCarryOver, carry.saldoCarryMes, newCurrentMonth, userId],
+  );
+
+  data.settings.lastRolloverMonth = mesReal;
+  data.settings.saldoCarryOver = carry.saldoCarryOver;
+  data.settings.saldoCarryMes = carry.saldoCarryMes;
+  data.settings.currentMonth = newCurrentMonth;
   return data.settings;
+}
+
+async function getSettings(userId) {
+  return ensureMonthRollover(userId);
 }
 
 async function updateSettings(userId, { currentMonth, saldoConta }) {
   await ensureSettings(userId);
+  await ensureMonthRollover(userId);
   const pool = getPool();
+
+  if (currentMonth !== undefined) {
+    assertValidMonthKey(currentMonth);
+  }
 
   if (saldoConta !== undefined) {
     const client = await pool.connect();
@@ -489,7 +554,7 @@ async function updateSettings(userId, { currentMonth, saldoConta }) {
       }
 
       await client.query('COMMIT');
-      const settings = await getSettings(userId);
+      const { settings } = await loadUserFinanceData(userId);
       return { settings, movimento };
     } catch (err) {
       await client.query('ROLLBACK');
@@ -520,7 +585,7 @@ async function updateSettings(userId, { currentMonth, saldoConta }) {
     values,
   );
 
-  const settings = await getSettings(userId);
+  const { settings } = await loadUserFinanceData(userId);
   return { settings, movimento: null };
 }
 
@@ -997,8 +1062,10 @@ async function upsertPagamento(userId, { entidade, itemId, mes, pago, comprovant
     throw err;
   }
 
+  assertValidMonthKey(mes);
+
   if (comprovanteDataUrl && comprovanteDataUrl.length > 3 * 1024 * 1024) {
-    const err = new Error('Comprovante excede limite de 2MB');
+    const err = new Error('Comprovante excede limite de 3MB');
     err.status = 400;
     throw err;
   }
@@ -1011,16 +1078,22 @@ async function upsertPagamento(userId, { entidade, itemId, mes, pago, comprovant
     await lockSaldoConta(userId, client);
 
     const { rows: existingRows } = await client.query(
-      'SELECT pago FROM pagamentos WHERE user_id = $1 AND entidade = $2 AND item_id = $3 AND mes = $4',
+      'SELECT pago, valor_efetivo FROM pagamentos WHERE user_id = $1 AND entidade = $2 AND item_id = $3 AND mes = $4',
       [userId, entidade, itemId, mes],
     );
     const wasPaid = existingRows.length > 0 && existingRows[0].pago === true;
+    const valorSnapshot = existingRows.length > 0 && existingRows[0].valor_efetivo != null
+      ? Number(existingRows[0].valor_efetivo)
+      : null;
 
     if (pago === false) {
       await assertPasswordIfPaid(userId, { entidade, itemId, mes, password });
       let movimento = null;
       if (wasPaid && afetaSaldo) {
-        const valor = await getValorEfetivoPagamento(userId, entidade, itemId, mes);
+        let valor = valorSnapshot;
+        if (valor == null || valor <= 0) {
+          valor = await getValorEfetivoPagamento(userId, entidade, itemId, mes);
+        }
         if (valor > 0) {
           const delta = entidade === 'receita' ? -valor : valor;
           await adjustSaldoConta(userId, delta, client);
@@ -1048,17 +1121,18 @@ async function upsertPagamento(userId, { entidade, itemId, mes, pago, comprovant
     }
 
     let movimento = null;
+    let valorPago = valorSnapshot;
     if (afetaSaldo && !wasPaid) {
-      const valor = await getValorEfetivoPagamento(userId, entidade, itemId, mes);
-      if (valor > 0) {
-        const delta = entidade === 'receita' ? valor : -valor;
+      valorPago = await getValorEfetivoPagamento(userId, entidade, itemId, mes);
+      if (valorPago > 0) {
+        const delta = entidade === 'receita' ? valorPago : -valorPago;
         await adjustSaldoConta(userId, delta, client);
         const saldoApos = await getSaldoContaAtual(userId, client);
         const nome = await getNomePagamento(userId, entidade, itemId);
         const isReceita = entidade === 'receita';
         movimento = await registrarMovimentoSaldo(userId, {
           tipo: isReceita ? 'entrada' : 'pagamento',
-          valor: isReceita ? valor : -valor,
+          valor: isReceita ? valorPago : -valorPago,
           saldoApos,
           descricao: isReceita ? `Recebimento · ${nome}` : `Pagamento · ${nome}`,
           referenciaEntidade: entidade,
@@ -1066,19 +1140,30 @@ async function upsertPagamento(userId, { entidade, itemId, mes, pago, comprovant
           referenciaMes: mes,
         }, client);
       }
+    } else if (valorPago == null) {
+      valorPago = await getValorEfetivoPagamento(userId, entidade, itemId, mes);
     }
 
     const { rows } = await client.query(
-      `INSERT INTO pagamentos (user_id, entidade, item_id, mes, pago, data_hora, comprovante_nome, comprovante_data)
-       VALUES ($1, $2, $3, $4, TRUE, NOW(), $5, $6)
+      `INSERT INTO pagamentos (user_id, entidade, item_id, mes, pago, data_hora, comprovante_nome, comprovante_data, valor_efetivo)
+       VALUES ($1, $2, $3, $4, TRUE, NOW(), $5, $6, $7)
        ON CONFLICT (user_id, entidade, item_id, mes)
        DO UPDATE SET
          pago = TRUE,
          data_hora = COALESCE(pagamentos.data_hora, NOW()),
          comprovante_nome = COALESCE(EXCLUDED.comprovante_nome, pagamentos.comprovante_nome),
-         comprovante_data = COALESCE(EXCLUDED.comprovante_data, pagamentos.comprovante_data)
+         comprovante_data = COALESCE(EXCLUDED.comprovante_data, pagamentos.comprovante_data),
+         valor_efetivo = COALESCE(pagamentos.valor_efetivo, EXCLUDED.valor_efetivo)
        RETURNING *`,
-      [userId, entidade, itemId, mes, comprovanteNome || null, comprovanteDataUrl || null],
+      [
+        userId,
+        entidade,
+        itemId,
+        mes,
+        comprovanteNome || null,
+        comprovanteDataUrl || null,
+        valorPago != null && valorPago > 0 ? valorPago : null,
+      ],
     );
 
     await client.query('COMMIT');
@@ -1139,6 +1224,7 @@ async function updateOrcamentos(userId, orcamentosMap) {
 /* ============ DASHBOARD / PREVISAO / RELATORIO ============ */
 
 async function getDashboard(userId, mes) {
+  await ensureMonthRollover(userId);
   const data = await loadUserFinanceData(userId);
   const currentMonth = mes || data.settings.currentMonth;
   const mesAnt = addMonths(currentMonth, -1);
@@ -1256,6 +1342,7 @@ async function getDashboard(userId, mes) {
 }
 
 async function getPrevisao(userId, { mes, meses = 12 } = {}) {
+  await ensureMonthRollover(userId);
   const data = await loadUserFinanceData(userId);
   const startMonth = mes || data.settings.currentMonth;
   const n = Math.min(Math.max(Number(meses) || 12, 1), 24);
@@ -1274,6 +1361,7 @@ async function getPrevisao(userId, { mes, meses = 12 } = {}) {
 }
 
 async function getMesItemsForReport(userId, mes) {
+  await ensureMonthRollover(userId);
   const data = await loadUserFinanceData(userId);
   const currentMonth = mes || data.settings.currentMonth;
   const receitas = getReceitasMes(data.receitas, currentMonth);
@@ -1301,6 +1389,7 @@ async function getMesItemsForReport(userId, mes) {
 }
 
 async function getReportCharts(userId, mes) {
+  await ensureMonthRollover(userId);
   const data = await loadUserFinanceData(userId);
   const currentMonth = mes || data.settings.currentMonth;
 
@@ -1360,6 +1449,7 @@ module.exports = {
   loadUserFinanceData,
   getSettings,
   updateSettings,
+  ensureMonthRollover,
   getSaldoMesAjustado,
   getSaldoFluxoMes,
   listReceitas,

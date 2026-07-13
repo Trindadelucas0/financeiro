@@ -231,14 +231,29 @@
     if (str == null) return null;
     var s = String(str).trim();
     if (!s) return null;
-    if (s.indexOf(',') !== -1) {
+    s = s.replace(/[^\d.,]/g, '');
+    if (!s) return null;
+
+    var hasComma = s.indexOf(',') !== -1;
+    var hasDot = s.indexOf('.') !== -1;
+
+    if (hasComma) {
+      // BR: 1.500,50 or 1500,50
       s = s.replace(/\./g, '').replace(',', '.');
-    } else {
-      s = s.replace(/\./g, '');
+    } else if (hasDot) {
+      var parts = s.split('.');
+      if (parts.length === 2 && parts[1].length > 0 && parts[1].length <= 2) {
+        // Decimal: 1.50 → 1.50
+        s = parts[0] + '.' + parts[1];
+      } else {
+        // Thousands: 1.500 or 1.500.000 → 1500 / 1500000
+        s = s.replace(/\./g, '');
+      }
     }
-    var n = Number(s.replace(/[^\d.]/g, ''));
+
+    var n = Number(s);
     if (!Number.isFinite(n)) return null;
-    return Math.max(0, n);
+    return Math.max(0, Math.round(n * 100) / 100);
   }
 
   function formatMoneyInputValue(value) {

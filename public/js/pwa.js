@@ -57,4 +57,13 @@
   };
 
   init();
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', function (event) {
+      var data = event.data || {};
+      if (data.type === 'NOTIFICATION_NAVIGATE' && data.url) {
+        window.location.href = data.url;
+      }
+    });
+  }
 })();

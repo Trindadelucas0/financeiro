@@ -88,6 +88,70 @@ function reportPdfTemplate({ nome, mesLabel, appUrl }) {
   };
 }
 
+function formatBRLEmail(v) {
+  return Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function weeklySummaryTemplate({
+  nome,
+  mesLabel,
+  appUrl,
+  summary,
+}) {
+  const name = firstName(nome);
+  const dashboardUrl = `${appUrl}/app/dashboard`;
+  const s = summary || {};
+  const carryNote = s.carryOver > 0
+    ? ` <span style="color:#7b8a99;">(inclui ${esc(formatBRLEmail(s.carryOver))} do mês anterior)</span>`
+    : '';
+
+  const bodyHtml = `
+    <p style="margin:0 0 16px;">Olá, <strong style="color:#f3f7fb;">${esc(name)}</strong>.</p>
+    <p style="margin:0 0 16px;">Aqui está o resumo das suas contas de <strong style="color:#f3f7fb;">${esc(mesLabel)}</strong>. O PDF completo vai em anexo.</p>
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:0 0 16px;background:#0d1218;border:1px solid #243041;border-radius:12px;">
+      <tr>
+        <td style="padding:14px 16px;font-size:13px;color:#7b8a99;">Receitas</td>
+        <td style="padding:14px 16px;font-size:15px;color:#4ade80;text-align:right;font-family:Consolas,Monaco,monospace;">${esc(formatBRLEmail(s.receitas))}</td>
+      </tr>
+      <tr>
+        <td style="padding:14px 16px;font-size:13px;color:#7b8a99;border-top:1px solid #243041;">Despesas</td>
+        <td style="padding:14px 16px;font-size:15px;color:#f87171;text-align:right;font-family:Consolas,Monaco,monospace;border-top:1px solid #243041;">${esc(formatBRLEmail(s.despesas))}</td>
+      </tr>
+      <tr>
+        <td style="padding:14px 16px;font-size:13px;color:#7b8a99;border-top:1px solid #243041;">Saldo do mês</td>
+        <td style="padding:14px 16px;font-size:15px;color:#f3f7fb;text-align:right;font-family:Consolas,Monaco,monospace;border-top:1px solid #243041;">${esc(formatBRLEmail(s.saldo))}${carryNote}</td>
+      </tr>
+      <tr>
+        <td style="padding:14px 16px;font-size:13px;color:#7b8a99;border-top:1px solid #243041;">Pago / pendente</td>
+        <td style="padding:14px 16px;font-size:14px;color:#c5d0db;text-align:right;border-top:1px solid #243041;">${esc(String(Math.round(s.pctPago || 0)))}% pago · ${esc(formatBRLEmail(s.pendenteVal))} pendente</td>
+      </tr>
+      <tr>
+        <td style="padding:14px 16px;font-size:13px;color:#7b8a99;border-top:1px solid #243041;">Em atraso</td>
+        <td style="padding:14px 16px;font-size:14px;color:#fbbf24;text-align:right;border-top:1px solid #243041;">${esc(String(s.atrasadosCount || 0))} · ${esc(formatBRLEmail(s.atrasadosTotal))}</td>
+      </tr>
+      ${s.saldoContaConfigured
+        ? `<tr>
+        <td style="padding:14px 16px;font-size:13px;color:#7b8a99;border-top:1px solid #243041;">Saldo em conta</td>
+        <td style="padding:14px 16px;font-size:15px;color:#f3f7fb;text-align:right;font-family:Consolas,Monaco,monospace;border-top:1px solid #243041;">${esc(formatBRLEmail(s.saldoConta))}</td>
+      </tr>`
+        : ''}
+    </table>
+    <p style="margin:0;">Abra o app para marcar pagamentos, ajustar orçamentos e acompanhar a previsão.</p>`;
+
+  return {
+    subject: `Resumo das contas — ${mesLabel}`,
+    preheader: `Receitas ${formatBRLEmail(s.receitas)} · Despesas ${formatBRLEmail(s.despesas)} · Saldo ${formatBRLEmail(s.saldo)}`,
+    html: renderEmailLayout({
+      preheader: `Resumo financeiro de ${mesLabel}`,
+      title: 'Resumo das contas',
+      bodyHtml,
+      ctaLabel: 'Abrir dashboard',
+      ctaUrl: dashboardUrl,
+      appUrl,
+    }),
+  };
+}
+
 function subscriptionExpiredTemplate({
   nome,
   appUrl,
@@ -122,12 +186,13 @@ function subscriptionExpiredTemplate({
   };
 }
 
-const EMAIL_LAYOUTS = ['credentials', 'welcome', 'reportPdf', 'subscriptionExpired'];
+const EMAIL_LAYOUTS = ['credentials', 'welcome', 'reportPdf', 'subscriptionExpired', 'weeklySummary'];
 
 module.exports = {
   EMAIL_LAYOUTS,
   credentialsTemplate,
   welcomeTemplate,
   reportPdfTemplate,
+  weeklySummaryTemplate,
   subscriptionExpiredTemplate,
 };

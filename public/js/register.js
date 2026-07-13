@@ -8,6 +8,12 @@
 
   const { apiFetch, setSession, getToken } = window.FinanceAPI;
 
+  function isValidEmail(value) {
+    const email = String(value || '').trim().toLowerCase();
+    if (!email || email.length > 254) return false;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+  }
+
   async function register(nome, email, password) {
     const data = await apiFetch('/api/auth/register', {
       method: 'POST',
@@ -46,7 +52,7 @@
         return;
       }
 
-      if (!email || !email.includes('@')) {
+      if (!isValidEmail(email)) {
         if (errEl) {
           errEl.textContent = 'Informe um e-mail válido.';
           errEl.hidden = false;

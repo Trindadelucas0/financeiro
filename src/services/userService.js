@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const { getPool } = require('../db/pool');
 const { validateUsername, usernameFromEmail, ensureUniqueUsername } = require('../utils/username');
+const { isValidEmail, normalizeEmail } = require('../utils/email');
 const { mapUser } = require('./profileService');
 const subscriptionService = require('./subscriptionService');
 const { TRIAL_PLAN } = require('../config/plan');
@@ -16,11 +17,17 @@ async function ensureUserSettings(client, userId) {
 
 async function createUser({ nome, email, password, role = 'user', username }) {
   const pool = getPool();
-  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const normalizedEmail = normalizeEmail(email);
   const normalizedRole = role === 'admin' ? 'admin' : 'user';
 
   if (!nome || !normalizedEmail || !password) {
     const err = new Error('nome, email e password são obrigatórios');
+    err.status = 400;
+    throw err;
+  }
+
+  if (!isValidEmail(normalizedEmail)) {
+    const err = new Error('Informe um e-mail válido');
     err.status = 400;
     throw err;
   }
@@ -73,11 +80,17 @@ async function createUser({ nome, email, password, role = 'user', username }) {
 
 async function createUserWithTrial({ nome, email, password, username }) {
   const pool = getPool();
-  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const normalizedEmail = normalizeEmail(email);
   const trimmedNome = String(nome || '').trim();
 
   if (!trimmedNome || !normalizedEmail || !password) {
     const err = new Error('nome, email e password são obrigatórios');
+    err.status = 400;
+    throw err;
+  }
+
+  if (!isValidEmail(normalizedEmail)) {
+    const err = new Error('Informe um e-mail válido');
     err.status = 400;
     throw err;
   }
@@ -217,10 +230,16 @@ async function updateUser(id, { ativo, nome, role, username }) {
 
 async function createUserFromPurchase({ nome, email, password }) {
   const pool = getPool();
-  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const normalizedEmail = normalizeEmail(email);
 
   if (!nome || !normalizedEmail || !password) {
     const err = new Error('nome, email e password são obrigatórios');
+    err.status = 400;
+    throw err;
+  }
+
+  if (!isValidEmail(normalizedEmail)) {
+    const err = new Error('Informe um e-mail válido');
     err.status = 400;
     throw err;
   }

@@ -378,13 +378,26 @@ async function exportPDF() {
     }
 
     if (!res.ok) throw new Error('Falha ao gerar relatório PDF');
+
+    const emailSent = res.headers.get('X-Email-Sent') === 'true';
+    const emailErrorRaw = res.headers.get('X-Email-Error');
+    const emailError = emailErrorRaw ? decodeURIComponent(emailErrorRaw) : '';
+
     const blob = await res.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = 'relatorio-financeiro-' + state.currentMonth + '.pdf';
     a.click();
     URL.revokeObjectURL(a.href);
-    toast('Relatório PDF baixado');
+
+    if (emailSent) {
+      toast('Relatório baixado e enviado para seu e-mail');
+    } else {
+      toast(
+        'PDF baixado, mas o e-mail falhou' + (emailError ? ' — ' + emailError : ' — confira o e-mail cadastrado ou tente mais tarde'),
+        'error',
+      );
+    }
   } catch (err) {
     toast(err.message || 'Erro ao exportar PDF', 'error');
   } finally {
@@ -406,6 +419,17 @@ async function exportPDF() {
     c.appendChild(el);
     setTimeout(function () { el.remove(); }, 3200);
   }
+
+  document.addEventListener('finance:subscription-required', function (event) {
+    const detail = event.detail || {};
+    toast(detail.message || 'Sua assinatura expirou. Renove o acesso Pro para continuar.', 'error');
+    try {
+      if (window.FinanceUI && typeof window.FinanceUI.closeSaldoSheet === 'function') {
+        window.FinanceUI.closeSaldoSheet();
+      }
+      if (typeof closeModal === 'function') closeModal();
+    } catch (e) { /* ignore */ }
+  });
 
   function chavePg(entidade, id, mes) { return entidade + '_' + id + '_' + mes; }
 
@@ -952,7 +976,7 @@ async function exportPDF() {
           '<span class="panel-hint-pill">a partir de ' + monthLabelShort(mes) + '</span>' +
         '</div>' +
         bodyHtml +
-        '<p class="forecast-footnote">Inclui receitas fixas, despesas fixas, parcelas e empréstimos ativos. Variáveis não lançadas não entram. <a href="/app/previsao" class="forecast-footnote-link">Ver previsão completa</a></p>' +
+        '<p class="forecast-footnote">Saldo do mês pode incluir sobra do mês anterior; o acumulado parte do saldo em conta e soma só o fluxo mensal (receitas − despesas). Variáveis não lançadas não entram. <a href="/app/previsao" class="forecast-footnote-link">Ver previsão completa</a></p>' +
       '</div>'
     );
   }
@@ -1521,11 +1545,12 @@ async function exportPDF() {
           renderDelta(despesas.total, despAnt.total, true) +
         '</div>' +
         '<div class="chart-fluxo-stat chart-fluxo-stat-saldo">' +
-          '<span class="chart-fluxo-label">Saldo</span>' +
+          '<span class="chart-fluxo-label">Fluxo do mês</span>' +
           '<span class="chart-fluxo-value mono ' + (saldo >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(saldo) + '</span>' +
           renderDelta(saldo, saldoAnt, false) +
         '</div>' +
-      '</div>'
+      '</div>' +
+      '<p class="chart-caption chart-fluxo-note">Fluxo = receitas − despesas do mês (sem sobra carregada do mês anterior). O KPI “Saldo do mês” pode incluir essa sobra.</p>'
     );
   }
 
@@ -1659,7 +1684,7 @@ async function exportPDF() {
         (fluxoEmpty
           ? renderChartEmpty('Cadastre receitas e despesas para ver o gráfico.', true)
           : '<div class="chart-wrap chart-fluxo"><canvas id="chartFluxo" role="img" aria-label="Gráfico de receitas e despesas"></canvas></div>' +
-            renderFluxoFooter(receitas, despesas, recAnt, despAnt, saldoAdj.total, saldoAntAdj.total)) +
+            renderFluxoFooter(receitas, despesas, recAnt, despAnt, saldoAdj.fluxo, saldoAntAdj.fluxo)) +
       '</div>' +
       '<div class="grid-3 dash-reveal">' +
         '<div class="panel">' +
@@ -2060,7 +2085,7 @@ async function exportPDF() {
             '<div class="empty-action"><button type="button" class="btn btn-primary btn-sm" onclick="openModal()">+ Novo lançamento</button></div>' +
           '</div>' +
         '</div>' +
-        '<p class="footer-note previsao-footnote">Entram receitas/despesas fixas e parcelas ativas. Variáveis futuras não lançadas não entram.</p>'
+        '<p class="footer-note previsao-footnote">Saldo do mês pode incluir sobra do mês anterior; acumulado parte do saldo em conta e soma o fluxo (receitas − despesas). Variáveis futuras não lançadas não entram.</p>'
       );
     }
 
@@ -2108,7 +2133,7 @@ async function exportPDF() {
           '<div class="mobile-cards">' + mobileCards + '</div>' +
         '</div>' +
       '</div>' +
-      '<p class="footer-note previsao-footnote">Entram receitas/despesas fixas e parcelas ativas. Variáveis futuras não lançadas não entram — atualize conforme planejar.</p>'
+      '<p class="footer-note previsao-footnote">Saldo do mês pode incluir sobra do mês anterior; acumulado parte do saldo em conta e soma o fluxo (receitas − despesas). Variáveis futuras não lançadas não entram.</p>'
     );
   }
 

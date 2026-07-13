@@ -4,6 +4,7 @@ const {
   credentialsTemplate,
   welcomeTemplate,
   reportPdfTemplate,
+  weeklySummaryTemplate,
   subscriptionExpiredTemplate,
   EMAIL_LAYOUTS,
 } = require('./email/templates');
@@ -139,6 +140,32 @@ async function sendReportPdfEmail({ to, nome, mes, mesLabel, pdfBuffer }) {
   });
 }
 
+async function sendWeeklyReportEmail({ to, nome, mesLabel, summary, pdfBuffer }) {
+  const config = getConfig();
+  const template = weeklySummaryTemplate({
+    nome,
+    mesLabel,
+    appUrl: config.appUrl,
+    summary,
+  });
+
+  const attachments = [];
+  if (pdfBuffer) {
+    const safeMes = String(summary?.mes || 'atual').replace(/[^\d-]/g, '') || 'atual';
+    attachments.push({
+      filename: `resumo-financeiro-${safeMes}.pdf`,
+      content: pdfBuffer,
+    });
+  }
+
+  return sendEmail({
+    to,
+    subject: template.subject,
+    html: template.html,
+    attachments,
+  });
+}
+
 async function sendLayoutPreview({ layout, to, sampleData, from }) {
   const config = getConfig();
   const data = sampleData || {};
@@ -167,6 +194,31 @@ async function sendLayoutPreview({ layout, to, sampleData, from }) {
     if (data.pdfBuffer) {
       attachments = [{
         filename: `relatorio-financeiro-${data.mes || '2026-07'}.pdf`,
+        content: data.pdfBuffer,
+      }];
+    }
+  } else if (layout === 'weeklySummary') {
+    template = weeklySummaryTemplate({
+      nome: data.nome || 'Lucas Rodrigues',
+      mesLabel: data.mesLabel || 'Julho de 2026',
+      appUrl: config.appUrl,
+      summary: data.summary || {
+        mes: '2026-07',
+        receitas: 5000,
+        despesas: 3200,
+        saldo: 1800,
+        carryOver: 0,
+        pctPago: 70,
+        pendenteVal: 960,
+        atrasadosCount: 1,
+        atrasadosTotal: 120,
+        saldoConta: 2500,
+        saldoContaConfigured: true,
+      },
+    });
+    if (data.pdfBuffer) {
+      attachments = [{
+        filename: 'resumo-financeiro.pdf',
         content: data.pdfBuffer,
       }];
     }
@@ -233,6 +285,7 @@ module.exports = {
   sendWelcomeEmail,
   sendSubscriptionExpiredEmail,
   sendReportPdfEmail,
+  sendWeeklyReportEmail,
   sendLayoutPreview,
   sendAllLayoutPreviews,
 };

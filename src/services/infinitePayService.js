@@ -6,6 +6,7 @@ const paymentOrderService = require('./paymentOrderService');
 const subscriptionService = require('./subscriptionService');
 const userService = require('./userService');
 const emailService = require('./emailService');
+const { isValidEmail, normalizeEmail } = require('../utils/email');
 
 const API_BASE = 'https://api.checkout.infinitepay.io';
 const WELCOME_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -111,7 +112,7 @@ async function createCheckoutLink(user) {
 async function createGuestCheckoutLink({ nome, email }) {
   const config = getConfig();
   const trimmedNome = String(nome || '').trim();
-  const normalizedEmail = String(email || '').trim().toLowerCase();
+  const normalizedEmail = normalizeEmail(email);
 
   if (!trimmedNome || trimmedNome.length < 2) {
     const err = new Error('Informe seu nome completo');
@@ -119,7 +120,7 @@ async function createGuestCheckoutLink({ nome, email }) {
     throw err;
   }
 
-  if (!normalizedEmail || !normalizedEmail.includes('@')) {
+  if (!isValidEmail(normalizedEmail)) {
     const err = new Error('Informe um e-mail válido');
     err.status = 400;
     throw err;

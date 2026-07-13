@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS user_settings (
   saldo_conta NUMERIC(14, 2) NOT NULL DEFAULT 0,
   saldo_atualizado_em TIMESTAMPTZ,
   saldo_carry_over NUMERIC(14, 2) NOT NULL DEFAULT 0,
-  saldo_carry_mes VARCHAR(7)
+  saldo_carry_mes VARCHAR(7),
+  last_rollover_month VARCHAR(7)
 );
 
 CREATE TABLE IF NOT EXISTS receitas (
@@ -77,6 +78,7 @@ CREATE TABLE IF NOT EXISTS pagamentos (
   data_hora TIMESTAMPTZ,
   comprovante_nome VARCHAR(255),
   comprovante_data TEXT,
+  valor_efetivo NUMERIC(14, 2),
   UNIQUE (user_id, entidade, item_id, mes)
 );
 
@@ -307,6 +309,87 @@ CREATE INDEX IF NOT EXISTS idx_email_log_sent ON email_log(sent_at);
 
 ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS saldo_carry_over NUMERIC(14, 2) NOT NULL DEFAULT 0;
 ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS saldo_carry_mes VARCHAR(7);
+ALTER TABLE user_settings ADD COLUMN IF NOT EXISTS last_rollover_month VARCHAR(7);
+ALTER TABLE pagamentos ADD COLUMN IF NOT EXISTS valor_efetivo NUMERIC(14, 2);
+
+-- Backfill valor_efetivo from saldo_movimentos (último movimento de pagamento/entrada da referência)
+UPDATE pagamentos p
+SET valor_efetivo = ABS(sm.valor)
+FROM (
+  SELECT DISTINCT ON (user_id, referencia_entidade, referencia_item_id, referencia_mes)
+    user_id,
+    referencia_entidade,
+    referencia_item_id,
+    referencia_mes,
+    valor
+  FROM saldo_movimentos
+  WHERE tipo IN ('pagamento', 'entrada')
+    AND referencia_entidade IS NOT NULL
+    AND referencia_item_id IS NOT NULL
+    AND referencia_mes IS NOT NULL
+  ORDER BY user_id, referencia_entidade, referencia_item_id, referencia_mes, created_at DESC
+) sm
+WHERE p.pago = TRUE
+  AND p.valor_efetivo IS NULL
+  AND p.user_id = sm.user_id
+  AND p.entidade = sm.referencia_entidade
+  AND p.item_id = sm.referencia_item_id
+  AND p.mes = sm.referencia_mes;
+
+-- Fallback: receitas
+UPDATE pagamentos p
+SET valor_efetivo = r.valor
+FROM receitas r
+WHERE p.pago = TRUE
+  AND p.valor_efetivo IS NULL
+  AND p.entidade = 'receita'
+  AND p.item_id = r.id
+  AND p.user_id = r.user_id
+  AND r.valor IS NOT NULL
+  AND r.valor > 0;
+
+-- Fallback: despesas à vista / valor mensal
+UPDATE pagamentos p
+SET valor_efetivo = d.valor
+FROM despesas d
+WHERE p.pago = TRUE
+  AND p.valor_efetivo IS NULL
+  AND p.entidade = 'despesa'
+  AND p.item_id = d.id
+  AND p.user_id = d.user_id
+  AND d.forma_pagamento = 'avista'
+  AND d.valor IS NOT NULL
+  AND d.valor > 0;
+
+-- Fallback: despesas parceladas (parcela média)
+UPDATE pagamentos p
+SET valor_efetivo = ROUND(d.valor_total / NULLIF(d.num_parcelas, 0), 2)
+FROM despesas d
+WHERE p.pago = TRUE
+  AND p.valor_efetivo IS NULL
+  AND p.entidade = 'despesa'
+  AND p.item_id = d.id
+  AND p.user_id = d.user_id
+  AND d.forma_pagamento = 'parcelado'
+  AND d.valor_total IS NOT NULL
+  AND d.num_parcelas IS NOT NULL
+  AND d.num_parcelas > 0;
+
+-- Fallback: empréstimos (parcela média com juros simples sobre total)
+UPDATE pagamentos p
+SET valor_efetivo = ROUND(
+  (e.valor_total * (1 + COALESCE(e.juros, 0) / 100)) / NULLIF(e.num_parcelas, 0),
+  2
+)
+FROM emprestimos e
+WHERE p.pago = TRUE
+  AND p.valor_efetivo IS NULL
+  AND p.entidade = 'emprestimo'
+  AND p.item_id = e.id
+  AND p.user_id = e.user_id
+  AND e.valor_total IS NOT NULL
+  AND e.num_parcelas IS NOT NULL
+  AND e.num_parcelas > 0;
 `;
 
 async function backfillUsernames(client) {

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'financeiro-pwa-v20';
+const CACHE_NAME = 'financeiro-pwa-v21';
 const OFFLINE_URL = '/offline.html';
 const STATIC_ASSETS = [
   '/css/tokens.css',
@@ -74,7 +74,13 @@ self.addEventListener('notificationclick', (event) => {
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if (client.url.startsWith(self.location.origin) && 'focus' in client) {
-          return client.focus();
+          return client.focus().then(() => {
+            if ('navigate' in client) {
+              return client.navigate(absoluteUrl);
+            }
+            client.postMessage({ type: 'NOTIFICATION_NAVIGATE', url: absoluteUrl });
+            return client;
+          });
         }
       }
       if (self.clients.openWindow) {

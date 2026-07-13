@@ -17,6 +17,12 @@
     err.hidden = !message;
   }
 
+  function isValidEmail(value) {
+    var email = String(value || '').trim().toLowerCase();
+    if (!email || email.length > 254) return false;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+  }
+
   async function startGuestCheckout(nome, email) {
     var res = await fetch('/api/payments/guest-checkout', {
       method: 'POST',
@@ -64,7 +70,7 @@
         return;
       }
 
-      if (!emailVal || !emailVal.includes('@')) {
+      if (!isValidEmail(emailVal)) {
         showError('Informe um e-mail válido.');
         return;
       }

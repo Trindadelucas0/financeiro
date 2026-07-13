@@ -238,21 +238,55 @@ async function exportPdf(req, res, next) {
     await enrichReportWithAi(report, uid);
     const pdf = await getReportPdfService().generateMonthlyReportPdf(report);
 
-    getUserEmailInfo(uid).then(function (userRow) {
-      if (!userRow || !userRow.email) return null;
-      return emailService.sendReportPdfEmail({
-        to: userRow.email,
-        nome: userRow.nome || report.userName,
-        mes,
-        mesLabel: report.mesLabel,
-        pdfBuffer: pdf,
-      });
-    }).catch(function (err) {
-      console.error('[email] Falha ao enviar relatório PDF:', err.message);
-    });
+    let emailSent = false;
+    let emailError = '';
+    const today = new Date().toISOString().slice(0, 10);
+    const dedupKey = `report-ondemand:${mes}:${today}`;
+
+    try {
+      const userRow = await getUserEmailInfo(uid);
+      if (!userRow || !userRow.email) {
+        emailError = 'E-mail do usuário não encontrado';
+      } else {
+        const pool = getPool();
+        const { rows: existing } = await pool.query(
+          `SELECT 1 FROM email_log WHERE user_id = $1 AND dedup_key = $2 LIMIT 1`,
+          [uid, dedupKey],
+        );
+
+        if (existing.length > 0) {
+          emailSent = true;
+          emailError = '';
+        } else {
+          await emailService.sendReportPdfEmail({
+            to: userRow.email,
+            nome: userRow.nome || report.userName,
+            mes,
+            mesLabel: report.mesLabel,
+            pdfBuffer: pdf,
+          });
+          await pool.query(
+            `INSERT INTO email_log (user_id, template, dedup_key)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (user_id, dedup_key) DO NOTHING`,
+            [uid, 'reportOnDemand', dedupKey],
+          );
+          emailSent = true;
+        }
+      }
+    } catch (err) {
+      emailSent = false;
+      emailError = err.message || 'Falha ao enviar e-mail';
+      console.error('[email] Falha ao enviar relatório PDF:', emailError);
+    }
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="relatorio-financeiro-${mes}.pdf"`);
+    res.setHeader('X-Email-Sent', emailSent ? 'true' : 'false');
+    if (emailError) {
+      res.setHeader('X-Email-Error', encodeURIComponent(emailError.slice(0, 180)));
+    }
+    res.setHeader('Access-Control-Expose-Headers', 'X-Email-Sent, X-Email-Error');
     return res.send(pdf);
   } catch (err) {
     return next(err);

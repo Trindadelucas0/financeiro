@@ -900,6 +900,13 @@
     try {
       const user = getUser();
       renderProfile(user, getSubscription(), getPricing());
+      try {
+        const pending = sessionStorage.getItem('finance_subscription_toast');
+        if (pending) {
+          sessionStorage.removeItem('finance_subscription_toast');
+          toast(pending, 'error');
+        }
+      } catch (e) { /* ignore */ }
     } catch (err) {
       if (view) {
         view.innerHTML = '<div class="empty-state">' + esc(err.message) + '</div>';
