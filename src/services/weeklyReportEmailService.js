@@ -1,7 +1,7 @@
 const { getPool } = require('../db/pool');
 const { loadEnv } = require('../config/env');
 const emailService = require('./emailService');
-const { buildMonthlyReport, enrichReportWithAi, monthLabelLong } = require('./reportService');
+const { buildMonthlyReport, monthLabelLong } = require('./reportService');
 const financeService = require('./financeService');
 
 const TEMPLATE = 'weeklySummary';
@@ -109,7 +109,16 @@ async function processWeeklyReportEmails() {
 
     try {
       const report = await buildMonthlyReport(user.id, mes);
-      await enrichReportWithAi(report, user.id);
+      // Cron semanal usa fallback local (sem Gemini) para não depender de chave de IA.
+      report.aiEnabled = false;
+      report.aiInsights = {
+        resumoExecutivo: `Resumo automático de ${report.mesLabel}.`,
+        pontosAtencao: (report.improvements || []).map((i) => i.text).slice(0, 5),
+        planoAcao: (report.advice || []).slice(0, 5),
+        source: 'weekly-fallback',
+        generatedAt: new Date().toISOString(),
+        fromCache: false,
+      };
       const pdf = await generateMonthlyReportPdf(report);
       const summary = buildSummaryFromReport(report);
 
