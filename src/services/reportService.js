@@ -128,12 +128,17 @@ function buildOrganizationAdvice({
 
 function buildFallbackExecutiveSummary(report) {
   const k = report.kpis;
-  const carryNote = k.saldo.carryOver > 0
-    ? ` (inclui ${formatBRL(k.saldo.carryOver)} do mês anterior)`
-    : '';
-  const saldoTxt = k.saldo.positivo
-    ? `saldo positivo de ${formatBRL(k.saldo.total)}${carryNote}`
-    : `déficit de ${formatBRL(Math.abs(k.saldo.total))}${carryNote}`;
+  let saldoTxt;
+  if (k.saldo.usaSaldoConta) {
+    saldoTxt = `saldo em conta de ${formatBRL(k.saldo.total)} (fluxo do mês ${formatBRL(k.saldo.fluxo)})`;
+  } else {
+    const carryNote = k.saldo.carryOver > 0
+      ? ` (inclui ${formatBRL(k.saldo.carryOver)} do mês anterior)`
+      : '';
+    saldoTxt = k.saldo.positivo
+      ? `sobra de ${formatBRL(k.saldo.total)}${carryNote}`
+      : `déficit de ${formatBRL(Math.abs(k.saldo.total))}${carryNote}`;
+  }
   return `Em ${report.mesLabel}, receitas de ${formatBRL(k.receitas.total)} e despesas de ${formatBRL(k.despesas.total)} resultaram em ${saldoTxt}. ${report.pagamentos.pctPago.toFixed(0)}% das despesas foram quitadas no período.`;
 }
 

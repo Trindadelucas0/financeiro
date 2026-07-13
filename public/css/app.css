@@ -21,7 +21,24 @@ h1, h2, h3, .display {
   font-variant-numeric: tabular-nums;
 }
 
+.extrato-empty {
+  font-size: 13px;
+  color: var(--muted-2);
+  line-height: 1.45;
+  padding: 8px 0;
+}
+
 .app { max-width: 1280px; margin: 0 auto; padding: 28px 24px calc(80px + var(--safe-bottom)); }
+
+@media (min-width: 769px) {
+  .app {
+    padding: 24px 28px 48px;
+  }
+
+  .layout-desktop .desktop-tabs {
+    margin-bottom: 20px;
+  }
+}
 
 .topbar {
   display: flex;
@@ -155,8 +172,8 @@ a.brand:focus-visible {
 
   .topbar .brand-logo {
     width: auto;
-    height: 96px;
-    max-width: 300px;
+    height: 56px;
+    max-width: 220px;
     object-fit: contain;
     object-position: left center;
   }
@@ -440,14 +457,22 @@ a.brand:focus-visible {
   .kpi-hero .value { font-size: 2rem; }
 }
 
+/* Telefone: hero saldo full + 2 mini KPIs; não empilhar tudo em 1 coluna */
 @media (max-width: 480px) {
-  .dash-bento { grid-template-columns: 1fr; }
-  .dash-bento > .kpi-mini:nth-child(2),
-  .dash-bento > .kpi-mini:nth-child(3),
-  .dash-bento > .kpi-mini:nth-child(4) {
-    grid-column: 1;
-    grid-row: auto;
+  .dash-bento {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
   }
+  .dash-bento > .kpi-hero {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .dash-bento > .kpi-mini:nth-child(2) { grid-column: 1; grid-row: 2; }
+  .dash-bento > .kpi-mini:nth-child(3) { grid-column: 2; grid-row: 2; }
+  .dash-bento > .kpi-mini:nth-child(4) { grid-column: 1 / -1; grid-row: 3; }
+  .kpi-hero .value { font-size: 1.85rem; }
+  .kpi-mini { padding: 12px; }
+  .kpi-mini .value { font-size: 1.125rem; }
 }
 
 .grid-2 { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 16px; margin-bottom: 20px; }
@@ -525,23 +550,150 @@ a.brand:focus-visible {
 }
 
 .saldo-conta-box {
-  background: var(--surface-2);
-  border: 1px solid var(--ice-dim);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 0;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 12px;
+  min-width: 0;
+}
+
+.saldo-conta-box.saldo-conta-box--empty {
+  border-color: oklch(0.94 0.008 240 / 0.28);
+  background: linear-gradient(180deg, oklch(0.12 0.01 240) 0%, var(--surface) 100%);
 }
 
 .saldo-conta-box .sc-label { font-size: 12px; color: var(--muted); }
-.saldo-conta-box .sc-value { font-size: 1.75rem; font-weight: 700; color: var(--text); font-family: 'DM Sans', sans-serif; }
+.saldo-conta-box .sc-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  line-height: 1.2;
+}
 .saldo-conta-box .sc-value.pos { color: var(--green); }
 .saldo-conta-box .sc-value.neg { color: var(--red); }
 .saldo-conta-box .sc-meta { font-size: 12px; color: var(--muted-2); }
+.saldo-conta-box .sc-projetado { margin-top: 4px; }
+
+.saldo-conta-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.saldo-conta-actions .btn {
+  flex: 1 1 auto;
+  min-width: 140px;
+  justify-content: center;
+}
+
+.saldo-extrato-balance--compact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.saldo-extrato-history {
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.saldo-extrato-history-head {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+  margin-bottom: 8px;
+}
+
+.saldo-extrato-panel .extrato-list,
+.saldo-conta-box .extrato-list {
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.saldo-pagar-rapido {
+  width: 100%;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.saldo-pagar-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+  margin-bottom: 8px;
+}
+
+.saldo-pagar-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 8px;
+  align-items: center;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.saldo-pagar-apos {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  color: var(--muted-2);
+}
+
+.sc-empty-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin: 2px 0 4px;
+}
+
+/* Dashboard top: carteira + pendências lado a lado no desktop */
+.dash-top {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+  align-items: stretch;
+}
+
+.dash-top > .pending-bills,
+.dash-top > .saldo-conta-box,
+.dash-top > .saldo-extrato-panel {
+  margin-bottom: 0;
+  height: 100%;
+}
+
+@media (min-width: 960px) {
+  .dash-top {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    gap: 16px;
+  }
+
+  .dash-top .saldo-extrato-panel .extrato-list,
+  .dash-top .saldo-conta-box .extrato-list {
+    max-height: 180px;
+  }
+
+  .dash-top .pending-scroll {
+    max-height: 260px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .dash-top {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 20px;
+  }
+}
 
 .filter-bar {
   display: flex;
@@ -740,10 +892,55 @@ tbody tr:hover { background: var(--surface-2); }
 
 .progress-mini > div { width: 100%; height: 100%; background: var(--ice); transform-origin: left center; transform: scaleX(var(--prog-scale, 1)); }
 
-.pago-cell { display: flex; align-items: center; gap: 8px; }
-.pago-check { width: 18px; height: 18px; cursor: pointer; accent-color: var(--ice); }
-.pago-meta { font-size: 12px; color: var(--muted-2); line-height: 1.3; }
-.pago-pendente { font-size: 12px; color: var(--red); font-weight: 600; }
+.pago-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pago-cell--pago { gap: 2px; }
+
+.pago-status {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+  cursor: pointer;
+  text-align: left;
+}
+
+.pago-status:focus-visible {
+  outline: 2px solid var(--ice);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.pago-status--pago { color: var(--green); }
+.pago-status--pendente { color: var(--red); }
+
+.pago-check { display: none; } /* legado — status agora é texto clicável */
+
+.pago-meta {
+  font-size: 11px;
+  color: var(--muted-2);
+  line-height: 1.3;
+}
+
+.pago-pendente {
+  font-size: 12px;
+  color: var(--red);
+  font-weight: 600;
+}
+
 .comprovante-link {
   font-size: 12px;
   color: var(--indigo);
@@ -755,8 +952,168 @@ tbody tr:hover { background: var(--surface-2); }
   font-family: inherit;
 }
 
+.file-mini {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  line-height: 1.35;
+}
+
 .file-mini input { display: none; }
-.file-mini label { color: var(--muted); cursor: pointer; text-decoration: underline; font-size: 12px; }
+.file-mini label,
+.file-mini .comprovante-attach {
+  color: var(--indigo);
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 12px;
+}
+
+.comprovante-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  width: 100%;
+  max-width: 280px;
+}
+
+.comprovante-block-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  width: 100%;
+}
+
+.comprovante-block-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}
+
+.comprovante-block-name {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comprovante-thumb-btn {
+  display: block;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  cursor: pointer;
+  overflow: hidden;
+  max-width: 120px;
+}
+
+.comprovante-thumb-btn:focus-visible {
+  outline: 2px solid var(--ice);
+  outline-offset: 2px;
+}
+
+.comprovante-thumb {
+  display: block;
+  width: 120px;
+  height: 80px;
+  object-fit: cover;
+}
+
+.comprovante-view-btn {
+  min-height: 40px;
+  width: 100%;
+  justify-content: center;
+}
+
+.comprovante-dialog {
+  width: min(720px, calc(100% - 24px));
+  max-width: 720px;
+}
+
+.comprovante-dialog-inner {
+  max-height: min(90vh, 100dvh);
+}
+
+.comprovante-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.comprovante-dialog-head h3 {
+  margin: 0;
+  font-size: 1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comprovante-dialog-body {
+  padding: 12px 16px;
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.comprovante-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 16px 16px;
+}
+
+.comprovante-viewer-frame {
+  display: flex;
+  justify-content: center;
+  background: var(--bg);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  overflow: auto;
+  max-height: min(65vh, 560px);
+}
+
+.comprovante-viewer-img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.comprovante-viewer-frame--pdf {
+  min-height: 50vh;
+}
+
+.comprovante-viewer-iframe {
+  width: 100%;
+  min-height: 50vh;
+  border: none;
+  background: #fff;
+}
+
+.comprovante-open-tab {
+  display: inline-flex;
+  margin-top: 10px;
+}
+
+.dash-saldo-note {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--muted-2);
+  line-height: 1.4;
+}
 
 .mobile-cards { display: none; }
 
@@ -2248,9 +2605,17 @@ dialog.modal .type-picker.duracao-picker {
   background: linear-gradient(180deg, oklch(0.12 0.015 25) 0%, var(--surface) 35%);
   border: 1px solid oklch(0.72 0.14 25 / 0.2);
   margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .pending-bills .paid-progress { margin-bottom: 10px; }
+
+.pending-bills .pending-scroll {
+  flex: 1;
+  min-height: 0;
+}
 
 .pending-scroll {
   max-height: 220px;
@@ -2910,10 +3275,8 @@ dialog.modal .type-picker.duracao-picker {
     max-width: 140px;
   }
 
-  /* Saldo em conta */
+  /* Saldo em conta — refinamentos mobile (base já no desktop) */
   .saldo-conta-box {
-    flex-direction: column;
-    align-items: stretch;
     border-color: var(--border);
   }
 
@@ -2924,46 +3287,11 @@ dialog.modal .type-picker.duracao-picker {
 
   .sc-empty-title {
     font-size: 1.1rem;
-    font-weight: 600;
-    margin-bottom: 4px;
   }
 
-  .saldo-conta-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-
-  .saldo-pagar-rapido {
-    width: 100%;
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
-  }
-
-  .saldo-pagar-label {
-    display: block;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--muted-2);
-    margin-bottom: 8px;
-  }
-
-  .saldo-pagar-item {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 4px 8px;
-    align-items: center;
-    font-size: 12px;
-    margin-bottom: 8px;
-  }
-
-  .saldo-pagar-apos {
-    grid-column: 1 / -1;
-    font-size: 11px;
-    color: var(--muted-2);
+  .saldo-conta-actions .btn {
+    min-width: 0;
+    flex: 1 1 calc(50% - 4px);
   }
 
   .account-balance-panel--accent {
@@ -2979,41 +3307,14 @@ dialog.modal .type-picker.duracao-picker {
 
   .account-balance-meta--tip { color: var(--muted-2); }
 
-  /* Saldo extrato */
   .saldo-extrato-panel.panel {
     margin-bottom: 16px;
     padding: 16px;
   }
 
-  .saldo-extrato-balance {
-    margin-bottom: 14px;
-  }
-
-  .saldo-extrato-history {
-    margin-top: 16px;
-    padding-top: 14px;
-    border-top: 1px solid var(--border);
-  }
-
-  .saldo-extrato-history-head {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--muted-2);
-    margin-bottom: 10px;
-  }
-
-  .extrato-empty {
-    font-size: 13px;
-    color: var(--muted-2);
-    line-height: 1.45;
-    padding: 12px 0;
-  }
-
-  .saldo-extrato-panel .extrato-list {
-    max-height: 280px;
-    overflow-y: auto;
+  .saldo-extrato-panel .extrato-list,
+  .saldo-conta-box .extrato-list {
+    max-height: min(240px, 36dvh);
   }
 
   dialog.saldo-sheet,

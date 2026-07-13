@@ -210,13 +210,25 @@
   function updateHeroSaldoConta() {
     const btn = document.getElementById('heroSaldoConta');
     const valEl = document.getElementById('heroSaldoContaValue');
+    const labelEl = btn ? btn.querySelector('.hero-saldo-conta-label') : null;
     if (!btn || !valEl) return;
     if (!state.saldoContaAtualizadoEm) {
       btn.hidden = true;
       return;
     }
     btn.hidden = false;
-    valEl.textContent = formatBRL(state.saldoConta);
+    const synced = state.currentMonth === monthKeyOf(new Date());
+    if (synced) {
+      if (labelEl) labelEl.textContent = 'Atualizar saldo';
+      valEl.hidden = true;
+      valEl.textContent = '';
+      btn.setAttribute('aria-label', 'Atualizar saldo em conta');
+    } else {
+      if (labelEl) labelEl.textContent = 'Em conta';
+      valEl.hidden = false;
+      valEl.textContent = formatBRL(state.saldoConta);
+      btn.setAttribute('aria-label', 'Saldo em conta — toque para atualizar');
+    }
     valEl.classList.toggle('val-neg', state.saldoConta < 0);
     valEl.classList.toggle('val-pos', state.saldoConta >= 0);
   }
@@ -240,6 +252,14 @@
         });
         applySettingsFromRes(res);
         applyMovimentoFromRes(res);
+        if (res.entradaLancamento && res.entradaLancamento.item) {
+          const ent = res.entradaLancamento;
+          state.receitas = [ent.item].concat(state.receitas || []);
+          state.pagamentos[chavePg('receita', ent.item.id, ent.mes)] = {
+            pago: true,
+            dataHora: new Date().toISOString(),
+          };
+        }
         if (window.FinanceUI) FinanceUI.closeSaldoSheet();
         toast(formatBRL(valor) + ' adicionados · saldo: ' + formatBRL(state.saldoConta));
       } else {
@@ -250,8 +270,27 @@
         const res = await apiFetch('/api/finance/settings', { method: 'PUT', body: { saldoConta: valor } });
         applySettingsFromRes(res);
         applyMovimentoFromRes(res);
+        if (res.ajusteLancamento && res.ajusteLancamento.item) {
+          const adj = res.ajusteLancamento;
+          if (adj.tipo === 'despesa') {
+            state.despesas = [adj.item].concat(state.despesas || []);
+            state.pagamentos[chavePg('despesa', adj.item.id, adj.mes)] = {
+              pago: true,
+              dataHora: new Date().toISOString(),
+            };
+            toast('Saldo atualizado · diferença de ' + formatBRL(adj.valor) + ' lançada como despesa em Outros');
+          } else if (adj.tipo === 'receita') {
+            state.receitas = [adj.item].concat(state.receitas || []);
+            state.pagamentos[chavePg('receita', adj.item.id, adj.mes)] = {
+              pago: true,
+              dataHora: new Date().toISOString(),
+            };
+            toast('Saldo atualizado · diferença de ' + formatBRL(adj.valor) + ' lançada como receita em Outros');
+          }
+        } else {
+          toast('Saldo em conta atualizado · ' + formatBRL(state.saldoConta));
+        }
         if (window.FinanceUI) FinanceUI.closeSaldoSheet();
-        toast('Saldo em conta atualizado · ' + formatBRL(state.saldoConta));
       }
       render();
     } catch (err) {
@@ -581,10 +620,55 @@ async function exportPDF() {
 
   function verComprovante(chave) {
     const pg = getPg(chave);
-    if (pg.comprovanteDataUrl) {
+    if (!pg.comprovanteDataUrl) return;
+    openComprovanteDialog(pg);
+  }
+
+  function isComprovanteImage(dataUrl, nome) {
+    const src = String(dataUrl || '');
+    if (/^data:image\//i.test(src)) return true;
+    const n = String(nome || '').toLowerCase();
+    return /\.(png|jpe?g|gif|webp|bmp)$/i.test(n);
+  }
+
+  function openComprovanteDialog(pg) {
+    const dialog = document.getElementById('comprovanteDialog');
+    const body = document.getElementById('comprovanteDialogBody');
+    const title = document.getElementById('comprovanteDialogTitle');
+    if (!dialog || !body) {
       const w = window.open();
-      w.document.write('<title>' + esc(pg.comprovanteNome) + '</title><iframe src="' + pg.comprovanteDataUrl + '" style="width:100%;height:100vh;border:none;"></iframe>');
+      if (!w) {
+        toast('Não foi possível abrir o comprovante.', 'error');
+        return;
+      }
+      w.document.write('<title>' + esc(pg.comprovanteNome || 'Comprovante') + '</title><iframe src="' + pg.comprovanteDataUrl + '" style="width:100%;height:100vh;border:none;"></iframe>');
+      return;
     }
+    if (title) title.textContent = pg.comprovanteNome || 'Comprovante';
+    const isImage = isComprovanteImage(pg.comprovanteDataUrl, pg.comprovanteNome);
+    if (isImage) {
+      body.innerHTML =
+        '<div class="comprovante-viewer-frame">' +
+          '<img src="' + pg.comprovanteDataUrl + '" alt="' + esc(pg.comprovanteNome || 'Comprovante') + '" class="comprovante-viewer-img">' +
+        '</div>';
+    } else {
+      body.innerHTML =
+        '<div class="comprovante-viewer-frame comprovante-viewer-frame--pdf">' +
+          '<iframe src="' + pg.comprovanteDataUrl + '" title="' + esc(pg.comprovanteNome || 'Comprovante') + '" class="comprovante-viewer-iframe"></iframe>' +
+        '</div>' +
+        '<a class="btn btn-ghost btn-sm comprovante-open-tab" href="' + pg.comprovanteDataUrl + '" target="_blank" rel="noopener">Abrir em nova aba</a>';
+    }
+    if (typeof dialog.showModal === 'function') dialog.showModal();
+    else dialog.setAttribute('open', '');
+  }
+
+  function closeComprovanteDialog() {
+    const dialog = document.getElementById('comprovanteDialog');
+    if (!dialog) return;
+    if (typeof dialog.close === 'function') dialog.close();
+    else dialog.removeAttribute('open');
+    const body = document.getElementById('comprovanteDialogBody');
+    if (body) body.innerHTML = '';
   }
 
   function renderPagoCell(entidade, id, mes) {
@@ -592,20 +676,52 @@ async function exportPDF() {
     const pg = getPg(chave);
     const inputId = 'file_' + chave.replace(/[^a-zA-Z0-9]/g, '_');
     const editEnt = entidade === 'receita' ? 'receita' : entidade === 'emprestimo' ? 'emprestimo' : 'despesa';
-    const statusLabel = entidade === 'receita' ? 'recebido em' : 'pago em';
+    const isReceita = entidade === 'receita';
+    const badgeLabel = isReceita ? 'RECEBIDO' : 'PAGO';
+    const toggleLabel = pg.pago
+      ? (isReceita ? 'Desmarcar recebimento' : 'Desmarcar pagamento')
+      : (isReceita ? 'Marcar como recebido' : 'Marcar como pago');
+
+    if (!pg.pago) {
+      return (
+        '<div class="pago-cell">' +
+          '<button type="button" class="pago-status pago-status--pendente" onclick="togglePago(\'' + chave + '\')" aria-label="' + toggleLabel + '">pendente</button>' +
+        '</div>'
+      );
+    }
+
+    let comprovanteBlock;
+    if (pg.comprovanteDataUrl) {
+      const isImage = isComprovanteImage(pg.comprovanteDataUrl, pg.comprovanteNome);
+      const thumb = isImage
+        ? '<button type="button" class="comprovante-thumb-btn" onclick="verComprovante(\'' + chave + '\')" aria-label="Visualizar comprovante">' +
+            '<img src="' + pg.comprovanteDataUrl + '" alt="" class="comprovante-thumb">' +
+          '</button>'
+        : '';
+      comprovanteBlock =
+        '<div class="comprovante-block">' +
+          '<div class="comprovante-block-head">' +
+            '<span class="comprovante-block-label">Comprovante</span>' +
+            (pg.comprovanteNome ? '<span class="comprovante-block-name">' + esc(pg.comprovanteNome) + '</span>' : '') +
+          '</div>' +
+          thumb +
+          '<button type="button" class="btn btn-ghost btn-sm comprovante-view-btn" onclick="verComprovante(\'' + chave + '\')">Visualizar comprovante</button>' +
+        '</div>';
+    } else {
+      comprovanteBlock =
+        '<div class="file-mini">' +
+          '<label class="comprovante-link comprovante-attach" for="' + inputId + '">anexar comprovante</label>' +
+          '<input type="file" id="' + inputId + '" accept="image/*,application/pdf" onchange="anexarComprovante(\'' + chave + '\', this)">' +
+        '</div>';
+    }
+
     return (
-      '<div class="pago-cell">' +
-        '<input type="checkbox" class="pago-check" aria-label="Marcar como pago" ' + (pg.pago ? 'checked' : '') + ' onchange="togglePago(\'' + chave + '\')">' +
-        '<div>' +
-          (pg.pago
-            ? '<div class="pago-meta">' + statusLabel + ' ' + nowLabel(pg.dataHora) + '</div>' +
-              '<div class="file-mini">' +
-                (pg.comprovanteDataUrl
-                  ? '<button type="button" class="comprovante-link" onclick="verComprovante(\'' + chave + '\')">ver comprovante</button>'
-                  : '<label for="' + inputId + '">anexar comprovante</label><input type="file" id="' + inputId + '" accept="image/*,application/pdf" onchange="anexarComprovante(\'' + chave + '\', this)">') +
-                ' · <button type="button" class="comprovante-link" onclick="editItem(\'' + editEnt + '\',\'' + id + '\',\'' + mes + '\')">editar</button>' +
-              '</div>'
-            : '<span class="pago-pendente">pendente</span>') +
+      '<div class="pago-cell pago-cell--pago">' +
+        '<button type="button" class="pago-status pago-status--pago" onclick="togglePago(\'' + chave + '\')" aria-label="' + toggleLabel + '">' + badgeLabel + '</button>' +
+        (pg.dataHora ? '<div class="pago-meta">' + nowLabel(pg.dataHora) + '</div>' : '') +
+        comprovanteBlock +
+        '<div class="file-mini">' +
+          '<button type="button" class="comprovante-link" onclick="editItem(\'' + editEnt + '\',\'' + id + '\',\'' + mes + '\')">editar</button>' +
         '</div>' +
       '</div>'
     );
@@ -689,6 +805,17 @@ async function exportPDF() {
     return d.formaPagamento === 'parcelado' ? valorParcelaSimples(d, mes) : Number(d.valor);
   }
 
+  function isAjusteSaldoLancamento(item) {
+    if (!item || !item.nome) return false;
+    return item.nome === 'Ajuste de saldo em conta' || item.nome === 'Entrada em conta';
+  }
+
+  function totalSemAjusteSaldo(itens) {
+    return (itens || [])
+      .filter(function (item) { return !isAjusteSaldoLancamento(item); })
+      .reduce(function (s, item) { return s + Number(item.valorEfetivo || 0); }, 0);
+  }
+
   function getReceitasMes(mes) {
     const itens = state.receitas.filter(function (r) { return receitaAtivaNoMes(r, mes); }).map(function (r) {
       return Object.assign({}, r, { valorEfetivo: Number(r.valor) });
@@ -733,7 +860,17 @@ async function exportPDF() {
     const despesas = getDespesasMes(mes);
     const fluxo = receitas.total - despesas.total;
     const carryOver = state.saldoCarryMes === mes ? (Number(state.saldoCarryOver) || 0) : 0;
-    return { fluxo: fluxo, carryOver: carryOver, total: fluxo + carryOver };
+    const mesAoVivo = monthKeyOf(new Date());
+    // Com carteira informada no mês atual: Saldo do mês = saldo em conta.
+    if (state.saldoContaAtualizadoEm && mes === mesAoVivo) {
+      return {
+        fluxo: fluxo,
+        carryOver: carryOver,
+        total: Number(state.saldoConta) || 0,
+        usaSaldoConta: true,
+      };
+    }
+    return { fluxo: fluxo, carryOver: carryOver, total: fluxo + carryOver, usaSaldoConta: false };
   }
 
   function buildCompromissosTabPayload(mes) {
@@ -859,12 +996,16 @@ async function exportPDF() {
     let cumulativo = hasSaldoConta ? (Number(state.saldoConta) || 0) : 0;
     for (let i = 0; i < months; i++) {
       const mes = addMonths(fromMonth, i);
-      const r = getReceitasMes(mes).total;
-      const d = getDespesasMes(mes).total;
+      const rec = getReceitasMes(mes);
+      const desp = getDespesasMes(mes);
+      const r = rec.total;
+      const d = desp.total;
       const fluxo = r - d;
+      // Ajuste de saldo já está embutido em saldoConta — não soma de novo no acumulado.
+      const fluxoSemAjuste = totalSemAjusteSaldo(rec.itens) - totalSemAjusteSaldo(desp.itens);
       const carryOver = state.saldoCarryMes === mes ? (Number(state.saldoCarryOver) || 0) : 0;
       const saldo = fluxo + carryOver;
-      cumulativo += fluxo;
+      cumulativo += hasSaldoConta ? fluxoSemAjuste : fluxo;
       nodes.push({
         mes: mes,
         mesLabel: monthLabelShort(mes),
@@ -976,7 +1117,7 @@ async function exportPDF() {
           '<span class="panel-hint-pill">a partir de ' + monthLabelShort(mes) + '</span>' +
         '</div>' +
         bodyHtml +
-        '<p class="forecast-footnote">Saldo do mês pode incluir sobra do mês anterior; o acumulado parte do saldo em conta e soma só o fluxo mensal (receitas − despesas). Variáveis não lançadas não entram. <a href="/app/previsao" class="forecast-footnote-link">Ver previsão completa</a></p>' +
+        '<p class="forecast-footnote">Com carteira informada, o acumulado parte do saldo em conta. Ajustes e entradas viram Outros no mês. <a href="/app/previsao" class="forecast-footnote-link">Ver previsão completa</a></p>' +
       '</div>'
     );
   }
@@ -1174,6 +1315,10 @@ async function exportPDF() {
 
     const heroSaldo = document.getElementById('heroSaldo');
     const heroMonthMeta = document.getElementById('heroMonthMeta');
+    const heroLabel = document.querySelector('.hero-label');
+    if (heroLabel) {
+      heroLabel.textContent = saldoAdj.usaSaldoConta ? 'Saldo em conta' : 'Saldo do mês';
+    }
     if (heroSaldo) {
       heroSaldo.textContent = formatBRL(saldoAdj.total);
       heroSaldo.classList.toggle('neg', saldoAdj.total < 0);
@@ -1373,34 +1518,45 @@ async function exportPDF() {
   function renderSaldoExtratoPanel(mes, options) {
     options = options || {};
     const hasSaldo = !!state.saldoContaAtualizadoEm;
+    const compactBalance = Boolean(options.compactBalance && hasSaldo);
     const pendentes = getContasPendentes(mes);
     const totalPend = pendentes.reduce(function (s, p) { return s + p.valor; }, 0);
     const projetado = state.saldoConta - totalPend;
     const valCls = state.saldoConta >= 0 ? 'pos' : 'neg';
-    const wrapCls = 'saldo-extrato-panel' + (options.asPanel ? ' panel account-balance-panel account-balance-panel--accent' : ' saldo-conta-box dash-reveal') + (hasSaldo ? '' : ' saldo-conta-box--empty');
+    const wrapCls = 'saldo-extrato-panel' + (options.asPanel ? ' panel account-balance-panel account-balance-panel--accent' : ' saldo-conta-box dash-reveal') + (hasSaldo ? '' : ' saldo-conta-box--empty') + (compactBalance ? ' saldo-extrato-panel--compact' : '');
 
     const headHtml = options.asPanel
       ? '<div class="panel-head"><h3>Saldo em conta</h3><span class="hint">carteira — pagar diminui, entradas somam</span></div>'
       : '';
 
-    const balanceHtml = hasSaldo
-      ? (
-        '<div class="saldo-extrato-balance">' +
-          '<div class="sc-label">Saldo em conta</div>' +
-          '<div class="sc-value mono ' + valCls + '">' + formatBRL(state.saldoConta) + '</div>' +
-          '<div class="sc-meta">Atualizado em ' + nowLabel(state.saldoContaAtualizadoEm) + '</div>' +
-          (totalPend > 0
-            ? '<div class="sc-meta sc-projetado">Após pendências do mês: <span class="mono ' + (projetado >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(projetado) + '</span></div>'
-            : '') +
-        '</div>'
-      )
-      : (
+    const projetadoHtml = hasSaldo && totalPend > 0
+      ? '<div class="sc-meta sc-projetado">Após pendências: <span class="mono ' + (projetado >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(projetado) + '</span></div>'
+      : '';
+
+    let balanceHtml;
+    if (!hasSaldo) {
+      balanceHtml =
         '<div class="saldo-extrato-balance saldo-extrato-balance--empty">' +
           '<div class="sc-label">Saldo em conta</div>' +
           '<div class="sc-empty-title">Quanto você tem na conta?</div>' +
           '<div class="sc-meta">Informe para acompanhar pagamentos e entradas.</div>' +
-        '</div>'
-      );
+        '</div>';
+    } else if (compactBalance) {
+      balanceHtml =
+        '<div class="saldo-extrato-balance saldo-extrato-balance--compact">' +
+          '<div class="sc-label">Carteira</div>' +
+          '<div class="sc-meta">Atualizado em ' + nowLabel(state.saldoContaAtualizadoEm) + '</div>' +
+          projetadoHtml +
+        '</div>';
+    } else {
+      balanceHtml =
+        '<div class="saldo-extrato-balance">' +
+          '<div class="sc-label">Saldo em conta</div>' +
+          '<div class="sc-value mono ' + valCls + '">' + formatBRL(state.saldoConta) + '</div>' +
+          '<div class="sc-meta">Atualizado em ' + nowLabel(state.saldoContaAtualizadoEm) + '</div>' +
+          projetadoHtml +
+        '</div>';
+    }
 
     const actionsHtml = (
       '<div class="saldo-conta-actions">' +
@@ -1444,7 +1600,8 @@ async function exportPDF() {
   }
 
   function renderSaldoContaCard(mes) {
-    return renderSaldoExtratoPanel(mes, { showPagarRapido: true });
+    const compactBalance = !!state.saldoContaAtualizadoEm && state.currentMonth === monthKeyOf(new Date());
+    return renderSaldoExtratoPanel(mes, { showPagarRapido: true, compactBalance: compactBalance });
   }
 
   function renderPendingBillRow(item, mobile) {
@@ -1550,7 +1707,7 @@ async function exportPDF() {
           renderDelta(saldo, saldoAnt, false) +
         '</div>' +
       '</div>' +
-      '<p class="chart-caption chart-fluxo-note">Fluxo = receitas − despesas do mês (sem sobra carregada do mês anterior). O KPI “Saldo do mês” pode incluir essa sobra.</p>'
+      '<p class="chart-caption chart-fluxo-note">Fluxo = receitas − despesas. Com carteira informada, o KPI principal mostra o saldo em conta; ajustes entram em Outros no gráfico de categorias.</p>'
     );
   }
 
@@ -1636,25 +1793,40 @@ async function exportPDF() {
     const saldoContaHtml = renderSaldoContaCard(mes);
 
     let saldoSub;
-    if (saldoAdj.carryOver > 0) {
+    let saldoLabel = 'Saldo do mês';
+    let saldoDeltaHtml;
+    if (saldoAdj.usaSaldoConta) {
+      saldoLabel = 'Saldo em conta';
+      saldoSub = 'fluxo do mês ' + formatBRL(saldoAdj.fluxo) + (saldoAdj.fluxo >= 0 ? ' de sobra' : ' de déficit');
+      saldoDeltaHtml = renderDelta(saldoAdj.fluxo, saldoAntAdj.fluxo, false);
+    } else if (saldoAdj.carryOver > 0) {
       saldoSub = 'inclui ' + formatBRL(saldoAdj.carryOver) + ' do mês anterior';
+      saldoDeltaHtml = renderDelta(saldoAdj.total, saldoAntAdj.total, false);
     } else if (saldoAdj.fluxo >= 0) {
       saldoSub = 'sobra no mês' + (taxaPoup !== null ? ' · ' + taxaPoup + '% da receita' : '');
+      saldoDeltaHtml = renderDelta(saldoAdj.total, saldoAntAdj.total, false);
     } else {
       saldoSub = 'déficit no mês';
+      saldoDeltaHtml = renderDelta(saldoAdj.total, saldoAntAdj.total, false);
     }
 
     const fluxoEmpty = chartPayload.fluxo.every(function (p) { return p.receitas === 0 && p.despesas === 0; });
+    const saldoNote = saldoAdj.usaSaldoConta
+      ? '<p class="dash-saldo-note">Saldo do mês = carteira. Fluxo e Outros (ajustes) aparecem nos gráficos.</p>'
+      : '';
 
     return (
       renderRenewalDashboardBanner() +
-      saldoContaHtml +
-      renderPendingBills(mes) +
-      '<div class="dash-bento dash-reveal">' +
+      '<div class="dash-top dash-reveal">' +
+        saldoContaHtml +
+        renderPendingBills(mes) +
+      '</div>' +
+      saldoNote +
+      '<div class="dash-bento dash-reveal' + (saldoAdj.usaSaldoConta ? ' dash-bento--synced' : '') + '">' +
         '<div class="kpi kpi-hero kpi-saldo ' + (saldoAdj.total >= 0 ? 'positive' : 'negative') + '">' +
-          '<span class="label">Saldo do mês</span>' +
+          '<span class="label">' + saldoLabel + '</span>' +
           '<div class="value mono">' + formatBRL(saldoAdj.total) + '</div>' +
-          renderDelta(saldoAdj.total, saldoAntAdj.total, false) +
+          saldoDeltaHtml +
           '<div class="sub">' + saldoSub + '</div>' +
           '<div class="kpi-sparkline kpi-sparkline-hero"><canvas id="sparkSaldo" aria-hidden="true"></canvas></div>' +
         '</div>' +
@@ -2085,7 +2257,7 @@ async function exportPDF() {
             '<div class="empty-action"><button type="button" class="btn btn-primary btn-sm" onclick="openModal()">+ Novo lançamento</button></div>' +
           '</div>' +
         '</div>' +
-        '<p class="footer-note previsao-footnote">Saldo do mês pode incluir sobra do mês anterior; acumulado parte do saldo em conta e soma o fluxo (receitas − despesas). Variáveis futuras não lançadas não entram.</p>'
+        '<p class="footer-note previsao-footnote">Com carteira informada, Saldo do mês = saldo em conta. Ajustes manuais e entradas viram Outros; o acumulado não conta o ajuste duas vezes.</p>'
       );
     }
 
@@ -2133,7 +2305,7 @@ async function exportPDF() {
           '<div class="mobile-cards">' + mobileCards + '</div>' +
         '</div>' +
       '</div>' +
-      '<p class="footer-note previsao-footnote">Saldo do mês pode incluir sobra do mês anterior; acumulado parte do saldo em conta e soma o fluxo (receitas − despesas). Variáveis futuras não lançadas não entram.</p>'
+      '<p class="footer-note previsao-footnote">Com carteira informada, Saldo do mês = saldo em conta. Ajustes manuais e entradas viram Outros; o acumulado não conta o ajuste duas vezes.</p>'
     );
   }
 
@@ -2769,6 +2941,7 @@ async function exportPDF() {
   window.togglePago = togglePago;
   window.anexarComprovante = anexarComprovante;
   window.verComprovante = verComprovante;
+  window.closeComprovanteDialog = closeComprovanteDialog;
   window.exportPDF = exportPDF;
   window.salvarOrcamentos = salvarOrcamentos;
   window.clearOrcamentoCategoria = clearOrcamentoCategoria;

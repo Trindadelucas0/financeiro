@@ -130,11 +130,11 @@
 .hero-saldo-conta {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 8px;
   width: 100%;
   margin: 0 0 10px;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: 10px;
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -142,18 +142,25 @@
   font-family: inherit;
   font-size: 13px;
   cursor: pointer;
+  min-height: 44px;
 }
 
 .hero-saldo-conta-label { color: var(--muted); }
-.hero-saldo-conta-value { font-weight: 600; }
+.hero-saldo-conta-value { font-weight: 600; font-variant-numeric: tabular-nums; }
 
 /* Quick actions */
 .quick-actions {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   padding-top: 12px;
   border-top: 1px solid var(--border);
+}
+
+@media (max-width: 379px) {
+  .quick-actions {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .qa-btn {
@@ -161,7 +168,7 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 10px 6px;
+  padding: 10px 4px;
   border-radius: 12px;
   background: var(--surface-2);
   border: 1px solid var(--border);
@@ -172,6 +179,8 @@
   font-family: inherit;
   text-decoration: none;
   transition: background 180ms var(--ease-out);
+  min-height: 64px;
+  justify-content: center;
 }
 
 .qa-btn:hover { background: var(--surface-3); }
@@ -601,14 +610,71 @@
 
 /* Dashboard — mobile shell refinements */
 @media (max-width: 768px) {
-  .layout-mobile-bank .dash-bento { gap: 10px; margin-bottom: 16px; }
-  .layout-mobile-bank .kpi-hero { padding: 18px; }
-  .layout-mobile-bank .kpi-hero .value { font-size: 1.85rem; }
-  .layout-mobile-bank .kpi-mini .value { font-size: 1.125rem; }
-  .layout-mobile-bank .chart-wrap.chart-fluxo { height: 220px; }
+  .layout-mobile-bank .dash-top,
+  .layout-desktop .dash-top {
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .layout-mobile-bank .dash-bento,
+  .layout-desktop .dash-bento { gap: 10px; margin-bottom: 16px; }
+  .layout-mobile-bank .kpi-hero,
+  .layout-desktop .kpi-hero { padding: 18px; }
+  .layout-mobile-bank .kpi-hero .value,
+  .layout-desktop .kpi-hero .value { font-size: 1.85rem; }
+  .layout-mobile-bank .kpi-mini .value,
+  .layout-desktop .kpi-mini .value { font-size: 1.125rem; }
+  .layout-mobile-bank .chart-wrap.chart-fluxo,
+  .layout-desktop .chart-wrap.chart-fluxo { height: 220px; }
   .layout-mobile-bank .donut-legend { grid-template-columns: 1fr; }
-  .layout-mobile-bank .panel { padding: 16px; }
-  .layout-mobile-bank .panel-head h3 { font-size: 14px; }
+  .layout-mobile-bank .panel,
+  .layout-desktop .panel { padding: 16px; }
+  .layout-mobile-bank .panel-head h3,
+  .layout-desktop .panel-head h3 { font-size: 14px; }
+
+  /* Hero já mostra o saldo — não repetir o KPI hero no telefone */
+  .dash-bento--synced {
+    grid-template-columns: 1fr 1fr;
+  }
+  .dash-bento--synced > .kpi-hero {
+    display: none;
+  }
+  .dash-bento--synced > .kpi-mini:nth-child(2) {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .dash-bento--synced > .kpi-mini:nth-child(3) {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .dash-bento--synced > .kpi-mini:nth-child(4) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .comprovante-block {
+    max-width: none;
+  }
+
+  .comprovante-dialog,
+  .comprovante-dialog[open] {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    border-radius: 20px 20px 0 0;
+    max-height: 90dvh;
+    position: fixed;
+    inset: auto 0 0 0;
+  }
+}
+
+@media (min-width: 769px) {
+  .layout-desktop .dash-bento--synced > .kpi-hero {
+    display: block;
+  }
+  .layout-desktop .dash-bento--synced > .kpi-mini:nth-child(2) { grid-column: 2; grid-row: 1; }
+  .layout-desktop .dash-bento--synced > .kpi-mini:nth-child(3) { grid-column: 2; grid-row: 2; }
+  .layout-desktop .dash-bento--synced > .kpi-mini:nth-child(4) { grid-column: 2; grid-row: 3; }
 }
 
 /* Modal bottom sheet — PWA / mobile (overrides layout-mobile-bank) */

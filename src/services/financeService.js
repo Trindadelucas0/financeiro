@@ -164,6 +164,11 @@ function entidadeDoItemDespesa(d) {
   return d.tipo === 'emprestimo' ? 'emprestimo' : 'despesa';
 }
 
+function isAjusteSaldoLancamento(item) {
+  if (!item || !item.nome) return false;
+  return item.nome === 'Ajuste de saldo em conta' || item.nome === 'Entrada em conta';
+}
+
 function getReceitasMes(receitas, mes) {
   const itens = receitas
     .filter((r) => receitaAtivaNoMes(r, mes))
@@ -186,6 +191,12 @@ function getDespesasMes(despesas, emprestimos, mes) {
     }));
   const itens = [...desp, ...emp];
   return { total: itens.reduce((s, d) => s + d.valorEfetivo, 0), itens };
+}
+
+function totalSemAjusteSaldo(itens) {
+  return (itens || [])
+    .filter((item) => !isAjusteSaldoLancamento(item))
+    .reduce((s, item) => s + Number(item.valorEfetivo || 0), 0);
 }
 
 function mapSettingsRow(s) {
@@ -234,7 +245,20 @@ function getSaldoFluxoMes(receitas, despesas, emprestimos, mes) {
 function getSaldoMesAjustado(receitas, despesas, emprestimos, mes, settings) {
   const { total: fluxo } = getSaldoFluxoMes(receitas, despesas, emprestimos, mes);
   const carryOver = settings.saldoCarryMes === mes ? (Number(settings.saldoCarryOver) || 0) : 0;
-  return { fluxo, carryOver, total: fluxo + carryOver };
+  const hasSaldoConta = Boolean(settings && settings.saldoContaAtualizadoEm);
+  const mesAoVivo = monthKeyOf(new Date());
+
+  // Com carteira informada no mês atual: Saldo do mês = saldo em conta (mesmo valor).
+  if (hasSaldoConta && mes === mesAoVivo) {
+    return {
+      fluxo,
+      carryOver,
+      total: Number(settings.saldoConta) || 0,
+      usaSaldoConta: true,
+    };
+  }
+
+  return { fluxo, carryOver, total: fluxo + carryOver, usaSaldoConta: false };
 }
 
 function computeCarryOnRollover(data, settings, mesReal) {
@@ -389,8 +413,10 @@ function buildForecastStrip(despesas, emprestimos, receitas, currentMonth, n = 6
   const nodes = [];
   for (let i = 0; i < n; i++) {
     const mes = addMonths(currentMonth, i);
-    const r = getReceitasMes(receitas, mes).total;
-    const d = getDespesasMes(despesas, emprestimos, mes).total;
+    const rec = getReceitasMes(receitas, mes);
+    const desp = getDespesasMes(despesas, emprestimos, mes);
+    const r = rec.total;
+    const d = desp.total;
     const fluxo = r - d;
     const carryOver = settings && settings.saldoCarryMes === mes
       ? (Number(settings.saldoCarryOver) || 0)
@@ -407,14 +433,19 @@ function buildPrevisao(despesas, emprestimos, receitas, startMonth, meses = 12, 
   const rows = [];
   for (let i = 0; i < meses; i++) {
     const mes = addMonths(startMonth, i);
-    const r = getReceitasMes(receitas, mes).total;
-    const d = getDespesasMes(despesas, emprestimos, mes).total;
+    const rec = getReceitasMes(receitas, mes);
+    const desp = getDespesasMes(despesas, emprestimos, mes);
+    const r = rec.total;
+    const d = desp.total;
     const fluxo = r - d;
+    // Ajuste de saldo já está embutido em saldoConta — não soma de novo no acumulado.
+    const fluxoSemAjuste =
+      totalSemAjusteSaldo(rec.itens) - totalSemAjusteSaldo(desp.itens);
     const carryOver = settings && settings.saldoCarryMes === mes
       ? (Number(settings.saldoCarryOver) || 0)
       : 0;
     const saldo = fluxo + carryOver;
-    cumulativo += fluxo;
+    cumulativo += hasSaldoConta ? fluxoSemAjuste : fluxo;
     rows.push({ mes, receitas: r, despesas: d, saldo, fluxo, carryOver, cumulativo });
   }
   return rows;
@@ -507,6 +538,49 @@ async function getSettings(userId) {
   return ensureMonthRollover(userId);
 }
 
+async function createAjusteSaldoLancamento(userId, { delta, mes, client }) {
+  const abs = Math.abs(Number(delta) || 0);
+  if (!abs || !mes) return null;
+
+  const db = client || getPool();
+
+  if (delta < 0) {
+    const { rows } = await db.query(
+      `INSERT INTO despesas (
+         user_id, nome, tipo, forma_pagamento, valor, valor_total, num_parcelas,
+         categoria, mes_inicio, duracao_meses, dia_vencimento
+       ) VALUES ($1, $2, 'variavel', 'avista', $3, NULL, NULL, 'Outros', $4, NULL, NULL)
+       RETURNING *`,
+      [userId, 'Ajuste de saldo em conta', abs, mes],
+    );
+    const despesa = mapDespesa(rows[0]);
+    await db.query(
+      `INSERT INTO pagamentos (user_id, entidade, item_id, mes, pago, data_hora, valor_efetivo)
+       VALUES ($1, 'despesa', $2, $3, TRUE, NOW(), $4)
+       ON CONFLICT (user_id, entidade, item_id, mes)
+       DO UPDATE SET pago = TRUE, valor_efetivo = COALESCE(pagamentos.valor_efetivo, EXCLUDED.valor_efetivo)`,
+      [userId, despesa.id, mes, abs],
+    );
+    return { tipo: 'despesa', item: despesa, mes, valor: abs };
+  }
+
+  const { rows } = await db.query(
+    `INSERT INTO receitas (user_id, nome, tipo, valor, categoria, mes_inicio, duracao_meses)
+     VALUES ($1, $2, 'variavel', $3, 'Outros', $4, NULL)
+     RETURNING *`,
+    [userId, 'Ajuste de saldo em conta', abs, mes],
+  );
+  const receita = mapReceita(rows[0]);
+  await db.query(
+    `INSERT INTO pagamentos (user_id, entidade, item_id, mes, pago, data_hora, valor_efetivo)
+     VALUES ($1, 'receita', $2, $3, TRUE, NOW(), $4)
+     ON CONFLICT (user_id, entidade, item_id, mes)
+     DO UPDATE SET pago = TRUE, valor_efetivo = COALESCE(pagamentos.valor_efetivo, EXCLUDED.valor_efetivo)`,
+    [userId, receita.id, mes, abs],
+  );
+  return { tipo: 'receita', item: receita, mes, valor: abs };
+}
+
 async function updateSettings(userId, { currentMonth, saldoConta }) {
   await ensureSettings(userId);
   await ensureMonthRollover(userId);
@@ -521,12 +595,13 @@ async function updateSettings(userId, { currentMonth, saldoConta }) {
     try {
       await client.query('BEGIN');
       const { rows: beforeRows } = await client.query(
-        'SELECT saldo_conta FROM user_settings WHERE user_id = $1 FOR UPDATE',
+        'SELECT saldo_conta, current_month FROM user_settings WHERE user_id = $1 FOR UPDATE',
         [userId],
       );
       const saldoAnterior = Number(beforeRows[0]?.saldo_conta) || 0;
       const saldoNovo = Number(saldoConta);
       const delta = saldoNovo - saldoAnterior;
+      const mesAjuste = currentMonth || beforeRows[0]?.current_month || monthKeyOf(new Date());
 
       const setFields = ['saldo_conta = $1', 'saldo_atualizado_em = NOW()'];
       const values = [saldoNovo];
@@ -544,18 +619,28 @@ async function updateSettings(userId, { currentMonth, saldoConta }) {
       );
 
       let movimento = null;
+      let ajusteLancamento = null;
       if (delta !== 0) {
         movimento = await registrarMovimentoSaldo(userId, {
           tipo: 'ajuste',
           valor: delta,
           saldoApos: saldoNovo,
-          descricao: 'Ajuste manual de saldo',
+          descricao: delta < 0
+            ? `Ajuste manual de saldo (−${Math.abs(delta).toFixed(2)} → despesa Outros)`
+            : `Ajuste manual de saldo (+${delta.toFixed(2)} → receita Outros)`,
         }, client);
+
+        // Diferença vira lançamento no mês (pago/recebido) sem mexer de novo no saldo_conta.
+        ajusteLancamento = await createAjusteSaldoLancamento(userId, {
+          delta,
+          mes: mesAjuste,
+          client,
+        });
       }
 
       await client.query('COMMIT');
       const { settings } = await loadUserFinanceData(userId);
-      return { settings, movimento };
+      return { settings, movimento, ajusteLancamento };
     } catch (err) {
       await client.query('ROLLBACK');
       throw err;
@@ -1020,6 +1105,30 @@ async function adjustSaldoConta(userId, delta, client) {
   );
 }
 
+async function createEntradaReceitaLancamento(userId, { valor, mes, descricao, client }) {
+  const abs = Math.abs(Number(valor) || 0);
+  if (!abs || !mes) return null;
+
+  const db = client || getPool();
+  const nome = 'Entrada em conta';
+
+  const { rows } = await db.query(
+    `INSERT INTO receitas (user_id, nome, tipo, valor, categoria, mes_inicio, duracao_meses)
+     VALUES ($1, $2, 'variavel', $3, 'Outros', $4, NULL)
+     RETURNING *`,
+    [userId, nome, abs, mes],
+  );
+  const receita = mapReceita(rows[0]);
+  await db.query(
+    `INSERT INTO pagamentos (user_id, entidade, item_id, mes, pago, data_hora, valor_efetivo)
+     VALUES ($1, 'receita', $2, $3, TRUE, NOW(), $4)
+     ON CONFLICT (user_id, entidade, item_id, mes)
+     DO UPDATE SET pago = TRUE, valor_efetivo = COALESCE(pagamentos.valor_efetivo, EXCLUDED.valor_efetivo)`,
+    [userId, receita.id, mes, abs],
+  );
+  return { tipo: 'receita', item: receita, mes, valor: abs };
+}
+
 async function registrarEntradaSaldo(userId, { valor, descricao }) {
   const v = Number(valor);
   if (!v || v <= 0) {
@@ -1028,6 +1137,7 @@ async function registrarEntradaSaldo(userId, { valor, descricao }) {
     throw err;
   }
   await ensureSettings(userId);
+  await ensureMonthRollover(userId);
   const pool = getPool();
   const client = await pool.connect();
 
@@ -1036,15 +1146,27 @@ async function registrarEntradaSaldo(userId, { valor, descricao }) {
     await lockSaldoConta(userId, client);
     await adjustSaldoConta(userId, v, client);
     const saldoApos = await getSaldoContaAtual(userId, client);
+    const { rows: settingsRows } = await client.query(
+      'SELECT current_month FROM user_settings WHERE user_id = $1',
+      [userId],
+    );
+    const mes = settingsRows[0]?.current_month || monthKeyOf(new Date());
     const movimento = await registrarMovimentoSaldo(userId, {
       tipo: 'entrada',
       valor: v,
       saldoApos,
       descricao: (descricao && String(descricao).trim()) || 'Entrada de dinheiro',
     }, client);
+    // Receita Outros já recebida — sem mexer de novo no saldo_conta.
+    const entradaLancamento = await createEntradaReceitaLancamento(userId, {
+      valor: v,
+      mes,
+      descricao,
+      client,
+    });
     await client.query('COMMIT');
     const settings = await getSettings(userId);
-    return { settings, movimento };
+    return { settings, movimento, entradaLancamento };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
@@ -1321,7 +1443,10 @@ async function getDashboard(userId, mes) {
         fluxo: saldoAjustado.fluxo,
         carryOver: saldoAjustado.carryOver,
         total: saldoAjustado.total,
-        delta: pctDelta(saldoAjustado.total, saldoAntAjustado.total),
+        usaSaldoConta: Boolean(saldoAjustado.usaSaldoConta),
+        delta: saldoAjustado.usaSaldoConta
+          ? pctDelta(saldoAjustado.fluxo, saldoAntAjustado.fluxo)
+          : pctDelta(saldoAjustado.total, saldoAntAjustado.total),
         positivo: saldoAjustado.total >= 0,
       },
       saldoDevedor: { total: saldoDevedor },

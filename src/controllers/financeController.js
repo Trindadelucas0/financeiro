@@ -34,7 +34,8 @@ async function putSettings(req, res, next) {
     const result = await financeService.updateSettings(userId(req), req.body);
     const settings = result.settings || result;
     const movimento = result.movimento || null;
-    return res.json({ settings, movimento });
+    const ajusteLancamento = result.ajusteLancamento || null;
+    return res.json({ settings, movimento, ajusteLancamento });
   } catch (err) {
     return next(err);
   }
@@ -173,6 +174,7 @@ async function postSaldoEntrada(req, res, next) {
     return res.json({
       settings: result.settings,
       movimento: result.movimento || null,
+      entradaLancamento: result.entradaLancamento || null,
     });
   } catch (err) {
     return next(err);
