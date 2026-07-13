@@ -1415,6 +1415,8 @@ async function getReportCharts(userId, mes) {
     6,
     data.settings,
   );
+
+  const despesas = getDespesasMes(data.despesas, data.emprestimos, currentMonth);
   const catBreakdown = getCategoriaBreakdown(despesas.itens);
   const categorias = catBreakdown.slice(0, 6).map(([label, valor]) => ({ label, valor }));
   if (catBreakdown.length > 6) {
