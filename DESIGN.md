@@ -102,34 +102,43 @@ Base 4px. Steps: 4 · 8 · 12 · 16 · 20 · 24 · 28 · 32 · 40 · 80 (footer)
 
 - Max-width app: 1280px
 - KPI grid: 4 col → 2 col @900px → 1 col @480px
-- Dashboard: KPI row → 3 panels → atrasados → forecast strip
+- Dashboard: status strip → core (bento + telemetria) → risk → fluxo → triad → forecast
 - Z-index scale: dropdown 10 · sticky 20 · modal-backdrop 40 · modal 50
 
-## Dashboard layout (bento)
+## Dashboard layout (HUD cockpit)
 
-Hierarquia assimétrica — **não** usar grid de 4 KPIs idênticos.
+Hierarquia assimétrica de command center — **não** usar grid de 4 KPIs idênticos. Referência visual: HUD tático (cantos em L, faixa de telemetria mono); paleta restrita preto/gelo; verde/vermelho só semânticos.
 
 | Componente | Spec |
 |------------|------|
-| `.dash-bento` | Grid `1.4fr 1fr` · hero saldo à esquerda · 3 mini KPIs à direita |
-| `.kpi-hero` | Saldo do mês focal · valor 2.25rem · glow verde/vermelho semântico · indicador lateral 3px |
-| `.kpi-mini` | Receitas, despesas, devedor · densos · sparkline 28px · indicador lateral 2px |
-| `.panel-hint-pill` | Meta mono em pill (`--surface-2`) no header dos painéis |
-| `.paid-progress` | Barra ice para % pago (contas a pagar + pagamentos do mês) |
+| `.dash-cockpit` | Wrapper do dashboard; body `.dash-cockpit-page` no shell |
+| `.hud-status` | Faixa fina: SYS · período · alertas · % pago · margem · devedor (mono 11–12px) |
+| `.hud-core` | Grid `1.55fr 0.7fr` · bento à esquerda · telemetria à direita |
+| `.hud-telemetry` | DL compacta: fluxo, carry-over, lançamentos, pendente, atrasados |
+| `.hud-frame` | Cantos em L (1px ice) via `::before/::after`; desligado ≤768px |
+| `.hud-risk` | Grid 2 col: saldo conta + contas a pagar; atrasados full-width |
+| `.hud-triad` / `.grid-3` | Pagamentos · categorias · alertas |
+| `.dash-bento` | Grid `1.4fr 1fr` · hero saldo · 3 mini KPIs |
+| `.kpi-hero` | Saldo focal · valor 2.25rem · glow verde/vermelho semântico |
+| `.kpi-mini` | Receitas, despesas, devedor · densos · sparkline |
+| `.panel-hint-pill` | Meta mono em pill (`--surface-2`) |
+| `.paid-progress` | Barra ice para % pago |
 | `.chart-empty` | Mensagem + CTA “+ Novo lançamento” |
+| `.alert-mark` | Marcador CSS (warn/due/info) — sem emoji |
 
-Ordem narrativa: pendências → saldo conta → bento KPIs → fluxo wide → grid 3 col → atrasados → projeção.
+Ordem narrativa: status → core (KPIs + telemetria) → risk (carteira + pendências + atrasados) → fluxo wide → triad → projeção.
 
-Mobile: hero full width → mini KPIs 2 col → stack painéis.
+Mobile: status compacto → core empilhado → telemetria → risk stack → painéis; cantos HUD desligados.
 
 ## Dashboard targets (visual)
 
-1. **Bento KPI row** — saldo hero + 3 métricas compactas (substitui 4 cards clones)
-2. **Fluxo do mês** — chart 280px, receitas ice / despesas vermelho
-3. **Pagamentos** — barra de progresso + donut antes do gráfico
-4. **Categorias** — donut + legenda grid 2 col
-5. **Timeline / projeção** — painéis wide com empty state acionável
-6. **Mobile** — bento stack + pending cards
+1. **Status strip** — telemetria do mês (alertas, % pago, margem)
+2. **Core** — bento KPI + painel telemetria
+3. **Risk** — saldo conta, contas a pagar, atrasados
+4. **Fluxo do mês** — chart 280px, receitas ice / despesas vermelho
+5. **Pagamentos / Categorias / Alertas** — triad
+6. **Projeção** — painel wide com empty state acionável
+7. **Mobile** — stack sem chrome HUD pesado + pending cards
 
 ## Profile page
 

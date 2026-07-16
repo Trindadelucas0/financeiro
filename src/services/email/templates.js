@@ -118,7 +118,7 @@ function weeklySummaryTemplate({
         <td style="padding:14px 16px;font-size:15px;color:#f87171;text-align:right;font-family:Consolas,Monaco,monospace;border-top:1px solid #243041;">${esc(formatBRLEmail(s.despesas))}</td>
       </tr>
       <tr>
-        <td style="padding:14px 16px;font-size:13px;color:#7b8a99;border-top:1px solid #243041;">Saldo do mês</td>
+        <td style="padding:14px 16px;font-size:13px;color:#7b8a99;border-top:1px solid #243041;">Fluxo do mês</td>
         <td style="padding:14px 16px;font-size:15px;color:#f3f7fb;text-align:right;font-family:Consolas,Monaco,monospace;border-top:1px solid #243041;">${esc(formatBRLEmail(s.saldo))}${carryNote}</td>
       </tr>
       <tr>

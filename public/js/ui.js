@@ -286,7 +286,7 @@
     var novo = parseMoneyInput(valorInput.value);
     var atual = window.FinanceApp && window.FinanceApp.getSaldoAtual ? window.FinanceApp.getSaldoAtual() : 0;
     if (novo != null && String(valorInput.value || '').trim() !== '') {
-      previewEl.textContent = 'Saldo atual ' + formatMoneyPreview(atual) + ' → Novo ' + formatMoneyPreview(novo);
+      previewEl.textContent = 'Saldo em conta ' + formatMoneyPreview(atual) + ' → Novo ' + formatMoneyPreview(novo);
       previewEl.hidden = false;
     } else {
       previewEl.hidden = true;

@@ -278,14 +278,14 @@
               pago: true,
               dataHora: new Date().toISOString(),
             };
-            toast('Saldo atualizado · diferença de ' + formatBRL(adj.valor) + ' lançada como despesa em Outros');
+            toast('Saldo em conta atualizado · diferença de ' + formatBRL(adj.valor) + ' lançada como despesa em Outros');
           } else if (adj.tipo === 'receita') {
             state.receitas = [adj.item].concat(state.receitas || []);
             state.pagamentos[chavePg('receita', adj.item.id, adj.mes)] = {
               pago: true,
               dataHora: new Date().toISOString(),
             };
-            toast('Saldo atualizado · diferença de ' + formatBRL(adj.valor) + ' lançada como receita em Outros');
+            toast('Saldo em conta atualizado · diferença de ' + formatBRL(adj.valor) + ' lançada como receita em Outros');
           }
         } else {
           toast('Saldo em conta atualizado · ' + formatBRL(state.saldoConta));
@@ -1028,7 +1028,7 @@ async function exportPDF() {
     const fluxo = receitas.total - despesas.total;
     const carryOver = state.saldoCarryMes === mes ? (Number(state.saldoCarryOver) || 0) : 0;
     const mesAoVivo = monthKeyOf(new Date());
-    // Com carteira informada no mês atual: Saldo do mês = saldo em conta.
+    // Com carteira informada no mês calendário atual: número principal = saldo em conta.
     if (state.saldoContaAtualizadoEm && mes === mesAoVivo) {
       return {
         fluxo: fluxo,
@@ -1223,7 +1223,7 @@ async function exportPDF() {
     return (
       '<div class="forecast-summary">' +
         '<div class="forecast-summary-stat">' +
-          '<span class="forecast-summary-label">Saldo médio mensal</span>' +
+          '<span class="forecast-summary-label">Fluxo médio mensal</span>' +
           '<span class="forecast-summary-value mono ' + avgCls + '">' + formatBRL(summary.avgSaldo) + '</span>' +
         '</div>' +
         '<div class="forecast-summary-stat">' +
@@ -1231,7 +1231,7 @@ async function exportPDF() {
           '<span class="forecast-summary-value mono ' + negCls + '">' + summary.mesesNegativos + '<span class="forecast-summary-of">/6</span></span>' +
         '</div>' +
         '<div class="forecast-summary-stat">' +
-          '<span class="forecast-summary-label">Saldo acumulado</span>' +
+          '<span class="forecast-summary-label">Acumulado projetado</span>' +
           '<span class="forecast-summary-value mono ' + acumCls + '">' + formatBRL(summary.saldoAcumulado) + '</span>' +
         '</div>' +
       '</div>'
@@ -1241,7 +1241,7 @@ async function exportPDF() {
   function renderForecastStrip(forecast, mode) {
     const isRail = mode === 'rail';
     const stripCls = 'forecast-strip' + (isRail ? ' forecast-strip--rail' : '');
-    const ariaLabel = isRail ? 'Selecionar mês da previsão' : 'Saldo projetado por mês';
+    const ariaLabel = isRail ? 'Selecionar mês da previsão' : 'Fluxo projetado por mês';
     return (
       '<div class="' + stripCls + '" role="list" aria-label="' + ariaLabel + '">' +
         forecast.map(function (f, i) {
@@ -1530,7 +1530,7 @@ async function exportPDF() {
     const heroMonthMeta = document.getElementById('heroMonthMeta');
     const heroLabel = document.querySelector('.hero-label');
     if (heroLabel) {
-      heroLabel.textContent = saldoAdj.usaSaldoConta ? 'Saldo em conta' : 'Saldo do mês';
+      heroLabel.textContent = saldoAdj.usaSaldoConta ? 'Saldo em conta' : 'Fluxo do mês';
     }
     if (heroSaldo) {
       heroSaldo.textContent = formatBRL(saldoAdj.total);
@@ -1542,7 +1542,11 @@ async function exportPDF() {
       heroInner.classList.toggle('negative', saldoAdj.total < 0);
     }
     if (heroMonthMeta) {
+      const fluxoMeta = saldoAdj.usaSaldoConta
+        ? 'Fluxo ' + formatBRL(saldoAdj.fluxo) + ' · '
+        : '';
       heroMonthMeta.innerHTML =
+        fluxoMeta +
         '<span class="meta-in">Receitas ' + formatBRL(receitas.total) + '</span>' +
         ' · <span class="meta-out">Despesas ' + formatBRL(despesas.total) + '</span>';
     }
@@ -2062,7 +2066,7 @@ async function exportPDF() {
     const mesLabel = monthLabelShort(mes);
 
     let saldoSub;
-    let saldoLabel = 'Saldo do mês';
+    let saldoLabel = 'Fluxo do mês';
     let saldoDeltaHtml;
     if (saldoAdj.usaSaldoConta) {
       saldoLabel = 'Saldo em conta';
@@ -2081,7 +2085,7 @@ async function exportPDF() {
 
     const fluxoEmpty = chartPayload.fluxo.every(function (p) { return p.receitas === 0 && p.despesas === 0; });
     const saldoNote = saldoAdj.usaSaldoConta
-      ? '<p class="dash-saldo-note">Saldo do mês = carteira. Fluxo e Outros (ajustes) aparecem nos gráficos.</p>'
+      ? '<p class="dash-saldo-note">Número principal = saldo em conta. O fluxo do mês (receitas − despesas) aparece nos gráficos e na telemetria.</p>'
       : '';
 
     const overdueHtml = renderOverduePanel(atrasados);
@@ -2563,7 +2567,7 @@ async function exportPDF() {
             '<div class="empty-action"><button type="button" class="btn btn-primary btn-sm" onclick="openModal()">+ Novo lançamento</button></div>' +
           '</div>' +
         '</div>' +
-        '<p class="footer-note previsao-footnote">Com carteira informada, Saldo do mês = saldo em conta. Ajustes manuais e entradas viram Outros; o acumulado não conta o ajuste duas vezes.</p>'
+        '<p class="footer-note previsao-footnote">Com carteira informada, o acumulado parte do saldo em conta. Fluxo = receitas − despesas do mês (sem misturar com a carteira). Ajustes e entradas viram Outros.</p>'
       );
     }
 
@@ -2582,7 +2586,7 @@ async function exportPDF() {
             '<strong>' + monthLabel(row.mes) + (row.isCurrent ? ' · atual' : '') + '</strong>' +
             '<span class="m-card-head-meta">' +
               renderPrevisaoTrendChip(row, prev) +
-              '<span class="mono ' + (row.saldo >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(row.saldo) + '</span>' +
+              '<span class="mono ' + (row.saldo >= 0 ? 'val-pos' : 'val-neg') + '" title="Fluxo do mês">' + formatBRL(row.saldo) + '</span>' +
             '</span>' +
           '</div>' +
           '<div class="m-card-row"><span>Receitas</span><span class="mono val-pos">' + formatBRL(row.receitas) + '</span></div>' +
@@ -2595,7 +2599,7 @@ async function exportPDF() {
     const summaryHtml = (
       '<div class="forecast-summary previsao-summary">' +
         '<div class="forecast-summary-stat">' +
-          '<span class="forecast-summary-label">Saldo médio mensal</span>' +
+          '<span class="forecast-summary-label">Fluxo médio mensal</span>' +
           '<span class="forecast-summary-value mono ' + (summary.avgSaldo >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(summary.avgSaldo) + '</span>' +
         '</div>' +
         '<div class="forecast-summary-stat">' +
@@ -2603,7 +2607,7 @@ async function exportPDF() {
           '<span class="forecast-summary-value mono' + (summary.mesesNegativos > 0 ? ' val-neg' : '') + '">' + summary.mesesNegativos + '<span class="forecast-summary-of">/' + N + '</span></span>' +
         '</div>' +
         '<div class="forecast-summary-stat">' +
-          '<span class="forecast-summary-label">Saldo acumulado</span>' +
+          '<span class="forecast-summary-label">Acumulado projetado</span>' +
           '<span class="forecast-summary-value mono ' + (summary.saldoAcumulado >= 0 ? 'val-pos' : 'val-neg') + '">' + formatBRL(summary.saldoAcumulado) + '</span>' +
         '</div>' +
       '</div>'
@@ -2617,11 +2621,11 @@ async function exportPDF() {
         '<div class="chart-wrap chart-proj"><canvas id="chartPrevisao" role="img" aria-label="Gráfico de previsão"></canvas></div>' +
         renderForecastStrip(forecast, stripMode) +
         '<div class="table-wrap previsao-table-wrap">' +
-          '<table><thead><tr><th>Mês</th><th>Receitas</th><th>Despesas</th><th>Saldo</th><th>Acumulado</th></tr></thead><tbody>' + tableRows + '</tbody></table>' +
+          '<table><thead><tr><th>Mês</th><th>Receitas</th><th>Despesas</th><th>Fluxo</th><th>Acumulado</th></tr></thead><tbody>' + tableRows + '</tbody></table>' +
           '<div class="mobile-cards">' + mobileCards + '</div>' +
         '</div>' +
       '</div>' +
-      '<p class="footer-note previsao-footnote">Com carteira informada, Saldo do mês = saldo em conta. Ajustes manuais e entradas viram Outros; o acumulado não conta o ajuste duas vezes.</p>'
+      '<p class="footer-note previsao-footnote">Com carteira informada, o acumulado parte do saldo em conta. Fluxo = receitas − despesas do mês (sem misturar com a carteira). Ajustes e entradas viram Outros.</p>'
     );
   }
 

@@ -248,7 +248,7 @@ function getSaldoMesAjustado(receitas, despesas, emprestimos, mes, settings) {
   const hasSaldoConta = Boolean(settings && settings.saldoContaAtualizadoEm);
   const mesAoVivo = monthKeyOf(new Date());
 
-  // Com carteira informada no mês atual: Saldo do mês = saldo em conta (mesmo valor).
+  // Com carteira informada no mês calendário atual: número principal = saldo em conta.
   if (hasSaldoConta && mes === mesAoVivo) {
     return {
       fluxo,
