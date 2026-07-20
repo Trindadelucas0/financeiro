@@ -29,6 +29,7 @@
   }
 
   let clients = [];
+  let siteSignups = [];
   let clientModalSnapshot = null;
   let clientModalSubmitting = false;
 
@@ -46,11 +47,20 @@
     if (sub.isLifetime || client.accessGrantType === 'lifetime') {
       return { label: 'Vitalício', pill: 'active' };
     }
+    if (sub.isTrial && sub.isPro) {
+      if (sub.renewalDueSoon) {
+        return { label: 'Trial — vence em ' + sub.daysUntilExpiry + ' dia(s)', pill: 'warning' };
+      }
+      return { label: 'Trial ativo', pill: 'active' };
+    }
     if (sub.isPro) {
       if (sub.renewalDueSoon) {
         return { label: 'Vence em ' + sub.daysUntilExpiry + ' dia(s)', pill: 'warning' };
       }
       return { label: 'Ativo', pill: 'active' };
+    }
+    if (client.accessGrantType === 'trial') {
+      return { label: 'Trial expirado', pill: 'inactive' };
     }
     return { label: 'Expirado', pill: 'inactive' };
   }
@@ -78,12 +88,39 @@
     };
   }
 
+  function renderClientRows(items, paymentFnName) {
+    if (items.length === 0) {
+      return '<tr><td colspan="6"><div class="empty-state">Nenhum cadastro nesta lista.</div></td></tr>';
+    }
+
+    return items.map(function (c) {
+      const st = clientStatus(c);
+      const sub = c.subscription || {};
+      return '<tr>' +
+        '<td>' + esc(c.nome) + '</td>' +
+        '<td>' + esc(c.email) + '</td>' +
+        '<td><span class="status-pill ' + esc(st.pill) + '">' + esc(st.label) + '</span></td>' +
+        '<td class="mono">' + esc(sub.isLifetime ? 'Vitalício' : formatDate(sub.currentPeriodEnd || sub.trialEndsAt)) + '</td>' +
+        '<td class="mono">' + esc(formatDate(c.createdAt)) + '</td>' +
+        '<td class="row-actions">' +
+          (sub.isLifetime
+            ? '<span class="hint">—</span>'
+            : '<button type="button" class="btn btn-primary btn-sm" onclick="' + paymentFnName + '(\'' + c.id + '\')">Registrar pagamento</button>') +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }
+
   async function loadClients() {
     const view = document.getElementById('adminClientsView');
     view.innerHTML = '<div class="loading-state">Carregando…</div>';
     try {
-      const data = await apiFetch('/api/admin/clients');
-      clients = data.clients || [];
+      const [manualData, siteData] = await Promise.all([
+        apiFetch('/api/admin/clients'),
+        apiFetch('/api/admin/site-signups'),
+      ]);
+      clients = manualData.clients || [];
+      siteSignups = siteData.clients || [];
       renderClients();
     } catch (err) {
       view.innerHTML = '<div class="empty-state">' + esc(err.message) + '</div>';
@@ -92,37 +129,41 @@
 
   function renderClients() {
     const view = document.getElementById('adminClientsView');
-    const summary = computeSummary(clients);
+    const all = clients.concat(siteSignups);
+    const summary = computeSummary(all);
+    const siteSummary = computeSummary(siteSignups);
+    const manualSummary = computeSummary(clients);
 
     view.innerHTML =
       '<div class="kpi-grid admin-clients-summary">' +
-        '<div class="kpi accent-neutral"><span class="label">Total</span><span class="value">' + summary.total + '</span><span class="sub">clientes manuais</span></div>' +
+        '<div class="kpi accent-neutral"><span class="label">Total</span><span class="value">' + summary.total + '</span><span class="sub">site + manuais</span></div>' +
         '<div class="kpi accent-green"><span class="label">Ativos</span><span class="value">' + summary.active + '</span><span class="sub">assinatura vigente</span></div>' +
         '<div class="kpi accent-amber"><span class="label">Vencendo</span><span class="value">' + summary.dueSoon + '</span><span class="sub">até 4 dias</span></div>' +
         '<div class="kpi accent-red"><span class="label">Expirados</span><span class="value">' + summary.expired + '</span><span class="sub">sem acesso Pro</span></div>' +
       '</div>' +
 
-      '<div class="section-title-row"><h2>Clientes</h2><button type="button" class="btn btn-primary btn-sm" onclick="openClientModal()">+ Novo cliente</button></div>' +
-      '<p class="hint admin-clients-hint">Cadastre quem paga direto para você. Escolha vitalício ou acesso inicial de 30 dias; depois renove com &quot;Registrar pagamento&quot;.</p>' +
-      '<div class="panel"><div class="table-wrap"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Status</th><th>Vencimento</th><th>Cadastro</th><th></th></tr></thead><tbody>' +
+      '<div class="section-title-row"><h2>Cadastros do site (trial 7 dias)</h2></div>' +
+      '<p class="hint admin-clients-hint">Quem se cadastrou sozinho em /cadastro. Trial de 7 dias; depois precisa pagar. '
+        + 'Ativos: ' + siteSummary.active + ' · Expirados: ' + siteSummary.expired + '.</p>' +
+      '<div class="panel"><div class="table-wrap"><table><thead><tr>' +
+        '<th>Nome</th><th>E-mail</th><th>Status</th><th>Vencimento</th><th>Cadastro</th><th></th>' +
+      '</tr></thead><tbody>' +
+      (siteSignups.length === 0
+        ? '<tr><td colspan="6"><div class="empty-state">Nenhum cadastro pelo site ainda.</div></td></tr>'
+        : renderClientRows(siteSignups, 'registerSitePayment')) +
+      '</tbody></table></div></div>' +
+
+      '<div class="section-title-row"><h2>Clientes manuais</h2>'
+        + '<button type="button" class="btn btn-primary btn-sm" onclick="openClientModal()">+ Novo cliente</button></div>' +
+      '<p class="hint admin-clients-hint">Cadastre quem paga direto para você. Escolha vitalício ou acesso inicial de 30 dias; '
+        + 'depois renove com &quot;Registrar pagamento&quot;. Ativos: ' + manualSummary.active
+        + ' · Expirados: ' + manualSummary.expired + '.</p>' +
+      '<div class="panel"><div class="table-wrap"><table><thead><tr>' +
+        '<th>Nome</th><th>E-mail</th><th>Status</th><th>Vencimento</th><th>Cadastro</th><th></th>' +
+      '</tr></thead><tbody>' +
       (clients.length === 0
         ? '<tr><td colspan="6"><div class="empty-state">Nenhum cliente manual cadastrado.</div></td></tr>'
-        : clients.map(function (c) {
-          const st = clientStatus(c);
-          const sub = c.subscription || {};
-          return '<tr>' +
-            '<td>' + esc(c.nome) + '</td>' +
-            '<td>' + esc(c.email) + '</td>' +
-            '<td><span class="status-pill ' + esc(st.pill) + '">' + esc(st.label) + '</span></td>' +
-            '<td class="mono">' + esc(sub.isLifetime ? 'Vitalício' : formatDate(sub.currentPeriodEnd)) + '</td>' +
-            '<td class="mono">' + esc(formatDate(c.createdAt)) + '</td>' +
-            '<td class="row-actions">' +
-              (sub.isLifetime
-                ? '<span class="hint">—</span>'
-                : '<button type="button" class="btn btn-primary btn-sm" onclick="registerPayment(\'' + c.id + '\')">Registrar pagamento</button>') +
-            '</td>' +
-          '</tr>';
-        }).join('')) +
+        : renderClientRows(clients, 'registerPayment')) +
       '</tbody></table></div></div>';
   }
 
@@ -238,8 +279,8 @@
     if (first) first.focus();
   }
 
-  async function registerPayment(id) {
-    const client = clients.find(function (c) { return String(c.id) === String(id); });
+  async function confirmAndRegisterPayment(id, list, endpoint) {
+    const client = list.find(function (c) { return String(c.id) === String(id); });
     if (!client) return;
 
     const ok = window.FinanceUI
@@ -254,13 +295,21 @@
     if (!ok) return;
 
     try {
-      const data = await apiFetch('/api/admin/clients/' + id + '/payments', { method: 'POST', body: {} });
+      const data = await apiFetch(endpoint, { method: 'POST', body: {} });
       const end = data.periodEnd ? formatDate(data.periodEnd) : '';
       toast('Pagamento registrado. Novo vencimento: ' + end);
       loadClients();
     } catch (err) {
       toast(err.message, 'error');
     }
+  }
+
+  async function registerPayment(id) {
+    await confirmAndRegisterPayment(id, clients, '/api/admin/clients/' + id + '/payments');
+  }
+
+  async function registerSitePayment(id) {
+    await confirmAndRegisterPayment(id, siteSignups, '/api/admin/site-signups/' + id + '/payments');
   }
 
   function showInitError(msg) {
@@ -293,7 +342,7 @@
       await loadClients();
     } catch (err) {
       console.error('[admin-clients]', err);
-      showInitError(err.message || 'Erro ao carregar clientes manuais.');
+      showInitError(err.message || 'Erro ao carregar clientes.');
     }
   }
 
@@ -310,6 +359,7 @@
 
   window.openClientModal = openClientModal;
   window.registerPayment = registerPayment;
+  window.registerSitePayment = registerSitePayment;
   window.closeClientModal = closeClientModal;
   window.requestCloseClientModal = requestCloseClientModal;
 

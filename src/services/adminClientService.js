@@ -19,58 +19,74 @@ async function ensureUserSettings(client, userId) {
   );
 }
 
-function mapManualClient(row) {
+const CLIENT_SELECT = `
+  id, nome, username, email, role, ativo, must_change_password, created_at,
+  plan, subscription_status, subscription_current_period_end, billing_source,
+  access_grant_type
+`;
+
+function mapBillableClient(row) {
   return {
     ...mapUser(row),
-    billingSource: row.billing_source || 'manual',
+    billingSource: row.billing_source || 'site',
     accessGrantType: row.access_grant_type || null,
     subscription: subscriptionService.mapSubscription(row),
   };
 }
 
-async function expireManualClientsIfNeeded() {
+async function expireClientsBySourceIfNeeded(billingSource) {
   const pool = getPool();
   await pool.query(
     `UPDATE users
      SET plan = 'free', subscription_status = 'expired'
-     WHERE billing_source = 'manual'
+     WHERE billing_source = $1
        AND plan = 'pro'
        AND role != 'admin'
        AND COALESCE(access_grant_type, '') != 'lifetime'
        AND COALESCE(subscription_status, '') != 'lifetime'
        AND subscription_current_period_end IS NOT NULL
        AND subscription_current_period_end <= NOW()`,
+    [billingSource],
   );
 }
 
-async function getManualClientById(userId) {
+async function getBillableClientById(userId, billingSource) {
   const pool = getPool();
   const { rows } = await pool.query(
-    `SELECT id, nome, username, email, role, ativo, must_change_password, created_at,
-            plan, subscription_status, subscription_current_period_end, billing_source,
-            access_grant_type
+    `SELECT ${CLIENT_SELECT}
      FROM users
-     WHERE id = $1 AND billing_source = 'manual'
+     WHERE id = $1 AND billing_source = $2
      LIMIT 1`,
-    [userId],
+    [userId, billingSource],
   );
   return rows[0] || null;
 }
 
-async function listManualClients() {
-  await expireManualClientsIfNeeded();
+async function getManualClientById(userId) {
+  return getBillableClientById(userId, 'manual');
+}
+
+async function listClientsBySource(billingSource) {
+  await expireClientsBySourceIfNeeded(billingSource);
 
   const pool = getPool();
   const { rows } = await pool.query(
-    `SELECT id, nome, username, email, role, ativo, must_change_password, created_at,
-            plan, subscription_status, subscription_current_period_end, billing_source,
-            access_grant_type
+    `SELECT ${CLIENT_SELECT}
      FROM users
-     WHERE billing_source = 'manual'
+     WHERE billing_source = $1 AND role != 'admin'
      ORDER BY created_at DESC`,
+    [billingSource],
   );
 
-  return rows.map(mapManualClient);
+  return rows.map(mapBillableClient);
+}
+
+async function listManualClients() {
+  return listClientsBySource('manual');
+}
+
+async function listSiteSignups() {
+  return listClientsBySource('site');
 }
 
 async function createManualClient({ nome, email, password, accessGrant = 'trial' }) {
@@ -141,7 +157,7 @@ async function createManualClient({ nome, email, password, accessGrant = 'trial'
     }
 
     const refreshed = await getManualClientById(userRow.id);
-    const clientData = mapManualClient(refreshed || userRow);
+    const clientData = mapBillableClient(refreshed || userRow);
 
     return {
       client: clientData,
@@ -165,12 +181,13 @@ async function createManualClient({ nome, email, password, accessGrant = 'trial'
   }
 }
 
-async function registerManualPayment(userId, { days } = {}) {
+async function registerClientPayment(userId, { days, billingSource = 'manual' } = {}) {
+  const source = billingSource === 'site' ? 'site' : 'manual';
   const accessDays = Number(days) > 0 ? Number(days) : PRO_PLAN.accessDays;
-  const row = await getManualClientById(userId);
+  const row = await getBillableClientById(userId, source);
 
   if (!row) {
-    const err = new Error('Cliente manual não encontrado');
+    const err = new Error(source === 'site' ? 'Cadastro do site não encontrado' : 'Cliente manual não encontrado');
     err.status = 404;
     throw err;
   }
@@ -187,13 +204,9 @@ async function registerManualPayment(userId, { days } = {}) {
     throw err;
   }
 
-  const periodEnd = await subscriptionService.grantProAccess(userId, accessDays);
-  const pool = getPool();
-
-  await pool.query(
-    `UPDATE users SET access_grant_type = 'paid' WHERE id = $1`,
-    [userId],
-  );
+  const periodEnd = await subscriptionService.grantProAccess(userId, accessDays, {
+    accessGrantType: 'paid',
+  });
 
   await paymentOrderService.createManualPaidOrder({
     userId,
@@ -202,16 +215,22 @@ async function registerManualPayment(userId, { days } = {}) {
     amountCents: MANUAL_AMOUNT_CENTS,
   });
 
-  const refreshed = await getManualClientById(userId);
+  const refreshed = await getBillableClientById(userId, source);
 
   return {
-    client: mapManualClient(refreshed || row),
+    client: mapBillableClient(refreshed || row),
     periodEnd,
   };
 }
 
+async function registerManualPayment(userId, opts = {}) {
+  return registerClientPayment(userId, { ...opts, billingSource: 'manual' });
+}
+
 module.exports = {
   listManualClients,
+  listSiteSignups,
   createManualClient,
   registerManualPayment,
+  registerClientPayment,
 };

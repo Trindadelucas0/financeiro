@@ -38,6 +38,15 @@ async function listClients(req, res, next) {
   }
 }
 
+async function listSiteSignups(req, res, next) {
+  try {
+    const clients = await adminClientService.listSiteSignups();
+    return res.json({ clients });
+  } catch (err) {
+    return next(err);
+  }
+}
+
 async function createClient(req, res, next) {
   try {
     const result = await adminClientService.createManualClient(req.body);
@@ -56,13 +65,27 @@ async function registerClientPayment(req, res, next) {
   }
 }
 
+async function registerSiteSignupPayment(req, res, next) {
+  try {
+    const result = await adminClientService.registerClientPayment(req.params.id, {
+      ...req.body,
+      billingSource: 'site',
+    });
+    return res.json(result);
+  } catch (err) {
+    return next(err);
+  }
+}
+
 module.exports = {
   createUser,
   listUsers,
   patchUser,
   listClients,
+  listSiteSignups,
   createClient,
   registerClientPayment,
+  registerSiteSignupPayment,
   listFeedback: profileController.listFeedback,
   patchFeedback: profileController.patchFeedback,
 };

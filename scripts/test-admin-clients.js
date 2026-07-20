@@ -160,6 +160,15 @@ async function main() {
 
   if (adminToken) {
     try {
+      const { status, data } = await request('/api/admin/site-signups', { token: adminToken });
+      assert(status === 200, `esperado 200, got ${status}`);
+      assert(Array.isArray(data.clients), 'clients deve ser array');
+      pass('GET /api/admin/site-signups lista cadastros do site');
+    } catch (e) { fail('Listar cadastros do site', e); }
+  }
+
+  if (adminToken) {
+    try {
       const { status } = await request('/api/admin/clients', {
         method: 'POST',
         token: adminToken,
